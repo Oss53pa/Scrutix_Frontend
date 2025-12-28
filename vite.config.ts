@@ -1,28 +1,14 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { viteSingleFile } from 'vite-plugin-singlefile'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  optimizeDeps: {
-    exclude: ['lucide-react'],
-  },
+  plugins: [react(), viteSingleFile()],
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // Vendor chunks - split large libraries
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-charts': ['recharts'],
-          'vendor-pdf': ['pdfjs-dist'],
-          'vendor-excel': ['exceljs', 'papaparse'],
-          'vendor-export': ['jspdf', 'jspdf-autotable'],
-          'vendor-ocr': ['tesseract.js'],
-          'vendor-utils': ['date-fns', 'uuid', 'zustand'],
-        },
-      },
-    },
-    // Increase warning limit since we're now properly chunking
-    chunkSizeWarningLimit: 800,
-  },
-});
+    target: 'esnext',
+    assetsInlineLimit: 100000000,
+    chunkSizeWarningLimit: 100000000,
+    cssCodeSplit: false,
+    reportCompressedSize: false,
+  }
+})
