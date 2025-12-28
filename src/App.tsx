@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { MainLayout } from './components/layout';
 import { ErrorBoundary } from './components/ui';
 import { useBankStore } from './store/bankStore';
+import { LoginScreen, isAuthenticated } from './components/auth';
 
 // Lazy load all pages for code splitting
 const HomePage = lazy(() => import('./components/home').then(m => ({ default: m.HomePage })));
@@ -30,11 +31,17 @@ function PageLoader() {
 
 function App() {
   const { initializeDefaults } = useBankStore();
+  const [authenticated, setAuthenticated] = useState(isAuthenticated());
 
   // Initialize default banks on first load
   useEffect(() => {
     initializeDefaults();
   }, [initializeDefaults]);
+
+  // Show login screen if not authenticated
+  if (!authenticated) {
+    return <LoginScreen onSuccess={() => setAuthenticated(true)} />;
+  }
 
   return (
     <ErrorBoundary>
