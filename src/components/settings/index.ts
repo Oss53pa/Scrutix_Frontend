@@ -1,0 +1,10 @@
+export { SettingsPage } from './SettingsPage';
+export { IASettings } from './IASettings';
+export { AIProviderSettings } from './AIProviderSettings';
+export { DetectionSettings } from './DetectionSettings';
+export { AlgorithmsInfo } from './AlgorithmsInfo';
+export { PreferencesSettings } from './PreferencesSettings';
+export { CloudBackupSettings } from './CloudBackupSettings';
+export { RegulatorySourcesSettings } from './RegulatorySourcesSettings';
+export { OrganizationSettings } from './OrganizationSettings';
+export { AboutSettings } from './AboutSettings';
