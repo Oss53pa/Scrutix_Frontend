@@ -22,7 +22,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
     // Simulate a small delay for UX
     setTimeout(() => {
-      if (password === ACCESS_PASSWORD) {
+      if (password.trim() === ACCESS_PASSWORD) {
         localStorage.setItem(AUTH_KEY, 'true');
         onSuccess();
       } else {
@@ -39,10 +39,10 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl mb-4">
-            <span className="text-4xl font-bold text-white">S</span>
+            <span className="font-display text-5xl text-white">S</span>
           </div>
-          <h1 className="text-3xl font-bold text-white">Scrutix</h1>
-          <p className="text-primary-200 mt-2">Audit Bancaire Intelligent</p>
+          <h1 className="font-display text-4xl text-white">Scrutix</h1>
+          <p className="font-display text-xl text-primary-200 mt-2">Audit Bancaire Intelligent</p>
         </div>
 
         {/* Login Card */}
