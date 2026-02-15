@@ -7,10 +7,7 @@ import {
   ZoomOut,
   Download,
   Printer,
-  Share2,
   MessageSquare,
-  Edit3,
-  Eye,
   Maximize2,
   Minimize2,
   FileText,
@@ -60,8 +57,8 @@ export function ReportViewer({
   const [showSidebar, setShowSidebar] = useState(true);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('content');
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [editingCover, setEditingCover] = useState(false);
-  const [editingBackCover, setEditingBackCover] = useState(false);
+  const [_editingCover, setEditingCover] = useState(false);
+  const [_editingBackCover, setEditingBackCover] = useState(false);
 
   // Local state for editable report
   const [localReport, setLocalReport] = useState<FullReport>(report);

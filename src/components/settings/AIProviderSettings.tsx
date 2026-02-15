@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import {
   Brain,
-  Key,
   Eye,
   EyeOff,
   CheckCircle,
   XCircle,
   Loader2,
-  Thermometer,
   Save,
   Server,
   Cloud,
@@ -24,7 +22,6 @@ import {
   Button,
   Input,
   Select,
-  InfoTooltip,
 } from '../ui';
 import { useSettingsStore, AIProviderType, AIProviderConfig } from '../../store';
 import { AIProviderFactory } from '../../ai';
@@ -121,7 +118,7 @@ export function AIProviderSettings({ onSave }: AIProviderSettingsProps) {
     aiProviders,
     setActiveAIProvider,
     updateProviderConfig,
-    getActiveAIConfig,
+    getActiveAIConfig: _getActiveAIConfig,
   } = useSettingsStore();
 
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({});

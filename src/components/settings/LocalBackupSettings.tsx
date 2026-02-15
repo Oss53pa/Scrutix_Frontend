@@ -47,7 +47,7 @@ export function LocalBackupSettings() {
       const data = BackupService.exportSettings();
       BackupService.downloadBackup(data);
       setSuccess('Parametres exportes avec succes');
-    } catch (err) {
+    } catch (_err) {
       setError('Erreur lors de l\'export des parametres');
     }
   };
@@ -59,7 +59,7 @@ export function LocalBackupSettings() {
       const data = BackupService.exportAll();
       BackupService.downloadBackup(data);
       setSuccess('Sauvegarde complete exportee avec succes');
-    } catch (err) {
+    } catch (_err) {
       setError('Erreur lors de l\'export complet');
     }
   };
@@ -106,7 +106,7 @@ export function LocalBackupSettings() {
         setSuccess('Parametres restaures avec succes. Rechargement...');
         setTimeout(() => window.location.reload(), 1500);
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Erreur lors de la restauration');
     } finally {
       setPreviewData(null);

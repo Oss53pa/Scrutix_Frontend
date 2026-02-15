@@ -1,4 +1,4 @@
-import { Info, Shield, Brain, Globe, Database, Cpu, BookOpen, Zap } from 'lucide-react';
+import { Info, Shield, Brain, Globe, Cpu, BookOpen, Zap } from 'lucide-react';
 import { Card, CardBody } from '../ui';
 
 export function AboutSettings() {

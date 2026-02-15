@@ -1,8 +1,6 @@
 import {
   Transaction,
   Anomaly,
-  AnomalyType,
-  Severity,
   BankConditions,
   AIAuditResponse,
   AIFinding,

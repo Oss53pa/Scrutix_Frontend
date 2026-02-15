@@ -205,7 +205,7 @@ function CommentItem({
   onReply,
   formatDate,
   readOnly,
-  isReplying,
+  isReplying: _isReplying,
 }: {
   comment: ReportComment;
   onResolve: () => void;

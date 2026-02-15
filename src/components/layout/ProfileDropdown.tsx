@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Settings, LogOut, Building2, ChevronDown,
+  Settings, LogOut, Building2, ChevronDown,
   HelpCircle, FileText, Moon, Sun, Shield
 } from 'lucide-react';
 import { useSettingsStore } from '../../store';

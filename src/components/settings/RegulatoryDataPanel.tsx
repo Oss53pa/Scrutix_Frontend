@@ -5,7 +5,6 @@ import {
   FileText,
   Percent,
   Clock,
-  CheckCircle,
   AlertTriangle,
   ExternalLink,
   Building2,

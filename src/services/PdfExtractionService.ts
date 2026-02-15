@@ -22,7 +22,7 @@ export interface ExtractionResult {
   confidence: number;
 }
 
-interface ExtractedAmount {
+interface _ExtractedAmount {
   value: number;
   text: string;
   context: string;

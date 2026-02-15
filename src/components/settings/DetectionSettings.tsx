@@ -1,4 +1,4 @@
-import { Sliders, RotateCcw, Save, Shield, AlertTriangle, FileSearch, Wallet, Globe, Scale } from 'lucide-react';
+import { Sliders, RotateCcw, Save, Shield, AlertTriangle, FileSearch, Wallet, Scale } from 'lucide-react';
 import {
   Card,
   CardHeader,

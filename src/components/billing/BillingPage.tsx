@@ -66,7 +66,7 @@ export function BillingPage() {
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
 
   const now = new Date();
-  const monthlyStats = getMonthlyStats(now.getFullYear(), now.getMonth());
+  const _monthlyStats = getMonthlyStats(now.getFullYear(), now.getMonth());
 
   // Comprehensive billing analytics
   const analytics = useMemo(() => {
@@ -228,7 +228,7 @@ export function BillingPage() {
     gray: '#737373',
   };
 
-  const pieColors = [COLORS.primary, COLORS.info, COLORS.success, COLORS.warning, COLORS.purple];
+  const _pieColors = [COLORS.primary, COLORS.info, COLORS.success, COLORS.warning, COLORS.purple];
 
   const getStatusBadge = (status: Invoice['status']) => {
     switch (status) {

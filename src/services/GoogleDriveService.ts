@@ -260,7 +260,7 @@ class GoogleDriveServiceClass {
 
       if (existingFile) {
         // Mettre a jour le fichier existant
-        const response = await this.updateFile(existingFile.id, blob);
+        const _response = await this.updateFile(existingFile.id, blob);
         return {
           success: true,
           fileId: existingFile.id,

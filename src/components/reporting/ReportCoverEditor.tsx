@@ -1,22 +1,16 @@
 import { useState } from 'react';
 import {
   Palette,
-  Image,
   Type,
   User,
   Building2,
-  Calendar,
   Lock,
-  Globe,
-  Phone,
-  Mail,
-  Linkedin,
   Upload,
   ChevronDown,
   ChevronUp,
   LucideIcon,
 } from 'lucide-react';
-import { Button, Input } from '../ui';
+import { } from '../ui';
 import type { ReportCoverConfig, ReportBackCoverConfig } from '../../types';
 
 interface ReportCoverEditorProps {

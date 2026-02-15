@@ -1,13 +1,5 @@
 import { useMemo } from 'react';
-import {
-  AlertTriangle,
-  TrendingUp,
-  Landmark,
-  FileText,
-  CheckCircle2,
-  XCircle,
-  Clock,
-} from 'lucide-react';
+// lucide-react icons removed (unused)
 import type {
   FullReport,
   ReportViewerConfig,
@@ -18,7 +10,7 @@ import type {
   ReportChartData,
   ReportStatistic,
 } from '../../types';
-import type { Anomaly, AnalysisResult, Client } from '../../types';
+import type { AnalysisResult, Client } from '../../types';
 import { formatCurrency, formatDate } from '../../utils';
 import { ANOMALY_TYPE_LABELS, SEVERITY_LABELS, Severity, AnomalyType } from '../../types';
 

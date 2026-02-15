@@ -11,14 +11,11 @@ import {
   Italic,
   List,
   ListOrdered,
-  AlignLeft,
-  AlignCenter,
   Heading1,
   Heading2,
   Brain,
   Sparkles,
   Loader2,
-  ChevronDown,
 } from 'lucide-react';
 import { Button } from '../ui';
 import type {

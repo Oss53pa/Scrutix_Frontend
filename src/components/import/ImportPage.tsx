@@ -35,7 +35,7 @@ export function ImportPage() {
   );
 
   // Get selected bank
-  const selectedBank = useMemo(() =>
+  const _selectedBank = useMemo(() =>
     banks.find(b => b.code === selectedBankCode),
     [banks, selectedBankCode]
   );

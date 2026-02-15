@@ -110,7 +110,7 @@ export class AnalysisService {
       progress(5, 'Initialisation de l\'analyse...');
 
       // Filter transactions by date range if specified
-      let filteredTransactions = this.filterTransactions(transactions, config);
+      const filteredTransactions = this.filterTransactions(transactions, config);
 
       progress(10, `Analyse de ${filteredTransactions.length} transactions...`);
 

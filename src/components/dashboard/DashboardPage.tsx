@@ -35,7 +35,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { Card, CardHeader, CardTitle, CardBody, Button, Badge } from '../ui';
+import { Card, CardHeader, CardTitle, CardBody, Button } from '../ui';
 import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
 import { useAnalysisStore } from '../../store/analysisStore';
@@ -196,7 +196,7 @@ export function DashboardPage() {
   }, [stats.byType]);
 
   // Risk distribution for radial chart
-  const riskData = [
+  const _riskData = [
     { name: 'Critique', value: stats.criticalCount, fill: '#ef4444' },
     { name: 'Haute', value: stats.highCount, fill: '#f97316' },
     { name: 'Moyenne', value: stats.mediumCount, fill: '#eab308' },

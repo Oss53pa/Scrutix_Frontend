@@ -57,7 +57,7 @@ export function ReportContentPage({
           />
         );
 
-      case 'table':
+      case 'table': {
         const tableData = report.tables.find((t) => t.id === section.content?.tableId);
         if (!tableData) return null;
         return (
@@ -70,8 +70,9 @@ export function ReportContentPage({
             <ReportTable data={tableData} currency={currency} />
           </div>
         );
+      }
 
-      case 'chart':
+      case 'chart': {
         const chartData = report.charts.find((c) => c.id === section.content?.chartId);
         if (!chartData) return null;
         return (
@@ -84,6 +85,7 @@ export function ReportContentPage({
             <ReportChart data={chartData} />
           </div>
         );
+      }
 
       case 'content':
         return (

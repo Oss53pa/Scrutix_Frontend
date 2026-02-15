@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Building2, Mail, Phone, Globe, MapPin, FileText,
+  Building2, Mail, MapPin, FileText,
   Save, RotateCcw, Upload, Eye, EyeOff, Send, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardBody, Button, Input, Select } from '../ui';

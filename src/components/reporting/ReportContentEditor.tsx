@@ -27,10 +27,7 @@ import { Button, Badge } from '../ui';
 import { ReportSectionEditor } from './ReportSectionEditor';
 import type {
   FullReport,
-  ReportViewerPage,
   ReportViewerSection,
-  ReportTableData,
-  ReportChartData,
 } from '../../types';
 
 interface ReportContentEditorProps {
@@ -127,7 +124,7 @@ export function ReportContentEditor({
   };
 
   // Add new section to a page (legacy - now opens editor)
-  const addSection = (pageId: string, type: ContentType) => {
+  const _addSection = (pageId: string, type: ContentType) => {
     const newSection: ReportViewerSection = {
       id: `section-${Date.now()}`,
       type: type === 'text' ? 'content' : type === 'statistics' ? 'summary' : type,
@@ -293,7 +290,7 @@ export function ReportContentEditor({
   };
 
   // Insert suggestion into section
-  const insertSuggestion = (text: string, pageId: string, sectionId: string) => {
+  const _insertSuggestion = (text: string, pageId: string, sectionId: string) => {
     const updatedPages = report.pages.map((page) => {
       if (page.id === pageId) {
         return {

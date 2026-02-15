@@ -2,8 +2,8 @@ import { useState, useMemo, useRef } from 'react';
 import {
   Landmark, Plus, Search, X, Upload, Eye, History,
   CheckCircle2, Archive, Calendar, FileText, Loader2, ChevronRight,
-  MoreVertical, Trash2, Pencil, Download, AlertCircle,
-  Clock, Shield, RotateCcw
+  Trash2, Pencil, AlertCircle,
+  Clock
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardBody, Button, Input, Select, Badge } from '../ui';
 import { useBankStore } from '../../store/bankStore';
@@ -29,7 +29,7 @@ export function BanksPage() {
     banks,
     addBank,
     updateBank,
-    deleteBank,
+    deleteBank: _deleteBank,
     selectedBankId,
     setSelectedBank,
     getAllGrids,
@@ -51,7 +51,7 @@ export function BanksPage() {
   const [showAddBank, setShowAddBank] = useState(false);
   const [editingBank, setEditingBank] = useState<Bank | null>(null);
   const [showConditions, setShowConditions] = useState(false);
-  const [viewingGrid, setViewingGrid] = useState<ConditionGrid | null>(null);
+  const [_viewingGrid, setViewingGrid] = useState<ConditionGrid | null>(null);
 
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
@@ -145,8 +145,8 @@ export function BanksPage() {
   }, [zoneFilter]);
 
   // Get client count for a bank
-  const getClientCount = (bankCode: string) => {
-    return clients.filter((c) => c.accounts.some((a) => a.bankCode === bankCode)).length;
+  const _getClientCount = (_bankCode: string) => {
+    return clients.filter((c) => c.accounts.some((a) => a.bankCode === _bankCode)).length;
   };
 
   // Handle PDF upload and extraction
@@ -386,8 +386,8 @@ export function BanksPage() {
             <CardBody className="p-0">
               <div className="divide-y divide-primary-100 max-h-[calc(100vh-180px)] overflow-y-auto">
                 {filteredBanks.map((bank) => {
-                  const zone = bank.zone || getZoneFromCountry(bank.country);
-                  const bankGrids = getAllGrids(bank.id);
+                  const _zone = bank.zone || getZoneFromCountry(bank.country);
+                  const _bankGrids = getAllGrids(bank.id);
                   const bankActiveGrid = getActiveGrid(bank.id);
 
                   return (
@@ -773,10 +773,10 @@ export function BanksPage() {
           setViewingGrid(null);
         }}
         bank={selectedBank}
-        onSaveConditions={(bankId, conditions) => {
+        onSaveConditions={(_bankId, _conditions) => {
           // Update via store
         }}
-        onUploadDocument={(bankId, document) => {
+        onUploadDocument={(_bankId, _document) => {
           // Handle document
         }}
       />

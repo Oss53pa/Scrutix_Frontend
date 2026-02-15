@@ -11,7 +11,7 @@ import {
   Pencil,
   ClipboardList,
 } from 'lucide-react';
-import { Card, Button, Badge } from '../ui';
+import { Button, Badge } from '../ui';
 import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
 import { useTransactionStore } from '../../store/transactionStore';
@@ -40,7 +40,7 @@ export function ClientDetailPage() {
 
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [showAddAccount, setShowAddAccount] = useState(false);
-  const [showEditClient, setShowEditClient] = useState(false);
+  const [_showEditClient, setShowEditClient] = useState(false);
 
   const client = id ? getClient(id) : undefined;
 

@@ -20,12 +20,11 @@ import {
   AIFeatureFlags,
   IAIProvider,
   AI_MODELS,
-  AI_PROVIDER_LABELS,
   aiDetectionOrchestrator,
   OrchestrationResult,
   OrchestrationProgress,
 } from '../ai';
-import { encryptApiKey, decryptApiKey } from '../utils/crypto';
+import { encryptApiKey } from '../utils/crypto';
 import type { Transaction, Anomaly, BankConditions } from '../types';
 
 /**
@@ -170,7 +169,7 @@ export function useAI(): UseAIResult {
     if (!isConfigured) return null;
 
     try {
-      let apiKey = config.apiKey;
+      const apiKey = config.apiKey;
 
       // Déchiffrer la clé si nécessaire
       if (config.apiKeyEncrypted) {

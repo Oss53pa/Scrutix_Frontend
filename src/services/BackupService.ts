@@ -126,7 +126,7 @@ export class BackupService {
           }
 
           resolve(data);
-        } catch (error) {
+        } catch (_error) {
           reject(new Error('Fichier de sauvegarde invalide ou corrompu'));
         }
       };
