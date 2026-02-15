@@ -47,11 +47,11 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-white flex items-center justify-center p-6">
-          <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl border border-red-100 p-8">
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex items-center justify-center p-6">
+          <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl border border-primary-100 p-8">
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                <AlertTriangle className="w-8 h-8 text-red-600" />
+              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle className="w-8 h-8 text-primary-600" />
               </div>
 
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <div className="w-full mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200 text-left">
-                  <p className="text-sm font-mono text-red-600 mb-2">
+                  <p className="text-sm font-mono text-primary-600 mb-2">
                     {this.state.error.toString()}
                   </p>
                   {this.state.errorInfo && (

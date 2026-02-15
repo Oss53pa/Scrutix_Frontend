@@ -1,52 +1,59 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, X, AlertTriangle, CheckCircle, FileText, Upload, Trash2 } from 'lucide-react';
+import { Bell, X, AlertTriangle, CheckCircle, FileText, Upload, Clock, Play } from 'lucide-react';
 import { Button } from '../ui';
 import { useAppStore } from '../../store';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import type { NotificationType } from '../../types';
 
-interface Notification {
-  id: string;
-  type: 'anomaly_critical' | 'anomaly_detected' | 'import_complete' | 'analysis_complete' | 'system';
-  title: string;
-  message: string;
-  isRead: boolean;
-  createdAt: Date;
-}
+const DEMO_NOTIFICATIONS = [
+  {
+    type: 'anomaly_critical' as NotificationType,
+    title: 'Anomalie critique détectée',
+    message: '3 alertes anti-blanchiment nécessitent votre attention immédiate',
+  },
+  {
+    type: 'analysis_complete' as NotificationType,
+    title: 'Analyse terminée',
+    message: "L'analyse du client ABC Corp a identifié 12 anomalies potentielles",
+  },
+  {
+    type: 'import_complete' as NotificationType,
+    title: 'Import réussi',
+    message: '245 transactions importées depuis le fichier bancaire',
+  },
+  {
+    type: 'invoice_overdue' as NotificationType,
+    title: 'Facture en retard',
+    message: 'La facture #2024-0042 est en retard de 15 jours',
+  },
+  {
+    type: 'anomaly_detected' as NotificationType,
+    title: 'Anomalie détectée',
+    message: 'Transaction inhabituelle de 15 000€ sur le compte client XYZ',
+  },
+];
 
 export function NotificationsDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Utiliser le store pour les notifications (simulation si pas de store)
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'anomaly_critical',
-      title: 'Anomalie critique detectee',
-      message: '3 alertes anti-blanchiment necessitent votre attention',
-      isRead: false,
-      createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 min ago
-    },
-    {
-      id: '2',
-      type: 'analysis_complete',
-      title: 'Analyse terminee',
-      message: 'L\'analyse du client ABC a identifie 12 anomalies',
-      isRead: false,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2h ago
-    },
-    {
-      id: '3',
-      type: 'import_complete',
-      title: 'Import reussi',
-      message: '245 transactions importees depuis le fichier bancaire',
-      isRead: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    },
-  ]);
+  // Utiliser le store pour les notifications
+  const notifications = useAppStore((state) => state.notifications);
+  const addNotification = useAppStore((state) => state.addNotification);
+  const markAsRead = useAppStore((state) => state.markAsRead);
+  const markAllAsRead = useAppStore((state) => state.markAllAsRead);
+  const deleteNotification = useAppStore((state) => state.deleteNotification);
+  const clearNotifications = useAppStore((state) => state.clearNotifications);
+  const getUnreadCount = useAppStore((state) => state.getUnreadCount);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = getUnreadCount();
+
+  const loadDemoNotifications = () => {
+    DEMO_NOTIFICATIONS.forEach((notif) => {
+      addNotification(notif);
+    });
+  };
 
   // Fermer le dropdown quand on clique en dehors
   useEffect(() => {
@@ -60,34 +67,20 @@ export function NotificationsDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-  };
-
-  const deleteNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-  };
-
-  const getIcon = (type: Notification['type']) => {
+  const getIcon = (type: NotificationType) => {
     switch (type) {
       case 'anomaly_critical':
-        return <AlertTriangle className="w-4 h-4 text-red-500" />;
+        return <AlertTriangle className="w-4 h-4 text-primary-500" />;
       case 'anomaly_detected':
-        return <AlertTriangle className="w-4 h-4 text-orange-500" />;
+        return <AlertTriangle className="w-4 h-4 text-primary-500" />;
       case 'analysis_complete':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return <CheckCircle className="w-4 h-4 text-primary-500" />;
       case 'import_complete':
-        return <Upload className="w-4 h-4 text-blue-500" />;
+        return <Upload className="w-4 h-4 text-primary-500" />;
+      case 'invoice_due':
+        return <Clock className="w-4 h-4 text-primary-500" />;
+      case 'invoice_overdue':
+        return <AlertTriangle className="w-4 h-4 text-primary-500" />;
       default:
         return <FileText className="w-4 h-4 text-primary-500" />;
     }
@@ -127,7 +120,7 @@ export function NotificationsDropdown() {
               )}
               {notifications.length > 0 && (
                 <button
-                  onClick={clearAll}
+                  onClick={clearNotifications}
                   className="text-xs text-red-600 hover:text-red-800"
                 >
                   Effacer tout
@@ -141,7 +134,14 @@ export function NotificationsDropdown() {
             {notifications.length === 0 ? (
               <div className="px-4 py-8 text-center">
                 <Bell className="w-12 h-12 text-primary-200 mx-auto mb-3" />
-                <p className="text-primary-500">Aucune notification</p>
+                <p className="text-primary-500 mb-4">Aucune notification</p>
+                <button
+                  onClick={loadDemoNotifications}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-primary-600 hover:text-primary-800 bg-primary-100 hover:bg-primary-200 rounded-lg transition-colors"
+                >
+                  <Play className="w-4 h-4" />
+                  Voir une démo
+                </button>
               </div>
             ) : (
               notifications.map((notification) => (

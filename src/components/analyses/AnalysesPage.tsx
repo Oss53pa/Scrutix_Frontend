@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   CheckCircle2,
   ChevronRight,
@@ -16,17 +16,121 @@ import {
   Cpu,
   Search,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardBody, Button, Input, Select, Badge, DetectionBadge, SeverityBadge, VirtualizedList } from '../ui';
+import { Card, CardHeader, CardTitle, CardBody, Button, Input, Select, Badge, DetectionBadge, SeverityBadge } from '../ui';
 import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
 import { useAnalysisStore } from '../../store/analysisStore';
 import { useTransactionStore } from '../../store/transactionStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { formatCurrency, formatDate } from '../../utils';
-import { AnomalyType, Severity, ANOMALY_TYPE_LABELS, DetectionSource, DEFAULT_THRESHOLDS } from '../../types';
+import { AnomalyType, Severity, ANOMALY_TYPE_LABELS, DetectionSource, DEFAULT_THRESHOLDS, Anomaly, Transaction } from '../../types';
 import { getAnalysisService, ClaudeService } from '../../services';
 
 type ViewMode = 'config' | 'viewer';
+
+// Données de démonstration
+const DEMO_TRANSACTIONS: Transaction[] = [
+  { id: 'demo-1', date: new Date('2024-01-15'), description: 'VIREMENT SALAIRE', amount: 2500000, balance: 5000000, type: 'credit', clientId: 'demo', bankCode: 'SGBC' },
+  { id: 'demo-2', date: new Date('2024-01-16'), description: 'FRAIS DE TENUE DE COMPTE', amount: -15000, balance: 4985000, type: 'fee', clientId: 'demo', bankCode: 'SGBC' },
+  { id: 'demo-3', date: new Date('2024-01-16'), description: 'FRAIS DE TENUE DE COMPTE', amount: -15000, balance: 4970000, type: 'fee', clientId: 'demo', bankCode: 'SGBC' },
+  { id: 'demo-4', date: new Date('2024-01-17'), description: 'COMMISSION VIREMENT', amount: -25000, balance: 4945000, type: 'fee', clientId: 'demo', bankCode: 'SGBC' },
+  { id: 'demo-5', date: new Date('2024-01-18'), description: 'AGIOS DEBITEURS', amount: -185000, balance: 4760000, type: 'interest', clientId: 'demo', bankCode: 'SGBC' },
+  { id: 'demo-6', date: new Date('2024-01-19'), description: 'FRAIS DIVERS', amount: -50000, balance: 4710000, type: 'fee', clientId: 'demo', bankCode: 'SGBC' },
+  { id: 'demo-7', date: new Date('2024-01-20'), description: 'PAIEMENT FACTURE ELEC', amount: -125000, balance: 4585000, type: 'debit', clientId: 'demo', bankCode: 'SGBC' },
+  { id: 'demo-8', date: new Date('2024-01-21'), description: 'RETRAIT DAB', amount: -200000, balance: 4385000, type: 'debit', clientId: 'demo', bankCode: 'SGBC' },
+];
+
+const DEMO_ANOMALIES: Anomaly[] = [
+  {
+    id: 'demo-a1',
+    type: AnomalyType.DUPLICATE_FEE,
+    severity: Severity.HIGH,
+    amount: 15000,
+    description: 'Frais de tenue de compte facturés en double le 16/01/2024',
+    recommendation: 'Demander le remboursement des 15 000 FCFA de frais facturés en double. Référence: TDC-001 - Frais de tenue de compte.',
+    confidence: 0.95,
+    transactions: [DEMO_TRANSACTIONS[1], DEMO_TRANSACTIONS[2]],
+    evidence: [
+      {
+        type: 'DUPLICATE',
+        description: 'Double facturation détectée',
+        value: '15 000 FCFA',
+        expectedValue: 15000,
+        appliedValue: 30000,
+        source: 'Grille tarifaire SGBC - janvier 2024',
+        conditionRef: 'TDC-001 - Frais de tenue de compte mensuel',
+      },
+      {
+        type: 'COMPARISON',
+        description: 'Même libellé et montant le même jour',
+        value: '2 occurrences le 16/01/2024',
+      },
+    ],
+    detectedAt: new Date(),
+    status: 'pending',
+  },
+  {
+    id: 'demo-a2',
+    type: AnomalyType.OVERCHARGE,
+    severity: Severity.CRITICAL,
+    amount: 85000,
+    description: 'Agios calculés avec un taux supérieur au taux contractuel',
+    recommendation: 'Surfacturation de 85 000 FCFA (+46%) détectée pour Agios/Découvert. Montant facturé: 185 000 FCFA vs tarif contractuel: 100 000 FCFA. Référence: AGI-002 - Intérêts débiteurs. Réclamer auprès de SGBC le remboursement.',
+    confidence: 0.88,
+    transactions: [DEMO_TRANSACTIONS[4]],
+    evidence: [
+      {
+        type: 'COMPARISON',
+        description: 'Comparaison tarifaire',
+        value: 85000,
+        expectedValue: 100000,
+        appliedValue: 185000,
+        source: 'Grille tarifaire SGBC - janvier 2024',
+        conditionRef: 'AGI-002 - Taux débiteur annuel',
+      },
+      {
+        type: 'OFFICIAL_RATE',
+        description: 'Tarif contractuel',
+        value: '12% annuel (max: 100 000 FCFA)',
+        source: 'Grille tarifaire SGBC - janvier 2024',
+        conditionRef: 'Section: Agios et découverts',
+      },
+      {
+        type: 'REASON',
+        description: 'Motif de détection',
+        value: 'Taux appliqué: 14.5% vs Taux contractuel: 12%',
+      },
+    ],
+    detectedAt: new Date(),
+    status: 'pending',
+  },
+  {
+    id: 'demo-a3',
+    type: AnomalyType.GHOST_FEE,
+    severity: Severity.MEDIUM,
+    amount: 50000,
+    description: 'Frais divers sans justification apparente',
+    recommendation: 'Demander le détail et la justification de ces frais. Aucune correspondance trouvée dans la grille tarifaire.',
+    confidence: 0.75,
+    transactions: [DEMO_TRANSACTIONS[5]],
+    evidence: [
+      {
+        type: 'MISSING_JUSTIFICATION',
+        description: 'Frais non identifié dans la grille',
+        value: '50 000 FCFA',
+        source: 'Grille tarifaire SGBC - janvier 2024',
+        conditionRef: 'Aucune correspondance trouvée',
+      },
+      {
+        type: 'REASON',
+        description: 'Motif de détection',
+        value: 'Libellé "FRAIS DIVERS" sans opération correspondante',
+      },
+    ],
+    detectedAt: new Date(),
+    status: 'pending',
+  },
+];
 
 export function AnalysesPage() {
   const { clients = [] } = useClientStore();
@@ -45,6 +149,7 @@ export function AnalysesPage() {
   const { thresholds, bankConditions, claudeApi } = useSettingsStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>('config');
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [selectedClient, setSelectedClient] = useState<string>('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
@@ -77,26 +182,33 @@ export function AnalysesPage() {
       title: 'Analyse Algorithmique',
       description: 'Détection basée sur des règles mathématiques et comparaison avec les grilles tarifaires',
       buttonText: 'Lancer l\'analyse algorithmique',
-      color: 'blue',
+      color: 'primary',
     },
     ai: {
       icon: Bot,
       title: 'Analyse IA',
       description: 'Détection avancée par intelligence artificielle (Claude) pour identifier les anomalies complexes',
       buttonText: 'Lancer l\'analyse IA',
-      color: 'purple',
+      color: 'primary',
     },
     hybrid: {
       icon: Sparkles,
       title: 'Analyse Hybride',
       description: 'Combine algorithmes + IA pour une détection optimale avec validation croisée',
       buttonText: 'Lancer l\'analyse hybride',
-      color: 'amber',
+      color: 'primary',
     },
   };
 
-  // Use real anomalies from analysis store
-  const anomalies = currentAnalysis?.anomalies || [];
+  // Use demo data or real anomalies from analysis store (memoized to prevent infinite loops)
+  const anomalies = useMemo(() =>
+    isDemoMode ? DEMO_ANOMALIES : (currentAnalysis?.anomalies || []),
+    [isDemoMode, currentAnalysis?.anomalies]
+  );
+  const displayTransactions = useMemo(() =>
+    isDemoMode ? DEMO_TRANSACTIONS : transactions,
+    [isDemoMode, transactions]
+  );
 
   const totalSavings = anomalies.reduce((sum, a) => sum + a.amount, 0);
   const criticalCount = anomalies.filter((a) => a.severity === Severity.CRITICAL).length;
@@ -215,7 +327,10 @@ export function AnalysesPage() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => setViewMode('viewer')}
+            onClick={() => {
+              setIsDemoMode(true);
+              setViewMode('viewer');
+            }}
             className="text-xs"
           >
             <Eye className="w-3.5 h-3.5 mr-1" />
@@ -235,23 +350,15 @@ export function AnalysesPage() {
                 onClick={() => setAnalysisMode(mode)}
                 className={`flex-1 p-3 rounded-lg border-2 transition-all ${
                   isSelected
-                    ? mode === 'algorithm' ? 'border-blue-500 bg-blue-50' :
-                      mode === 'ai' ? 'border-purple-500 bg-purple-50' :
-                      'border-amber-500 bg-amber-50'
+                    ? 'border-primary-600 bg-primary-50'
                     : 'border-primary-200 bg-white hover:border-primary-300'
                 }`}
               >
                 <div className="flex items-center justify-center gap-2">
-                  <Icon className={`w-4 h-4 ${
-                    mode === 'algorithm' ? 'text-blue-600' :
-                    mode === 'ai' ? 'text-purple-600' : 'text-amber-600'
-                  }`} />
+                  <Icon className="w-4 h-4 text-primary-600" />
                   <span className="text-sm font-medium">{config.title.replace('Analyse ', '')}</span>
                   {isSelected && (
-                    <CheckCircle2 className={`w-4 h-4 ${
-                      mode === 'algorithm' ? 'text-blue-600' :
-                      mode === 'ai' ? 'text-purple-600' : 'text-amber-600'
-                    }`} />
+                    <CheckCircle2 className="w-4 h-4 text-primary-600" />
                   )}
                 </div>
               </button>
@@ -377,11 +484,7 @@ export function AnalysesPage() {
                 onClick={handleLaunchAnalysis}
                 disabled={!selectedClient || isAnalyzing}
                 size="sm"
-                className={`h-9 px-4 ${
-                  analysisMode === 'algorithm' ? 'bg-blue-600 hover:bg-blue-700' :
-                  analysisMode === 'ai' ? 'bg-purple-600 hover:bg-purple-700' :
-                  'bg-amber-600 hover:bg-amber-700'
-                }`}
+                className="h-9 px-4 bg-primary-900 hover:bg-primary-800"
               >
                 {isAnalyzing ? (
                   <>
@@ -410,14 +513,24 @@ export function AnalysesPage() {
         {/* Header */}
         <div className="p-4 border-b border-primary-200">
           <div className="flex items-center justify-between mb-3">
-            <Button variant="ghost" size="sm" onClick={() => setViewMode('config')}>
+            <Button variant="ghost" size="sm" onClick={() => {
+              setViewMode('config');
+              setIsDemoMode(false);
+            }}>
               <ChevronLeft className="w-4 h-4 mr-1" />
               Retour
             </Button>
-            <Badge variant="secondary" className="gap-1">
-              <Bot className="w-3 h-3" />
-              IA Active
-            </Badge>
+{isDemoMode ? (
+              <Badge variant="warning" className="gap-1">
+                <Eye className="w-3 h-3" />
+                Mode Démo
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="gap-1">
+                <Bot className="w-3 h-3" />
+                IA Active
+              </Badge>
+            )}
           </div>
           <h2 className="font-semibold text-primary-900">Anomalies détectées</h2>
           <p className="text-sm text-primary-500">{anomalies.length} anomalies trouvées</p>
@@ -428,43 +541,40 @@ export function AnalysesPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white p-3 rounded-lg border border-primary-200">
               <p className="text-xs text-primary-500">Économies potentielles</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(totalSavings, 'XAF')}</p>
+              <p className="text-lg font-bold text-primary-900">{formatCurrency(totalSavings, 'XAF')}</p>
             </div>
             <div className="bg-white p-3 rounded-lg border border-primary-200">
               <p className="text-xs text-primary-500">Critiques/Élevées</p>
-              <p className="text-lg font-bold text-red-600">{criticalCount + highCount}</p>
+              <p className="text-lg font-bold text-primary-900">{criticalCount + highCount}</p>
             </div>
           </div>
         </div>
 
-        {/* Anomalies List - Virtualized */}
-        {anomalies.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="p-8 text-center text-primary-500">
-              <FileWarning className="w-12 h-12 mx-auto mb-3 text-primary-300" />
-              <p>Aucune anomalie détectée</p>
-              <p className="text-xs mt-1">Les transactions semblent conformes</p>
+        {/* Anomalies List */}
+        <div className="flex-1 overflow-y-auto">
+          {anomalies.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center h-full">
+              <div className="p-8 text-center text-primary-500">
+                <FileWarning className="w-12 h-12 mx-auto mb-3 text-primary-300" />
+                <p>Aucune anomalie détectée</p>
+                <p className="text-xs mt-1">Les transactions semblent conformes</p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <VirtualizedList
-            items={anomalies}
-            estimateSize={120}
-            className="flex-1"
-            getItemKey={(item) => item.id}
-            renderItem={(anomaly, index) => (
+          ) : (
+            anomalies.map((anomaly, index) => (
               <button
+                key={anomaly.id}
                 onClick={() => setSelectedAnomaly(index)}
-                className={`w-full h-full p-4 border-b border-primary-100 text-left hover:bg-primary-50 transition-colors ${
+                className={`w-full p-4 border-b border-primary-100 text-left hover:bg-primary-50 transition-colors ${
                   selectedAnomaly === index ? 'bg-primary-100 border-l-4 border-l-primary-900' : ''
                 }`}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${
-                      anomaly.severity === Severity.CRITICAL ? 'bg-red-500' :
-                      anomaly.severity === Severity.HIGH ? 'bg-orange-500' :
-                      anomaly.severity === Severity.MEDIUM ? 'bg-yellow-500' : 'bg-gray-400'
+                      anomaly.severity === Severity.CRITICAL ? 'bg-primary-900' :
+                      anomaly.severity === Severity.HIGH ? 'bg-primary-700' :
+                      anomaly.severity === Severity.MEDIUM ? 'bg-primary-500' : 'bg-primary-300'
                     }`} />
                     <span className="text-xs font-medium text-primary-500">
                       {anomaly.transactions.length} tx
@@ -480,13 +590,13 @@ export function AnalysesPage() {
                 <p className="text-xs text-primary-600 line-clamp-1 mb-1">
                   {anomaly.recommendation}
                 </p>
-                <p className="text-sm font-bold text-green-600">
+                <p className="text-sm font-bold text-primary-900">
                   +{formatCurrency(anomaly.amount, 'XAF')}
                 </p>
               </button>
-            )}
-          />
-        )}
+            ))
+          )}
+        </div>
 
         {/* Generate Report Button */}
         <div className="p-4 border-t border-primary-200">
@@ -503,7 +613,7 @@ export function AnalysesPage() {
         <div className="bg-white border-b border-primary-200 px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-primary-700">
-              Transactions analysées ({transactions.length})
+              Transactions analysées ({displayTransactions.length})
             </span>
             {currentAnalysis && (
               <Badge variant="success">{currentAnalysis.statistics.totalAnomalies} anomalies</Badge>
@@ -541,7 +651,7 @@ export function AnalysesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-primary-100">
-                {transactions.slice(0, 100).map((tx, i) => {
+                {displayTransactions.slice(0, 100).map((tx, i) => {
                   // Check if this transaction is part of an anomaly
                   const relatedAnomaly = anomalies.find(a =>
                     a.transactions.some(t => t.id === tx.id)
@@ -590,17 +700,17 @@ export function AnalysesPage() {
                     </tr>
                   );
                 })}
-                {transactions.length === 0 && (
+                {displayTransactions.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-primary-500">
                       Aucune transaction importée
                     </td>
                   </tr>
                 )}
-                {transactions.length > 100 && (
+                {displayTransactions.length > 100 && (
                   <tr>
                     <td colSpan={5} className="py-4 text-center text-primary-500 bg-primary-50">
-                      ... et {transactions.length - 100} autres transactions
+                      ... et {displayTransactions.length - 100} autres transactions
                     </td>
                   </tr>
                 )}
@@ -630,7 +740,7 @@ export function AnalysesPage() {
             <div>
               <p className="text-xs text-primary-500 uppercase mb-1">Type d'anomalie</p>
               <div className="flex items-center gap-2">
-                <FileWarning className="w-5 h-5 text-amber-500" />
+                <FileWarning className="w-5 h-5 text-primary-500" />
                 <span className="font-medium">{ANOMALY_TYPE_LABELS[anomalies[selectedAnomaly].type]}</span>
               </div>
             </div>
@@ -644,7 +754,7 @@ export function AnalysesPage() {
             {/* Amount */}
             <div>
               <p className="text-xs text-primary-500 uppercase mb-1">Économie potentielle</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-2xl font-bold text-primary-900">
                 {formatCurrency(anomalies[selectedAnomaly].amount, 'XAF')}
               </p>
             </div>
@@ -659,9 +769,9 @@ export function AnalysesPage() {
             <div className="bg-primary-50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
                 {isAIEnabled ? (
-                  <Bot className="w-5 h-5 text-purple-600" />
+                  <Bot className="w-5 h-5 text-primary-600" />
                 ) : (
-                  <Cpu className="w-5 h-5 text-blue-600" />
+                  <Cpu className="w-5 h-5 text-primary-600" />
                 )}
                 <span className="font-semibold text-primary-900">
                   {isAIEnabled ? 'Analyse avec IA' : 'Analyse algorithmique'}
@@ -671,7 +781,7 @@ export function AnalysesPage() {
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-primary-500 uppercase mb-1">Recommandation</p>
-                  <p className="text-sm font-medium text-green-700">
+                  <p className="text-sm font-medium text-primary-700">
                     {anomalies[selectedAnomaly].recommendation}
                   </p>
                 </div>
@@ -719,19 +829,19 @@ export function AnalysesPage() {
           </div>
 
           {/* Summary Footer */}
-          <div className="p-4 border-t border-primary-200 bg-green-50">
+          <div className="p-4 border-t border-primary-200 bg-primary-50">
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-              <span className="font-semibold text-green-800">Résumé du rapport</span>
+              <TrendingUp className="w-5 h-5 text-primary-600" />
+              <span className="font-semibold text-primary-800">Résumé du rapport</span>
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-green-600">Total anomalies</p>
-                <p className="font-bold text-green-800">{anomalies.length}</p>
+                <p className="text-primary-600">Total anomalies</p>
+                <p className="font-bold text-primary-800">{anomalies.length}</p>
               </div>
               <div>
-                <p className="text-green-600">Économies</p>
-                <p className="font-bold text-green-800">{formatCurrency(totalSavings, 'XAF')}</p>
+                <p className="text-primary-600">Économies</p>
+                <p className="font-bold text-primary-800">{formatCurrency(totalSavings, 'XAF')}</p>
               </div>
             </div>
           </div>

@@ -253,17 +253,17 @@ export function DashboardPage() {
               <p className="text-2xl font-bold text-primary-900">{stats.anomaliesThisMonth}</p>
               <div className="flex items-center gap-1">
                 {anomalyGrowth > 0 ? (
-                  <ArrowUpRight className="w-3 h-3 text-red-500" />
+                  <ArrowUpRight className="w-3 h-3 text-primary-500" />
                 ) : anomalyGrowth < 0 ? (
-                  <ArrowDownRight className="w-3 h-3 text-green-500" />
+                  <ArrowDownRight className="w-3 h-3 text-primary-500" />
                 ) : null}
                 <span className={`text-xs ${anomalyGrowth > 0 ? 'text-red-500' : 'text-green-500'}`}>
                   {anomalyGrowth > 0 ? '+' : ''}{anomalyGrowth}%
                 </span>
               </div>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-primary-600" />
             </div>
           </div>
         </Card>
@@ -275,8 +275,8 @@ export function DashboardPage() {
               <p className="text-lg font-bold text-green-600">{formatCurrency(stats.totalSavings, 'XAF')}</p>
               <p className="text-xs text-primary-400">+{formatCurrency(stats.potentialSavings, 'XAF')}</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-              <PiggyBank className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+              <PiggyBank className="w-5 h-5 text-primary-600" />
             </div>
           </div>
         </Card>
@@ -288,8 +288,8 @@ export function DashboardPage() {
               <p className="text-2xl font-bold text-blue-600">{stats.confirmedRate}%</p>
               <p className="text-xs text-primary-400">{stats.allAnomalies.filter((a) => a.status === 'confirmed').length}/{stats.allAnomalies.length}</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Target className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+              <Target className="w-5 h-5 text-primary-600" />
             </div>
           </div>
         </Card>
@@ -300,8 +300,8 @@ export function DashboardPage() {
         <Card className="p-3 bg-red-50 border-red-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                <ShieldAlert className="w-4 h-4 text-red-600" />
+              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                <ShieldAlert className="w-4 h-4 text-primary-600" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-red-800">
@@ -321,8 +321,8 @@ export function DashboardPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-2.5">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-red-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-primary-600" />
             </div>
             <div>
               <p className="text-xl font-bold text-red-600">{stats.criticalCount}</p>
@@ -332,8 +332,8 @@ export function DashboardPage() {
         </Card>
         <Card className="p-2.5">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4 text-orange-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+              <AlertTriangle className="w-4 h-4 text-primary-600" />
             </div>
             <div>
               <p className="text-xl font-bold text-orange-600">{stats.highCount}</p>
@@ -343,8 +343,8 @@ export function DashboardPage() {
         </Card>
         <Card className="p-2.5">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-yellow-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-primary-600" />
             </div>
             <div>
               <p className="text-xl font-bold text-yellow-600">{stats.mediumCount}</p>
@@ -354,8 +354,8 @@ export function DashboardPage() {
         </Card>
         <Card className="p-2.5">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4 text-primary-600" />
             </div>
             <div>
               <p className="text-xl font-bold text-green-600">{stats.lowCount}</p>
@@ -531,8 +531,8 @@ export function DashboardPage() {
         <Card className="p-3 bg-blue-50 border-blue-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                <FileSearch className="w-4 h-4 text-blue-600" />
+              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                <FileSearch className="w-4 h-4 text-primary-600" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-blue-800">{stats.pendingStatements} releve{stats.pendingStatements > 1 ? 's' : ''} en attente</p>

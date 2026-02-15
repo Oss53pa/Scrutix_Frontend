@@ -400,16 +400,14 @@ export function BanksPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className={`w-7 h-7 rounded flex items-center justify-center flex-shrink-0 ${
-                            zone === 'CEMAC' ? 'bg-blue-100' : 'bg-green-100'
-                          }`}>
-                            <Landmark className={`w-3.5 h-3.5 ${zone === 'CEMAC' ? 'text-blue-600' : 'text-green-600'}`} />
+                          <div className={`w-7 h-7 rounded flex items-center justify-center flex-shrink-0 bg-primary-100`}>
+                            <Landmark className={`w-3.5 h-3.5 text-primary-600`} />
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-primary-900 truncate">{bank.name}</p>
                             <p className="text-[10px] text-primary-500 truncate">
                               {AFRICAN_COUNTRIES[bank.country]} • {bank.code}
-                              {bankActiveGrid && <span className="text-green-600 ml-1">• Grille</span>}
+                              {bankActiveGrid && <span className="text-primary-600 ml-1">• Grille</span>}
                             </p>
                           </div>
                         </div>
@@ -436,20 +434,14 @@ export function BanksPage() {
                 {/* Compact Bank Header */}
                 <div className="flex items-center justify-between bg-white rounded-lg border border-primary-200 px-4 py-2">
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                      selectedBank.zone === 'CEMAC' || getZoneFromCountry(selectedBank.country) === 'CEMAC'
-                        ? 'bg-blue-100' : 'bg-green-100'
-                    }`}>
-                      <Landmark className={`w-4 h-4 ${
-                        selectedBank.zone === 'CEMAC' || getZoneFromCountry(selectedBank.country) === 'CEMAC'
-                          ? 'text-blue-600' : 'text-green-600'
-                      }`} />
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary-100">
+                      <Landmark className="w-4 h-4 text-primary-600" />
                     </div>
                     <div>
                       <h2 className="text-base font-semibold text-primary-900">{selectedBank.name}</h2>
                       <p className="text-xs text-primary-500">
                         {AFRICAN_COUNTRIES[selectedBank.country]} • {selectedBank.code} •{' '}
-                        <span className={selectedBank.zone === 'CEMAC' || getZoneFromCountry(selectedBank.country) === 'CEMAC' ? 'text-blue-600' : 'text-green-600'}>
+                        <span className="text-primary-600">
                           {selectedBank.zone === 'UEMOA' || getZoneFromCountry(selectedBank.country) === 'UEMOA' ? 'XOF' : 'XAF'}
                         </span>
                       </p>
@@ -592,7 +584,7 @@ export function BanksPage() {
                   </Card>
                 ) : selectedBank.conditions ? (
                   <Card className="p-4 text-center">
-                    <AlertCircle className="w-8 h-8 text-amber-400 mx-auto mb-2" />
+                    <AlertCircle className="w-8 h-8 text-primary-600 mx-auto mb-2" />
                     <p className="text-sm text-primary-700 font-medium">Conditions non versionnees</p>
                     <p className="text-xs text-primary-500 mb-3">Importez un PDF pour versionner</p>
                     <Button size="sm" className="h-7 text-xs" onClick={() => fileInputRef.current?.click()}>
@@ -651,7 +643,7 @@ export function BanksPage() {
                               </button>
                               {grid.status !== 'active' && (
                                 <button
-                                  className="p-1 text-green-500 hover:text-green-600"
+                                  className="p-1 text-primary-500 hover:text-primary-600"
                                   onClick={() => setActiveGrid(selectedBank.id, grid.id)}
                                   title="Activer"
                                 >
@@ -728,7 +720,7 @@ export function BanksPage() {
                             </button>
                             {grid.status !== 'active' && (
                               <button
-                                className="p-1 text-green-500 hover:text-green-600"
+                                className="p-1 text-primary-500 hover:text-primary-600"
                                 onClick={() => setActiveGrid(grid.bankId, grid.id)}
                                 title="Activer"
                               >

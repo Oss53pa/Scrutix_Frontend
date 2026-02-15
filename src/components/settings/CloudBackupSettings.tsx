@@ -159,7 +159,7 @@ export function CloudBackupSettings() {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Cloud className="w-5 h-5 text-blue-500" />
+          <Cloud className="w-5 h-5 text-primary-500" />
           <CardTitle>Sauvegarde Cloud</CardTitle>
         </div>
         <CardDescription>
@@ -190,7 +190,7 @@ export function CloudBackupSettings() {
             <div className="flex items-center justify-between p-4 border border-primary-200 rounded-lg">
               <div className="flex items-center gap-3">
                 {cloudBackup.isConnected ? (
-                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <CheckCircle className="w-5 h-5 text-primary-500" />
                 ) : (
                   <CloudOff className="w-5 h-5 text-primary-400" />
                 )}
@@ -253,9 +253,9 @@ export function CloudBackupSettings() {
                   <div className="p-3 bg-primary-50 rounded-lg text-sm">
                     <div className="flex items-center gap-2">
                       {cloudBackup.lastBackupStatus === 'success' ? (
-                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <CheckCircle className="w-4 h-4 text-primary-500" />
                       ) : (
-                        <XCircle className="w-4 h-4 text-red-500" />
+                        <XCircle className="w-4 h-4 text-primary-500" />
                       )}
                       <span>
                         Dernier backup: {new Date(cloudBackup.lastBackupAt).toLocaleString('fr-FR')}
@@ -316,7 +316,7 @@ export function CloudBackupSettings() {
                               onClick={() => handleDeleteBackup(backup.id)}
                               title="Supprimer"
                             >
-                              <Trash2 className="w-4 h-4 text-red-500" />
+                              <Trash2 className="w-4 h-4 text-primary-500" />
                             </Button>
                           </div>
                         </div>

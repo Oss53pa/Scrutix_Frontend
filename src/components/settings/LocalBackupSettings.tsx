@@ -206,8 +206,8 @@ export function LocalBackupSettings() {
                 onClick={handleExportSettings}
                 className="flex items-center gap-3 p-4 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors text-left"
               >
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Settings className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
+                  <Settings className="w-5 h-5 text-primary-600" />
                 </div>
                 <div>
                   <p className="font-medium text-primary-900">Parametres uniquement</p>
@@ -221,8 +221,8 @@ export function LocalBackupSettings() {
                 onClick={handleExportAll}
                 className="flex items-center gap-3 p-4 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors text-left"
               >
-                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                  <Database className="w-5 h-5 text-green-600" />
+                <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
+                  <Database className="w-5 h-5 text-primary-600" />
                 </div>
                 <div>
                   <p className="font-medium text-primary-900">Sauvegarde complete</p>

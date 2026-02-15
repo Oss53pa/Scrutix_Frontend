@@ -6,6 +6,7 @@ import {
   Severity,
   TransactionType,
   DetectionThresholds,
+  BankConditions,
 } from '../types';
 import { feeDescriptionSuspicionScore, isRoundAmount, shannonEntropy } from './utils/entropy';
 import { descriptionSimilarity } from './utils/similarity';
@@ -59,7 +60,7 @@ export class GhostFeeDetector {
   /**
    * Detect ghost fees (fees without associated services)
    */
-  detectGhostFees(transactions: Transaction[]): Anomaly[] {
+  detectGhostFees(transactions: Transaction[], bankConditions?: BankConditions): Anomaly[] {
     const anomalies: Anomaly[] = [];
 
     // Filter to potential fee transactions
@@ -69,7 +70,7 @@ export class GhostFeeDetector {
       const analysis = this.analyzeFee(fee, transactions);
 
       if (analysis.isGhost && analysis.suspicionScore >= this.thresholds.minConfidence) {
-        anomalies.push(this.createAnomaly(analysis));
+        anomalies.push(this.createAnomaly(analysis, bankConditions));
       }
     }
 
@@ -244,7 +245,7 @@ export class GhostFeeDetector {
   /**
    * Create anomaly from analysis
    */
-  private createAnomaly(analysis: GhostFeeAnalysis): Anomaly {
+  private createAnomaly(analysis: GhostFeeAnalysis, bankConditions?: BankConditions): Anomaly {
     const { transaction, suspicionScore, isRecurring } = analysis;
 
     return {
@@ -254,8 +255,8 @@ export class GhostFeeDetector {
       confidence: suspicionScore,
       amount: Math.abs(transaction.amount),
       transactions: [transaction],
-      evidence: this.generateEvidence(analysis),
-      recommendation: this.generateRecommendation(analysis),
+      evidence: this.generateEvidence(analysis, bankConditions),
+      recommendation: this.generateRecommendation(analysis, bankConditions),
       status: 'pending',
       detectedAt: new Date(),
     };
@@ -274,10 +275,24 @@ export class GhostFeeDetector {
   }
 
   /**
-   * Generate evidence for the anomaly
+   * Generate evidence for the anomaly with source references
    */
-  private generateEvidence(analysis: GhostFeeAnalysis): Evidence[] {
+  private generateEvidence(analysis: GhostFeeAnalysis, bankConditions?: BankConditions): Evidence[] {
     const evidence: Evidence[] = [];
+    const bankName = bankConditions?.bankName || 'Banque';
+    const gridDate = bankConditions?.effectiveDate
+      ? new Date(bankConditions.effectiveDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      : '';
+    const sourceName = gridDate ? `Grille tarifaire ${bankName} - ${gridDate}` : `Conditions ${bankName}`;
+
+    // Vérification dans la grille tarifaire
+    evidence.push({
+      type: 'GRID_CHECK',
+      description: 'Vérification tarifaire',
+      value: `${Math.abs(analysis.transaction.amount).toLocaleString('fr-FR')} FCFA`,
+      source: sourceName,
+      conditionRef: 'Aucune correspondance trouvée dans la grille',
+    });
 
     evidence.push({
       type: 'SUSPICION_SCORE',
@@ -289,7 +304,7 @@ export class GhostFeeDetector {
       evidence.push({
         type: 'NO_SERVICE',
         description: 'Service associé',
-        value: 'Aucun service identifié',
+        value: 'Aucune opération correspondante identifiée',
       });
     }
 
@@ -300,6 +315,13 @@ export class GhostFeeDetector {
         value: 'Frais similaires détectés sur les 3 derniers mois',
       });
     }
+
+    // Libellé de la transaction
+    evidence.push({
+      type: 'DESCRIPTION',
+      description: 'Libellé bancaire',
+      value: analysis.transaction.description,
+    });
 
     // Add reasons
     for (const reason of analysis.reasons) {
@@ -314,24 +336,23 @@ export class GhostFeeDetector {
   }
 
   /**
-   * Generate recommendation
+   * Generate recommendation with source reference
    */
-  private generateRecommendation(analysis: GhostFeeAnalysis): string {
+  private generateRecommendation(analysis: GhostFeeAnalysis, bankConditions?: BankConditions): string {
     const amount = Math.abs(analysis.transaction.amount);
     const formattedAmount = Math.round(amount).toLocaleString('fr-FR');
+    const bankName = bankConditions?.bankName || 'la banque';
 
     if (analysis.isRecurring) {
       return (
-        `Frais récurrent suspect de ${formattedAmount} FCFA sans service identifiable. ` +
-        `Demander une justification détaillée et l'historique de facturation. ` +
-        `Si non justifié, exiger le remboursement rétroactif sur les 12 derniers mois.`
+        `Frais fantôme récurrent de ${formattedAmount} FCFA - libellé "${analysis.transaction.description}" sans correspondance dans la grille tarifaire. ` +
+        `Réclamer auprès de ${bankName} une justification détaillée et le remboursement rétroactif si non justifié.`
       );
     }
 
     return (
-      `Frais non identifié de ${formattedAmount} FCFA. ` +
-      `Demander une facture détaillée et le justificatif du service rendu. ` +
-      `En l'absence de justification valide, contester et demander le remboursement.`
+      `Frais fantôme de ${formattedAmount} FCFA - libellé "${analysis.transaction.description}" non identifié dans la grille tarifaire. ` +
+      `Réclamer auprès de ${bankName} le justificatif du service rendu ou le remboursement.`
     );
   }
 }

@@ -67,26 +67,26 @@ export function BankFormModal({ isOpen, onClose, onSave, bank }: BankFormModalPr
               onClick={() => setFormData({ ...formData, zone: 'CEMAC', country: 'CM' })}
               className={`p-4 rounded-lg border-2 text-left transition-colors ${
                 formData.zone === 'CEMAC'
-                  ? 'border-blue-500 bg-blue-50'
+                  ? 'border-primary-500 bg-primary-50'
                   : 'border-primary-200 hover:border-primary-300'
               }`}
             >
               <p className="font-semibold text-primary-900">CEMAC</p>
               <p className="text-xs text-primary-500">Afrique Centrale</p>
-              <p className="text-xs text-blue-600 mt-1">XAF - Franc CFA BEAC</p>
+              <p className="text-xs text-primary-600 mt-1">XAF - Franc CFA BEAC</p>
             </button>
             <button
               type="button"
               onClick={() => setFormData({ ...formData, zone: 'UEMOA', country: 'CI' })}
               className={`p-4 rounded-lg border-2 text-left transition-colors ${
                 formData.zone === 'UEMOA'
-                  ? 'border-green-500 bg-green-50'
+                  ? 'border-primary-500 bg-primary-50'
                   : 'border-primary-200 hover:border-primary-300'
               }`}
             >
               <p className="font-semibold text-primary-900">UEMOA</p>
               <p className="text-xs text-primary-500">Afrique de l'Ouest</p>
-              <p className="text-xs text-green-600 mt-1">XOF - Franc CFA BCEAO</p>
+              <p className="text-xs text-primary-600 mt-1">XOF - Franc CFA BCEAO</p>
             </button>
           </div>
         </div>

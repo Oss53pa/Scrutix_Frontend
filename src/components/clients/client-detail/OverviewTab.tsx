@@ -41,12 +41,12 @@ export const OverviewTab = memo(function OverviewTab({
     <div className="space-y-4">
       {/* Primary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-3 bg-gradient-to-br from-green-600 to-green-700 text-white">
+        <Card className="p-3 bg-gradient-to-br from-primary-600 to-primary-700 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-green-100">Economies realisees</p>
+              <p className="text-xs text-primary-100">Economies realisees</p>
               <p className="text-xl font-bold mt-0.5">{formatCurrency(analytics.totalSavings, 'XAF')}</p>
-              <p className="text-xs text-green-200 mt-1">+{formatCurrency(analytics.potentialSavings, 'XAF')} potentiel</p>
+              <p className="text-xs text-primary-200 mt-1">+{formatCurrency(analytics.potentialSavings, 'XAF')} potentiel</p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
               <PiggyBank className="w-5 h-5" />
@@ -61,8 +61,8 @@ export const OverviewTab = memo(function OverviewTab({
               <p className="text-xl font-bold text-primary-900 mt-0.5">{clientAnomalies.length}</p>
               <p className="text-xs text-primary-400 mt-1">{analytics.confirmedCount} confirmees, {analytics.pendingCount} en attente</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-primary-600" />
             </div>
           </div>
         </Card>
@@ -74,8 +74,8 @@ export const OverviewTab = memo(function OverviewTab({
               <p className="text-xl font-bold text-primary-900 mt-0.5">{formatCurrency(analytics.totalVolume, 'XAF')}</p>
               <p className="text-xs text-primary-400 mt-1">{clientTransactions.length} transactions</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-primary-600" />
             </div>
           </div>
         </Card>
@@ -84,11 +84,11 @@ export const OverviewTab = memo(function OverviewTab({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-primary-500">Score de risque</p>
-              <p className={`text-xl font-bold mt-0.5 ${analytics.riskColor === 'red' ? 'text-red-600' : analytics.riskColor === 'yellow' ? 'text-yellow-600' : 'text-green-600'}`}>{analytics.riskScore}%</p>
+              <p className="text-xl font-bold mt-0.5 text-primary-600">{analytics.riskScore}%</p>
               <p className="text-xs text-primary-400 mt-1">Niveau {analytics.riskLevel.toLowerCase()}</p>
             </div>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${analytics.riskColor === 'red' ? 'bg-red-100' : analytics.riskColor === 'yellow' ? 'bg-yellow-100' : 'bg-green-100'}`}>
-              <ShieldAlert className={`w-5 h-5 ${analytics.riskColor === 'red' ? 'text-red-600' : analytics.riskColor === 'yellow' ? 'text-yellow-600' : 'text-green-600'}`} />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary-100">
+              <ShieldAlert className="w-5 h-5 text-primary-600" />
             </div>
           </div>
         </Card>
@@ -98,44 +98,44 @@ export const OverviewTab = memo(function OverviewTab({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-red-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-primary-600" />
             </div>
             <div>
-              <p className="text-xl font-bold text-red-600">{analytics.bySeverity.critical}</p>
+              <p className="text-xl font-bold text-primary-600">{analytics.bySeverity.critical}</p>
               <p className="text-xs text-primary-500">Critiques</p>
             </div>
           </div>
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4 text-orange-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+              <AlertTriangle className="w-4 h-4 text-primary-600" />
             </div>
             <div>
-              <p className="text-xl font-bold text-orange-600">{analytics.bySeverity.high}</p>
+              <p className="text-xl font-bold text-primary-600">{analytics.bySeverity.high}</p>
               <p className="text-xs text-primary-500">Hautes</p>
             </div>
           </div>
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-yellow-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-primary-600" />
             </div>
             <div>
-              <p className="text-xl font-bold text-yellow-600">{analytics.bySeverity.medium}</p>
+              <p className="text-xl font-bold text-primary-600">{analytics.bySeverity.medium}</p>
               <p className="text-xs text-primary-500">Moyennes</p>
             </div>
           </div>
         </Card>
         <Card className="p-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4 text-primary-600" />
             </div>
             <div>
-              <p className="text-xl font-bold text-green-600">{analytics.bySeverity.low}</p>
+              <p className="text-xl font-bold text-primary-600">{analytics.bySeverity.low}</p>
               <p className="text-xs text-primary-500">Basses</p>
             </div>
           </div>
@@ -256,11 +256,11 @@ export const OverviewTab = memo(function OverviewTab({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-primary-600">Credits</span>
-                <span className="font-medium text-green-600">+{formatCurrency(analytics.creditVolume, 'XAF')}</span>
+                <span className="font-medium text-primary-600">+{formatCurrency(analytics.creditVolume, 'XAF')}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-primary-600">Debits</span>
-                <span className="font-medium text-red-600">-{formatCurrency(analytics.debitVolume, 'XAF')}</span>
+                <span className="font-medium text-primary-600">-{formatCurrency(analytics.debitVolume, 'XAF')}</span>
               </div>
               <div className="border-t border-primary-100 pt-3">
                 <div className="flex items-center justify-between">
@@ -270,7 +270,7 @@ export const OverviewTab = memo(function OverviewTab({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-primary-600">Taux de confirmation</span>
-                <span className="font-medium text-blue-600">{analytics.confirmationRate}%</span>
+                <span className="font-medium text-primary-600">{analytics.confirmationRate}%</span>
               </div>
             </div>
           </CardBody>

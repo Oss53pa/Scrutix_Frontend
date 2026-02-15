@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Globe, Search, ExternalLink, Plus, Pencil, Trash2, X, Save } from 'lucide-react';
+import { BookOpen, Globe, Search, ExternalLink, Plus, Pencil, Trash2, X, Save, Database, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -14,6 +14,7 @@ import {
 } from '../ui';
 import { useSettingsStore, CustomRegulatorySource } from '../../store';
 import { RegulatorySearchService, REGULATORY_SOURCES, SearchResult } from '../../services/RegulatorySearchService';
+import { RegulatoryDataPanel } from './RegulatoryDataPanel';
 
 type CustomSourceFormData = Omit<CustomRegulatorySource, 'id' | 'createdAt'>;
 
@@ -43,6 +44,7 @@ export function RegulatorySourcesSettings() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [showDataPanel, setShowDataPanel] = useState(false);
 
   // Custom source modal state
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -142,7 +144,7 @@ export function RegulatorySourcesSettings() {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-green-600" />
+          <BookOpen className="w-5 h-5 text-primary-600" />
           <CardTitle>Sources Reglementaires</CardTitle>
         </div>
         <CardDescription>
@@ -166,7 +168,7 @@ export function RegulatorySourcesSettings() {
               onChange={(e) => updateRegulatorySources({ enableReferences: e.target.checked })}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-primary-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-primary-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+            <div className="w-11 h-6 bg-primary-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-primary-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
           </label>
         </div>
 
@@ -200,7 +202,7 @@ export function RegulatorySourcesSettings() {
                       key={source.id}
                       className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                         regulatorySources.sources[source.id as keyof typeof regulatorySources.sources]
-                          ? 'border-green-500 bg-green-50'
+                          ? 'border-primary-500 bg-primary-50'
                           : 'border-primary-200 hover:bg-primary-50'
                       }`}
                     >
@@ -221,7 +223,7 @@ export function RegulatorySourcesSettings() {
                           href={source.baseUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1"
+                          className="text-xs text-primary-500 hover:underline flex items-center gap-1 mt-1"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {source.baseUrl} <ExternalLink className="w-3 h-3" />
@@ -241,7 +243,7 @@ export function RegulatorySourcesSettings() {
                       key={source.id}
                       className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                         regulatorySources.sources[source.id as keyof typeof regulatorySources.sources]
-                          ? 'border-green-500 bg-green-50'
+                          ? 'border-primary-500 bg-primary-50'
                           : 'border-primary-200 hover:bg-primary-50'
                       }`}
                     >
@@ -262,7 +264,7 @@ export function RegulatorySourcesSettings() {
                           href={source.baseUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1"
+                          className="text-xs text-primary-500 hover:underline flex items-center gap-1 mt-1"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {source.baseUrl} <ExternalLink className="w-3 h-3" />
@@ -293,7 +295,7 @@ export function RegulatorySourcesSettings() {
                         key={source.id}
                         className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${
                           source.enabled
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-primary-500 bg-primary-50'
                             : 'border-primary-200 bg-primary-50'
                         }`}
                       >
@@ -317,7 +319,7 @@ export function RegulatorySourcesSettings() {
                             href={source.baseUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1"
+                            className="text-xs text-primary-500 hover:underline flex items-center gap-1 mt-1"
                           >
                             {source.baseUrl} <ExternalLink className="w-3 h-3" />
                           </a>
@@ -325,7 +327,7 @@ export function RegulatorySourcesSettings() {
                         <div className="flex flex-col gap-1">
                           <button
                             onClick={() => handleOpenEditModal(source)}
-                            className="p-1 text-primary-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                            className="p-1 text-primary-400 hover:text-primary-600 hover:bg-primary-50 rounded"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -362,6 +364,31 @@ export function RegulatorySourcesSettings() {
               </div>
             </div>
 
+            {/* Live Data Panel */}
+            <div className="border border-primary-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setShowDataPanel(!showDataPanel)}
+                className="w-full flex items-center justify-between p-4 bg-primary-50 hover:bg-primary-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-primary-600" />
+                  <span className="text-sm font-medium text-primary-700">
+                    Donnees Reglementaires en Temps Reel
+                  </span>
+                </div>
+                {showDataPanel ? (
+                  <ChevronUp className="w-4 h-4 text-primary-500" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-primary-500" />
+                )}
+              </button>
+              {showDataPanel && (
+                <div className="p-4 border-t border-primary-200">
+                  <RegulatoryDataPanel />
+                </div>
+              )}
+            </div>
+
             {/* Test Search */}
             <div>
               <h4 className="text-sm font-medium text-primary-700 mb-3 flex items-center gap-2">
@@ -396,7 +423,7 @@ export function RegulatorySourcesSettings() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium px-2 py-0.5 bg-green-100 text-green-700 rounded">
+                            <span className="text-xs font-medium px-2 py-0.5 bg-primary-100 text-primary-700 rounded">
                               {result.sourceName}
                             </span>
                             <span className="text-xs text-primary-400">
@@ -413,7 +440,7 @@ export function RegulatorySourcesSettings() {
                           href={result.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1 text-blue-500 hover:bg-blue-50 rounded"
+                          className="p-1 text-primary-500 hover:bg-primary-50 rounded"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </a>

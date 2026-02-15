@@ -25,11 +25,11 @@ export const AnalysesTab = memo(function AnalysesTab({
           <p className="text-xs text-primary-500">Total anomalies</p>
         </Card>
         <Card className="p-3 text-center">
-          <p className="text-2xl font-bold text-green-600">{analytics.confirmedCount}</p>
+          <p className="text-2xl font-bold text-primary-600">{analytics.confirmedCount}</p>
           <p className="text-xs text-primary-500">Confirmees</p>
         </Card>
         <Card className="p-3 text-center">
-          <p className="text-2xl font-bold text-amber-600">{analytics.pendingCount}</p>
+          <p className="text-2xl font-bold text-primary-600">{analytics.pendingCount}</p>
           <p className="text-xs text-primary-500">En attente</p>
         </Card>
       </div>

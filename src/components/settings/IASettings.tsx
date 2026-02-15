@@ -56,9 +56,9 @@ export function IASettings({ onSave }: IASettingsProps) {
   const fullAnalysisCost = useMemo(() => router.estimateFullAnalysisCost(), [router]);
 
   const tierConfig: Record<ModelTier, { icon: typeof Zap; color: string; bgColor: string }> = {
-    haiku: { icon: Zap, color: 'text-green-600', bgColor: 'bg-green-100' },
-    sonnet: { icon: Cpu, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-    opus: { icon: Sparkles, color: 'text-purple-600', bgColor: 'bg-purple-100' },
+    haiku: { icon: Zap, color: 'text-primary-600', bgColor: 'bg-primary-100' },
+    sonnet: { icon: Cpu, color: 'text-primary-600', bgColor: 'bg-primary-100' },
+    opus: { icon: Sparkles, color: 'text-primary-600', bgColor: 'bg-primary-100' },
   };
 
   const categoryLabels: Record<string, string> = {
@@ -113,7 +113,7 @@ export function IASettings({ onSave }: IASettingsProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-purple-500" />
+          <Brain className="w-5 h-5 text-primary-500" />
           <CardTitle>Intelligence Artificielle Claude</CardTitle>
         </div>
         <CardDescription>
@@ -156,9 +156,9 @@ export function IASettings({ onSave }: IASettingsProps) {
               {validating ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : validationStatus === 'valid' ? (
-                <CheckCircle className="w-4 h-4 text-green-500" />
+                <CheckCircle className="w-4 h-4 text-primary-500" />
               ) : validationStatus === 'invalid' ? (
-                <XCircle className="w-4 h-4 text-red-500" />
+                <XCircle className="w-4 h-4 text-primary-500" />
               ) : (
                 'Valider'
               )}
@@ -414,11 +414,7 @@ export function IASettings({ onSave }: IASettingsProps) {
               return (
                 <div
                   key={tier}
-                  className={`p-3 rounded-lg border-2 ${
-                    tier === 'haiku' ? 'border-green-200 bg-green-50' :
-                    tier === 'sonnet' ? 'border-blue-200 bg-blue-50' :
-                    'border-purple-200 bg-purple-50'
-                  }`}
+                  className={`p-3 rounded-lg border-2 border-primary-200 bg-primary-50`}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <div className={`w-8 h-8 rounded-lg ${tierConfig[tier].bgColor} flex items-center justify-center`}>
@@ -477,11 +473,7 @@ export function IASettings({ onSave }: IASettingsProps) {
                       return (
                         <div
                           key={module}
-                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs ${
-                            config.tier === 'haiku' ? 'bg-green-100 text-green-800' :
-                            config.tier === 'sonnet' ? 'bg-blue-100 text-blue-800' :
-                            'bg-purple-100 text-purple-800'
-                          }`}
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-primary-100 text-primary-800`}
                           title={`${config.description}\nCout: ${router.formatCost(estimate.costUSD)}`}
                         >
                           <TierIcon className="w-3 h-3" />

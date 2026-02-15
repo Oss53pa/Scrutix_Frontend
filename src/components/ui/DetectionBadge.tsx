@@ -13,24 +13,24 @@ const sourceConfig = {
     icon: Cpu,
     label: 'Algorithme',
     shortLabel: 'Algo',
-    color: 'bg-blue-100 text-blue-700 border-blue-200',
-    iconColor: 'text-blue-600',
+    color: 'bg-primary-100 text-primary-700 border-primary-200',
+    iconColor: 'text-primary-600',
     description: 'Detecte par regles mathematiques',
   },
   ai: {
     icon: Bot,
     label: 'Intelligence Artificielle',
     shortLabel: 'IA',
-    color: 'bg-purple-100 text-purple-700 border-purple-200',
-    iconColor: 'text-purple-600',
+    color: 'bg-primary-100 text-primary-700 border-primary-200',
+    iconColor: 'text-primary-600',
     description: 'Detecte par analyse IA (Claude)',
   },
   hybrid: {
     icon: Sparkles,
     label: 'Hybride',
     shortLabel: 'Hybride',
-    color: 'bg-amber-100 text-amber-700 border-amber-200',
-    iconColor: 'text-amber-600',
+    color: 'bg-primary-100 text-primary-700 border-primary-200',
+    iconColor: 'text-primary-600',
     description: 'Detecte par algorithme + confirme par IA',
   },
 };
@@ -71,10 +71,7 @@ export function DetectionSourceInfo({ source = 'algorithm' }: { source?: Detecti
 
   return (
     <div className="flex items-center gap-2">
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-        source === 'algorithm' ? 'bg-blue-100' :
-        source === 'ai' ? 'bg-purple-100' : 'bg-amber-100'
-      }`}>
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-primary-100`}>
         <Icon className={`w-4 h-4 ${config.iconColor}`} />
       </div>
       <div>

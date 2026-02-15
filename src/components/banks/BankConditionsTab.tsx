@@ -32,7 +32,7 @@ export function BankConditionsTab({ banks, selectedBankId, onSelectBank, onOpenC
               >
                 <Landmark className="w-5 h-5 text-primary-600" />
                 <span className="flex-1 text-left font-medium text-primary-900">{bank.name}</span>
-                {bank.conditions && <CheckCircle2 className="w-4 h-4 text-green-600" />}
+                {bank.conditions && <CheckCircle2 className="w-4 h-4 text-primary-600" />}
               </button>
             ))}
           </div>

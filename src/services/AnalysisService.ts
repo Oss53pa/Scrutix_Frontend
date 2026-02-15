@@ -123,7 +123,7 @@ export class AnalysisService {
       if (config.enabledDetectors.includes(AnomalyType.DUPLICATE_FEE)) {
         progress(currentProgress, 'Détection des doublons...');
         const duplicates = await this.runDetector(() =>
-          this.duplicateDetector.detectDuplicates(filteredTransactions)
+          this.duplicateDetector.detectDuplicates(filteredTransactions, bankConditions)
         );
         allAnomalies.push(...duplicates);
         currentProgress += progressPerDetector;
@@ -133,7 +133,7 @@ export class AnalysisService {
       if (config.enabledDetectors.includes(AnomalyType.GHOST_FEE)) {
         progress(currentProgress, 'Détection des frais fantômes...');
         const ghostFees = await this.runDetector(() =>
-          this.ghostFeeDetector.detectGhostFees(filteredTransactions)
+          this.ghostFeeDetector.detectGhostFees(filteredTransactions, bankConditions)
         );
         allAnomalies.push(...ghostFees);
         currentProgress += progressPerDetector;

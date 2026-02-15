@@ -105,8 +105,8 @@ export function ClaudeChat({ isOpen, onClose, context }: ClaudeChatProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-primary-200">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Sparkles className="w-5 h-5 text-purple-600" />
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <Sparkles className="w-5 h-5 text-primary-600" />
             </div>
             <div>
               <h2 className="font-semibold text-primary-900">Assistant Claude IA</h2>
@@ -264,14 +264,14 @@ export function ClaudeChat({ isOpen, onClose, context }: ClaudeChatProps) {
                   placeholder="Posez une question sur vos donnees bancaires..."
                   disabled={isLoading}
                   rows={1}
-                  className="flex-1 px-4 py-2 border border-primary-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-primary-50 disabled:text-primary-400"
+                  className="flex-1 px-4 py-2 border border-primary-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-primary-50 disabled:text-primary-400"
                   style={{ minHeight: '42px', maxHeight: '120px' }}
                 />
                 <Button
                   variant="primary"
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
-                  className="bg-purple-600 hover:bg-purple-700"
+                  className="bg-primary-600 hover:bg-primary-700"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

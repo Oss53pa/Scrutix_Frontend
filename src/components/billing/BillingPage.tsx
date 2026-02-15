@@ -394,11 +394,11 @@ export function BillingPage() {
                   <p className="text-xl font-bold mt-0.5">{formatCurrency(analytics.totalInvoiced, 'XAF')}</p>
                   <div className="flex items-center gap-1 mt-1">
                     {analytics.growth >= 0 ? (
-                      <ArrowUpRight className="w-3 h-3 text-green-400" />
+                      <ArrowUpRight className="w-3 h-3 text-primary-300" />
                     ) : (
-                      <ArrowDownRight className="w-3 h-3 text-red-400" />
+                      <ArrowDownRight className="w-3 h-3 text-primary-300" />
                     )}
-                    <span className={`text-xs ${analytics.growth >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    <span className="text-xs text-primary-300">
                       {analytics.growth >= 0 ? '+' : ''}{analytics.growth}% ce mois
                     </span>
                   </div>
@@ -413,11 +413,11 @@ export function BillingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-primary-500">Encaisse</p>
-                  <p className="text-xl font-bold text-green-600 mt-0.5">{formatCurrency(analytics.totalPaid, 'XAF')}</p>
+                  <p className="text-xl font-bold text-primary-600 mt-0.5">{formatCurrency(analytics.totalPaid, 'XAF')}</p>
                   <p className="text-xs text-primary-400 mt-1">{analytics.paymentRate}% du total facture</p>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                  <Wallet className="w-5 h-5 text-green-600" />
+                <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-primary-600" />
                 </div>
               </div>
             </Card>
@@ -426,11 +426,11 @@ export function BillingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-primary-500">En attente</p>
-                  <p className="text-xl font-bold text-amber-600 mt-0.5">{formatCurrency(analytics.totalPending, 'XAF')}</p>
+                  <p className="text-xl font-bold text-primary-600 mt-0.5">{formatCurrency(analytics.totalPending, 'XAF')}</p>
                   <p className="text-xs text-primary-400 mt-1">{analytics.invoiceStats.sent} facture{analytics.invoiceStats.sent > 1 ? 's' : ''}</p>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-amber-600" />
+                <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-primary-600" />
                 </div>
               </div>
             </Card>
@@ -439,11 +439,11 @@ export function BillingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-primary-500">DSO moyen</p>
-                  <p className="text-xl font-bold text-blue-600 mt-0.5">{analytics.avgDSO} jours</p>
+                  <p className="text-xl font-bold text-primary-600 mt-0.5">{analytics.avgDSO} jours</p>
                   <p className="text-xs text-primary-400 mt-1">Delai moyen de paiement</p>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                  <Target className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                  <Target className="w-5 h-5 text-primary-600" />
                 </div>
               </div>
             </Card>
@@ -451,18 +451,18 @@ export function BillingPage() {
 
           {/* Overdue Alert */}
           {analytics.totalOverdue > 0 && (
-            <Card className="p-3 bg-red-50 border-red-200">
+            <Card className="p-3 bg-primary-50 border-primary-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4 text-primary-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-red-800">{formatCurrency(analytics.totalOverdue, 'XAF')} en retard de paiement</p>
-                    <p className="text-xs text-red-600">{analytics.invoiceStats.overdue} facture{analytics.invoiceStats.overdue > 1 ? 's' : ''} a relancer</p>
+                    <p className="text-sm font-semibold text-primary-800">{formatCurrency(analytics.totalOverdue, 'XAF')} en retard de paiement</p>
+                    <p className="text-xs text-primary-600">{analytics.invoiceStats.overdue} facture{analytics.invoiceStats.overdue > 1 ? 's' : ''} a relancer</p>
                   </div>
                 </div>
-                <Button variant="primary" size="sm" className="bg-red-600 hover:bg-red-700" onClick={() => setActiveTab('invoices')}>
+                <Button variant="primary" size="sm" onClick={() => setActiveTab('invoices')}>
                   Voir les factures
                 </Button>
               </div>
@@ -476,15 +476,15 @@ export function BillingPage() {
               <p className="text-xs text-primary-500">Factures totales</p>
             </Card>
             <Card className="p-3 text-center">
-              <p className="text-2xl font-bold text-green-600">{analytics.invoiceStats.paid}</p>
+              <p className="text-2xl font-bold text-primary-600">{analytics.invoiceStats.paid}</p>
               <p className="text-xs text-primary-500">Payees</p>
             </Card>
             <Card className="p-3 text-center">
-              <p className="text-2xl font-bold text-amber-600">{analytics.invoiceStats.sent}</p>
+              <p className="text-2xl font-bold text-primary-600">{analytics.invoiceStats.sent}</p>
               <p className="text-xs text-primary-500">En attente</p>
             </Card>
             <Card className="p-3 text-center">
-              <p className="text-2xl font-bold text-red-600">{analytics.invoiceStats.overdue}</p>
+              <p className="text-2xl font-bold text-primary-600">{analytics.invoiceStats.overdue}</p>
               <p className="text-xs text-primary-500">En retard</p>
             </Card>
           </div>
@@ -576,14 +576,14 @@ export function BillingPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-primary-500" />
                       <div className="flex-1">
                         <p className="text-xs font-medium">Commissions</p>
                         <p className="text-sm font-bold">{formatCurrency(analytics.revenueByType.commission, 'XAF')}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-primary-300" />
                       <div className="flex-1">
                         <p className="text-xs font-medium">Services</p>
                         <p className="text-sm font-bold">{formatCurrency(analytics.revenueByType.service, 'XAF')}</p>
@@ -607,11 +607,11 @@ export function BillingPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-primary-600">0-30 jours</span>
-                      <span className="text-sm font-bold text-green-600">{formatCurrency(analytics.aging.current, 'XAF')}</span>
+                      <span className="text-sm font-bold text-primary-600">{formatCurrency(analytics.aging.current, 'XAF')}</span>
                     </div>
                     <div className="h-2 bg-primary-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-green-500 rounded-full"
+                        className="h-full bg-primary-500 rounded-full"
                         style={{ width: `${(analytics.aging.current / (analytics.totalPending + analytics.totalOverdue || 1)) * 100}%` }}
                       />
                     </div>
@@ -619,11 +619,11 @@ export function BillingPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-primary-600">31-60 jours</span>
-                      <span className="text-sm font-bold text-yellow-600">{formatCurrency(analytics.aging.days30, 'XAF')}</span>
+                      <span className="text-sm font-bold text-primary-600">{formatCurrency(analytics.aging.days30, 'XAF')}</span>
                     </div>
                     <div className="h-2 bg-primary-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-yellow-500 rounded-full"
+                        className="h-full bg-primary-400 rounded-full"
                         style={{ width: `${(analytics.aging.days30 / (analytics.totalPending + analytics.totalOverdue || 1)) * 100}%` }}
                       />
                     </div>
@@ -631,11 +631,11 @@ export function BillingPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-primary-600">61-90 jours</span>
-                      <span className="text-sm font-bold text-orange-600">{formatCurrency(analytics.aging.days60, 'XAF')}</span>
+                      <span className="text-sm font-bold text-primary-600">{formatCurrency(analytics.aging.days60, 'XAF')}</span>
                     </div>
                     <div className="h-2 bg-primary-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-orange-500 rounded-full"
+                        className="h-full bg-primary-300 rounded-full"
                         style={{ width: `${(analytics.aging.days60 / (analytics.totalPending + analytics.totalOverdue || 1)) * 100}%` }}
                       />
                     </div>
@@ -643,11 +643,11 @@ export function BillingPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm text-primary-600">90+ jours</span>
-                      <span className="text-sm font-bold text-red-600">{formatCurrency(analytics.aging.days90, 'XAF')}</span>
+                      <span className="text-sm font-bold text-primary-600">{formatCurrency(analytics.aging.days90, 'XAF')}</span>
                     </div>
                     <div className="h-2 bg-primary-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-red-500 rounded-full"
+                        className="h-full bg-primary-200 rounded-full"
                         style={{ width: `${(analytics.aging.days90 / (analytics.totalPending + analytics.totalOverdue || 1)) * 100}%` }}
                       />
                     </div>
@@ -675,7 +675,7 @@ export function BillingPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-bold text-primary-900">{formatCurrency(client.total, 'XAF')}</p>
-                          <p className="text-xs text-green-600">{formatCurrency(client.paid, 'XAF')} encaisse</p>
+                          <p className="text-xs text-primary-600">{formatCurrency(client.paid, 'XAF')} encaisse</p>
                         </div>
                       </div>
                     ))

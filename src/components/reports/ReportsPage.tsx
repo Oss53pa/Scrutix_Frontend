@@ -199,8 +199,8 @@ export function ReportsPage() {
   };
 
   const statusConfig = {
-    imported: { label: 'Importe', color: 'bg-blue-100 text-blue-700', icon: Clock },
-    analyzed: { label: 'Analyse', color: 'bg-green-100 text-green-700', icon: FileCheck },
+    imported: { label: 'Importe', color: 'bg-primary-100 text-primary-700', icon: Clock },
+    analyzed: { label: 'Analyse', color: 'bg-primary-100 text-primary-700', icon: FileCheck },
     archived: { label: 'Archive', color: 'bg-gray-100 text-gray-700', icon: Archive },
   };
 
@@ -368,7 +368,7 @@ export function ReportsPage() {
                                   setSelectedStatement(statement);
                                   setShowGenerateModal(true);
                                 }}
-                                className="p-1.5 hover:bg-blue-50 rounded text-primary-500 hover:text-blue-600"
+                                className="p-1.5 hover:bg-primary-50 rounded text-primary-500 hover:text-primary-600"
                                 title="Generer un rapport"
                               >
                                 <Printer className="w-4 h-4" />
@@ -452,9 +452,9 @@ export function ReportsPage() {
                     </div>
 
                     {statementReports.length > 0 && (
-                      <div className="mb-3 p-2 bg-blue-50 rounded flex items-center justify-between">
-                        <span className="text-xs text-blue-700">{statementReports.length} rapport(s) genere(s)</span>
-                        <FileCheck className="w-4 h-4 text-blue-600" />
+                      <div className="mb-3 p-2 bg-primary-50 rounded flex items-center justify-between">
+                        <span className="text-xs text-primary-700">{statementReports.length} rapport(s) genere(s)</span>
+                        <FileCheck className="w-4 h-4 text-primary-600" />
                       </div>
                     )}
 
@@ -529,15 +529,15 @@ export function ReportsPage() {
                       };
                       const statusLabels = {
                         draft: { label: 'Brouillon', color: 'bg-gray-100 text-gray-700' },
-                        final: { label: 'Final', color: 'bg-green-100 text-green-700' },
-                        sent: { label: 'Envoye', color: 'bg-blue-100 text-blue-700' },
+                        final: { label: 'Final', color: 'bg-primary-100 text-primary-700' },
+                        sent: { label: 'Envoye', color: 'bg-primary-100 text-primary-700' },
                       };
 
                       return (
                         <tr key={report.id} className="hover:bg-primary-50 transition-colors">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4 text-red-500" />
+                              <FileText className="w-4 h-4 text-primary-500" />
                               <span className="text-sm font-medium text-primary-900">{report.title}</span>
                             </div>
                           </td>
@@ -622,8 +622,8 @@ export function ReportsPage() {
                   <Card key={report.id} className="p-3 hover:border-primary-300 transition-colors">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <div className="p-2 bg-red-100 rounded-lg">
-                          <FileText className="w-4 h-4 text-red-600" />
+                        <div className="p-2 bg-primary-100 rounded-lg">
+                          <FileText className="w-4 h-4 text-primary-600" />
                         </div>
                         <div>
                           <h3 className="text-sm font-semibold text-primary-900 line-clamp-1">{report.title}</h3>
@@ -720,15 +720,15 @@ export function ReportsPage() {
             />
 
             {claudeApi.isEnabled && (
-              <label className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg cursor-pointer">
+              <label className="flex items-center gap-2 p-3 bg-primary-50 rounded-lg cursor-pointer">
                 <input
                   type="checkbox"
                   checked={reportConfig.includeAI}
                   onChange={(e) => setReportConfig({ ...reportConfig, includeAI: e.target.checked })}
                   className="w-4 h-4"
                 />
-                <Brain className="w-4 h-4 text-purple-600" />
-                <span className="text-sm text-purple-700">Inclure l'analyse IA</span>
+                <Brain className="w-4 h-4 text-primary-600" />
+                <span className="text-sm text-primary-700">Inclure l'analyse IA</span>
               </label>
             )}
 

@@ -85,6 +85,11 @@ export interface Evidence {
   description: string;
   value: string | number;
   reference?: string;
+  // Références aux conditions bancaires
+  source?: string; // Ex: "Grille tarifaire SGBC 2024", "Conditions générales"
+  conditionRef?: string; // Ex: "Section 3.2 - Frais de tenue de compte"
+  expectedValue?: string | number; // Valeur attendue selon les conditions
+  appliedValue?: string | number; // Valeur réellement appliquée
 }
 
 // Source de detection des anomalies

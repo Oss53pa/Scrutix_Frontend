@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, Filter, Download, ChevronDown, Brain, AlertTriangle,
-  TrendingUp, Shield, ChevronRight, Sparkles, Calendar
+  TrendingUp, Shield, ChevronRight, Sparkles, Calendar, Tv
 } from 'lucide-react';
 import {
   Card,
@@ -224,19 +224,19 @@ export function AnalysisPage() {
 
       {/* Grid Selection Info */}
       {selectedGridsInfo.length > 0 && !isAnalyzing && !currentAnalysis && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
           <div className="flex items-start gap-2">
-            <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+            <Calendar className="w-4 h-4 text-primary-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900">Grille tarifaire</p>
+              <p className="text-sm font-medium text-primary-900">Grille tarifaire</p>
               <div className="mt-1 space-y-0.5">
                 {selectedGridsInfo.map((info, index) => (
                   <div key={index} className="flex items-center gap-2 text-xs">
-                    <span className="text-blue-700">{info.bankName}:</span>
+                    <span className="text-primary-700">{info.bankName}:</span>
                     {info.source === 'versioned_grid' && info.grid ? (
                       <span className="flex items-center gap-1">
                         <Badge variant="success">{info.grid.name}</Badge>
-                        <span className="text-blue-500">v{info.version}</span>
+                        <span className="text-primary-500">v{info.version}</span>
                       </span>
                     ) : info.source === 'bank_conditions' ? (
                       <Badge variant="info">Actuelles</Badge>
@@ -247,7 +247,7 @@ export function AnalysisPage() {
                 ))}
               </div>
               {transactionDateRange && (
-                <p className="text-xs text-blue-500 mt-1">{formatDate(transactionDateRange.start)} - {formatDate(transactionDateRange.end)}</p>
+                <p className="text-xs text-primary-500 mt-1">{formatDate(transactionDateRange.start)} - {formatDate(transactionDateRange.end)}</p>
               )}
             </div>
           </div>
@@ -274,17 +274,17 @@ export function AnalysisPage() {
         <>
           {/* AI Status Banner */}
           {isAIEnabled && (
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-2.5 flex items-center justify-between">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-purple-100 rounded-lg">
-                  <Brain className="w-4 h-4 text-purple-600" />
+                <div className="p-1.5 bg-primary-100 rounded-lg">
+                  <Brain className="w-4 h-4 text-primary-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-purple-900">IA Active</p>
-                  <p className="text-xs text-purple-600">Claude {claudeApi.model.includes('opus') ? 'Opus' : 'Sonnet'}</p>
+                  <p className="text-sm font-medium text-primary-900">IA Active</p>
+                  <p className="text-xs text-primary-600">Claude {claudeApi.model.includes('opus') ? 'Opus' : 'Sonnet'}</p>
                 </div>
               </div>
-              <Sparkles className="w-4 h-4 text-purple-500" />
+              <Sparkles className="w-4 h-4 text-primary-500" />
             </div>
           )}
 
@@ -292,8 +292,8 @@ export function AnalysisPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Card className="p-3 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-1">
-                <AlertTriangle className="w-4 h-4 text-orange-500" />
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${currentAnalysis.statistics.totalAnomalies > 5 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                <AlertTriangle className="w-4 h-4 text-primary-500" />
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${currentAnalysis.statistics.totalAnomalies > 5 ? 'bg-primary-200 text-primary-800' : 'bg-primary-100 text-primary-700'}`}>
                   {currentAnalysis.statistics.totalAnomalies > 5 ? 'Élevé' : 'OK'}
                 </span>
               </div>
@@ -302,26 +302,26 @@ export function AnalysisPage() {
             </Card>
             <Card className="p-3 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-1">
-                <TrendingUp className="w-4 h-4 text-green-500" />
+                <TrendingUp className="w-4 h-4 text-primary-500" />
               </div>
               <p className="text-xs text-primary-500">Economies</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(currentAnalysis.statistics.potentialSavings, 'XAF')}</p>
+              <p className="text-lg font-bold text-primary-900">{formatCurrency(currentAnalysis.statistics.potentialSavings, 'XAF')}</p>
             </Card>
             <Card className="p-3 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-1">
-                <Shield className="w-4 h-4 text-red-500" />
+                <Shield className="w-4 h-4 text-primary-500" />
               </div>
               <p className="text-xs text-primary-500">Critiques</p>
-              <p className="text-xl font-bold text-red-600">
+              <p className="text-xl font-bold text-primary-900">
                 {(currentAnalysis.statistics.anomaliesBySeverity[Severity.CRITICAL] || 0) + (currentAnalysis.statistics.anomaliesBySeverity[Severity.HIGH] || 0)}
               </p>
             </Card>
             <Card className="p-3 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-1">
-                {currentAnalysis.summary.status === 'CRITICAL' ? <AlertTriangle className="w-4 h-4 text-red-500" /> : currentAnalysis.summary.status === 'WARNING' ? <AlertTriangle className="w-4 h-4 text-yellow-500" /> : <Shield className="w-4 h-4 text-green-500" />}
+                {currentAnalysis.summary.status === 'CRITICAL' ? <AlertTriangle className="w-4 h-4 text-primary-500" /> : currentAnalysis.summary.status === 'WARNING' ? <AlertTriangle className="w-4 h-4 text-primary-500" /> : <Shield className="w-4 h-4 text-primary-500" />}
               </div>
               <p className="text-xs text-primary-500">Statut</p>
-              <p className={`text-xl font-bold ${currentAnalysis.summary.status === 'CRITICAL' ? 'text-red-600' : currentAnalysis.summary.status === 'WARNING' ? 'text-yellow-600' : 'text-green-600'}`}>
+              <p className="text-xl font-bold text-primary-900">
                 {currentAnalysis.summary.status === 'CRITICAL' ? 'Critique' : currentAnalysis.summary.status === 'WARNING' ? 'Attention' : 'OK'}
               </p>
             </Card>
@@ -338,7 +338,7 @@ export function AnalysisPage() {
               ) : (
                 <div className="divide-y divide-primary-100">
                   {filteredAnomalies.map((anomaly, index) => {
-                    const severityColors = { [Severity.CRITICAL]: 'border-l-red-500 bg-red-50/30', [Severity.HIGH]: 'border-l-orange-500 bg-orange-50/30', [Severity.MEDIUM]: 'border-l-yellow-500 bg-yellow-50/30', [Severity.LOW]: 'border-l-blue-500 bg-blue-50/30' };
+                    const severityColors = { [Severity.CRITICAL]: 'border-l-primary-900 bg-primary-50/30', [Severity.HIGH]: 'border-l-primary-700 bg-primary-50/30', [Severity.MEDIUM]: 'border-l-primary-500 bg-primary-50/30', [Severity.LOW]: 'border-l-primary-300 bg-primary-50/30' };
                     return (
                       <div key={anomaly.id} className={`px-4 py-2.5 border-l-4 ${severityColors[anomaly.severity]} hover:bg-primary-50 cursor-pointer transition-all group`} onClick={() => { setSelectedAnomaly(anomaly); setShowDetailPanel(true); }}>
                         <div className="flex items-start justify-between gap-3">
@@ -346,7 +346,7 @@ export function AnalysisPage() {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-mono text-primary-400 bg-primary-100 px-1.5 py-0.5 rounded">#{index + 1}</span>
                               <SeverityBadge severity={anomaly.severity} />
-                              {isAIEnabled && <span className="flex items-center gap-0.5 text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full"><Brain className="w-2.5 h-2.5" />IA</span>}
+                              {isAIEnabled && <span className="flex items-center gap-0.5 text-xs text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded-full"><Brain className="w-2.5 h-2.5" />IA</span>}
                             </div>
                             <p className="text-xs font-medium text-primary-900">{ANOMALY_TYPE_LABELS[anomaly.type]}</p>
                             <p className="text-xs text-primary-600 line-clamp-1">{anomaly.recommendation}</p>
@@ -356,7 +356,7 @@ export function AnalysisPage() {
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className={`text-base font-bold ${anomaly.severity === Severity.CRITICAL ? 'text-red-600' : anomaly.severity === Severity.HIGH ? 'text-orange-600' : 'text-primary-900'}`}>
+                            <p className="text-base font-bold text-primary-900">
                               +{formatCurrency(anomaly.amount, 'XAF')}
                             </p>
                             <ChevronRight className="w-4 h-4 text-primary-300 mt-1 group-hover:text-primary-500 transition-colors ml-auto" />

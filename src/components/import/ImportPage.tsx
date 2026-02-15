@@ -211,8 +211,8 @@ export function ImportPage() {
                   {/* Selected account preview */}
                   {selectedAccount && (
                     <div className="p-4 rounded-lg border-2 border-primary-900 bg-primary-50 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <Landmark className="w-5 h-5 text-blue-600" />
+                      <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
+                        <Landmark className="w-5 h-5 text-primary-600" />
                       </div>
                       <div className="flex-1">
                         <p className="font-medium text-primary-900">{selectedAccount.bankName}</p>

@@ -420,7 +420,7 @@ export function ReportContentEditor({
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => openEditSection(page.id, section)}
-                            className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            className="p-1 text-primary-600 hover:bg-primary-50 rounded transition-colors"
                             title="Modifier"
                           >
                             <Pencil className="w-3 h-3" />
@@ -429,7 +429,7 @@ export function ReportContentEditor({
                             onClick={() => toggleSectionVisibility(page.id, section.id)}
                             className={`p-1 rounded transition-colors ${
                               section.visible
-                                ? 'text-green-600 hover:bg-green-50'
+                                ? 'text-primary-600 hover:bg-primary-50'
                                 : 'text-primary-400 hover:bg-primary-100'
                             }`}
                             title={section.visible ? 'Masquer' : 'Afficher'}
@@ -481,14 +481,14 @@ export function ReportContentEditor({
                 {availableCharts.map((chart) => (
                   <div
                     key={chart.id}
-                    className="flex items-center gap-2 px-2 py-1.5 bg-green-50 rounded text-sm"
+                    className="flex items-center gap-2 px-2 py-1.5 bg-primary-50 rounded text-sm"
                   >
                     {chart.type === 'pie' || chart.type === 'donut' ? (
-                      <PieChart className="w-4 h-4 text-green-600" />
+                      <PieChart className="w-4 h-4 text-primary-600" />
                     ) : chart.type === 'area' ? (
-                      <AreaChart className="w-4 h-4 text-green-600" />
+                      <AreaChart className="w-4 h-4 text-primary-600" />
                     ) : (
-                      <BarChart3 className="w-4 h-4 text-green-600" />
+                      <BarChart3 className="w-4 h-4 text-primary-600" />
                     )}
                     <span className="text-primary-700 truncate">{chart.title}</span>
                   </div>
@@ -505,9 +505,9 @@ export function ReportContentEditor({
                 {availableTables.map((table) => (
                   <div
                     key={table.id}
-                    className="flex items-center gap-2 px-2 py-1.5 bg-blue-50 rounded text-sm"
+                    className="flex items-center gap-2 px-2 py-1.5 bg-primary-50 rounded text-sm"
                   >
-                    <Table2 className="w-4 h-4 text-blue-600" />
+                    <Table2 className="w-4 h-4 text-primary-600" />
                     <span className="text-primary-700 truncate">{table.title}</span>
                   </div>
                 ))}
@@ -527,17 +527,17 @@ export function ReportContentEditor({
       <div className="border-t border-primary-200">
         <button
           onClick={() => setAIState((prev) => ({ ...prev, isOpen: !prev.isOpen }))}
-          className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 transition-colors"
+          className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-primary-50 to-primary-100 hover:from-primary-100 hover:to-primary-200 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <Brain className="w-5 h-5 text-purple-600" />
+            <Brain className="w-5 h-5 text-primary-600" />
             <span className="font-medium text-primary-900">Assistant IA</span>
           </div>
-          <Sparkles className="w-4 h-4 text-purple-500" />
+          <Sparkles className="w-4 h-4 text-primary-500" />
         </button>
 
         {aiState.isOpen && (
-          <div className="p-4 bg-gradient-to-b from-purple-50/50 to-white space-y-3">
+          <div className="p-4 bg-gradient-to-b from-primary-50/50 to-white space-y-3">
             <p className="text-xs text-primary-500">
               Demandez a l'IA de vous aider a rediger le contenu du rapport
             </p>
@@ -549,14 +549,14 @@ export function ReportContentEditor({
                 onChange={(e) => setAIState((prev) => ({ ...prev, prompt: e.target.value }))}
                 onKeyDown={(e) => e.key === 'Enter' && handleAIRequest()}
                 placeholder="Ex: Redige une introduction pour ce rapport..."
-                className="flex-1 px-3 py-2 text-sm border border-primary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="flex-1 px-3 py-2 text-sm border border-primary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
               <Button
                 variant="primary"
                 size="sm"
                 onClick={handleAIRequest}
                 disabled={aiState.isLoading || !aiState.prompt.trim()}
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-primary-600 hover:bg-primary-700"
               >
                 {aiState.isLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -614,7 +614,7 @@ export function ReportContentEditor({
 
                 <button
                   onClick={handleAIRequest}
-                  className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800"
+                  className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800"
                 >
                   <RefreshCw className="w-3 h-3" />
                   Regenerer

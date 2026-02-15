@@ -28,17 +28,17 @@ export const SavingsTab = memo(function SavingsTab({
     <div className="space-y-4">
       {/* Savings Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Card className="p-3 bg-gradient-to-br from-green-600 to-green-700 text-white">
-          <p className="text-xs text-green-100 mb-0.5">Economies totales</p>
+        <Card className="p-3 bg-gradient-to-br from-primary-600 to-primary-700 text-white">
+          <p className="text-xs text-primary-100 mb-0.5">Economies totales</p>
           <p className="text-2xl font-bold">{formatCurrency(analytics.totalSavings, 'XAF')}</p>
         </Card>
         <Card className="p-3">
           <p className="text-xs text-primary-500 mb-0.5">Economies potentielles</p>
-          <p className="text-2xl font-bold text-amber-600">{formatCurrency(analytics.potentialSavings, 'XAF')}</p>
+          <p className="text-2xl font-bold text-primary-600">{formatCurrency(analytics.potentialSavings, 'XAF')}</p>
         </Card>
         <Card className="p-3">
           <p className="text-xs text-primary-500 mb-0.5">Taux de confirmation</p>
-          <p className="text-2xl font-bold text-blue-600">{analytics.confirmationRate}%</p>
+          <p className="text-2xl font-bold text-primary-600">{analytics.confirmationRate}%</p>
         </Card>
       </div>
 
@@ -100,7 +100,7 @@ export const SavingsTab = memo(function SavingsTab({
                     </div>
                     <p className="text-sm text-primary-500">{formatDate(anomaly.detectedAt)}</p>
                   </div>
-                  <p className="text-lg font-bold text-green-600">
+                  <p className="text-lg font-bold text-primary-600">
                     +{formatCurrency(anomaly.amount, 'XAF')}
                   </p>
                 </div>

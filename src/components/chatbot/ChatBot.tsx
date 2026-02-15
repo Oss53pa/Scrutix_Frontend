@@ -287,7 +287,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
     {
       id: 'getting-started',
       title: 'Prise en main rapide',
-      icon: <Lightbulb className="w-5 h-5 text-amber-500" />,
+      icon: <Lightbulb className="w-5 h-5 text-primary-500" />,
       content: (
         <div className="space-y-3 text-sm text-primary-700">
           <p><strong>Bienvenue sur Scrutix !</strong> Outil d'audit bancaire pour experts-comptables.</p>
@@ -307,7 +307,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
     {
       id: 'clients',
       title: 'Étape 1 : Gestion des clients',
-      icon: <Users className="w-5 h-5 text-blue-500" />,
+      icon: <Users className="w-5 h-5 text-primary-500" />,
       content: (
         <div className="space-y-3 text-sm text-primary-700">
           <p className="font-medium text-primary-900">Créer un nouveau client :</p>
@@ -331,7 +331,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
     {
       id: 'import',
       title: 'Étape 2 : Import des relevés',
-      icon: <Upload className="w-5 h-5 text-green-500" />,
+      icon: <Upload className="w-5 h-5 text-primary-500" />,
       content: (
         <div className="space-y-3 text-sm text-primary-700">
           <p className="font-medium text-primary-900">Procédure d'import :</p>
@@ -359,7 +359,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
     {
       id: 'analysis',
       title: 'Étape 3 : Analyse des anomalies',
-      icon: <Search className="w-5 h-5 text-purple-500" />,
+      icon: <Search className="w-5 h-5 text-primary-500" />,
       content: (
         <div className="space-y-3 text-sm text-primary-700">
           <p className="font-medium text-primary-900">Lancer une analyse :</p>
@@ -390,7 +390,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
     {
       id: 'reports',
       title: 'Étape 4 : Génération de rapports',
-      icon: <FileBarChart className="w-5 h-5 text-indigo-500" />,
+      icon: <FileBarChart className="w-5 h-5 text-primary-500" />,
       content: (
         <div className="space-y-3 text-sm text-primary-700">
           <p className="font-medium text-primary-900">Générer un rapport :</p>
@@ -408,7 +408,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
             <li><strong>Détaillé</strong> — Analyse approfondie par catégorie</li>
             <li><strong>Recouvrement</strong> — Lettre de réclamation pour la banque</li>
           </ul>
-          <div className="mt-3 p-2 bg-indigo-50 border border-indigo-200 rounded text-xs">
+          <div className="mt-3 p-2 bg-primary-50 border border-primary-200 rounded text-xs">
             <strong>Note :</strong> Les rapports générés sont consultables dans l'onglet « Rapports générés » et dans la fiche client.
           </div>
           <p className="text-primary-500 italic mt-2">📍 Menu latéral → Rapports</p>
@@ -418,7 +418,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
     {
       id: 'dashboard',
       title: 'Tableau de bord',
-      icon: <BarChart3 className="w-5 h-5 text-cyan-500" />,
+      icon: <BarChart3 className="w-5 h-5 text-primary-500" />,
       content: (
         <div className="space-y-3 text-sm text-primary-700">
           <p className="font-medium text-primary-900">Indicateurs affichés :</p>
@@ -462,7 +462,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
     {
       id: 'tips',
       title: 'Bonnes pratiques',
-      icon: <CheckCircle className="w-5 h-5 text-emerald-500" />,
+      icon: <CheckCircle className="w-5 h-5 text-primary-500" />,
       content: (
         <div className="space-y-3 text-sm text-primary-700">
           <p className="font-medium text-primary-900">Pour une utilisation optimale :</p>
@@ -508,20 +508,20 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
       >
         <div className="relative">
           {/* Glow effect */}
-          <div className="absolute inset-0 bg-indigo-400 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition-opacity" />
+          <div className="absolute inset-0 bg-primary-400 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition-opacity" />
 
           {/* Robot */}
-          <div className="relative bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl p-2 shadow-lg border-2 border-white/50 hover:shadow-xl transition-shadow">
+          <div className="relative bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl p-2 shadow-lg border-2 border-white/50 hover:shadow-xl transition-shadow">
             <PalomaAvatar size={52} />
           </div>
 
           {/* Name badge */}
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-indigo-600 text-white text-xs font-medium rounded-full shadow-md whitespace-nowrap">
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-primary-600 text-white text-xs font-medium rounded-full shadow-md whitespace-nowrap">
             Paloma
           </div>
 
           {/* Tooltip on hover */}
-          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+          <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-primary-600 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
             Aide & Chat IA
           </span>
         </div>
@@ -535,12 +535,12 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
         style={{ transformOrigin: 'bottom right' }}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-3 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <PalomaAvatar size={36} />
             <div>
               <span className="font-semibold">Paloma</span>
-              <p className="text-xs text-indigo-200">Assistant Scrutix</p>
+              <p className="text-xs text-primary-200">Assistant Scrutix</p>
             </div>
           </div>
           <button
@@ -552,13 +552,13 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-indigo-100">
+        <div className="flex border-b border-primary-100">
           <button
             onClick={() => setActiveTab('help')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'help'
-                ? 'text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50'
-                : 'text-primary-500 hover:text-indigo-600 hover:bg-indigo-50'
+                ? 'text-primary-700 border-b-2 border-primary-600 bg-primary-50'
+                : 'text-primary-500 hover:text-primary-600 hover:bg-primary-50'
             }`}
           >
             <HelpCircle className="w-4 h-4" />
@@ -568,8 +568,8 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
             onClick={() => setActiveTab('chat')}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
               activeTab === 'chat'
-                ? 'text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50'
-                : 'text-primary-500 hover:text-indigo-600 hover:bg-indigo-50'
+                ? 'text-primary-700 border-b-2 border-primary-600 bg-primary-50'
+                : 'text-primary-500 hover:text-primary-600 hover:bg-primary-50'
             }`}
           >
             <PalomaAvatar size={18} />
@@ -619,7 +619,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
                     <div className="flex justify-center mb-3">
                       <PalomaAvatar size={64} />
                     </div>
-                    <p className="text-indigo-600 font-medium mb-2">Bonjour ! Je suis Paloma</p>
+                    <p className="text-primary-600 font-medium mb-2">Bonjour ! Je suis Paloma</p>
                     <p className="text-sm text-primary-400">
                       Posez-moi des questions sur l'audit bancaire, l'analyse des anomalies, ou l'utilisation de Scrutix.
                     </p>

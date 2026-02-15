@@ -99,12 +99,12 @@ export const ReportsTab = memo(function ReportsTab({
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-200 text-primary-800">
                         {report.anomalyCount || 0}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="text-sm font-medium text-green-600">
+                      <span className="text-sm font-medium text-primary-600">
                         {formatCurrency(report.totalAmount || 0, 'XAF')}
                       </span>
                     </td>
@@ -135,7 +135,7 @@ export const ReportsTab = memo(function ReportsTab({
                         </button>
                         {report.status !== 'sent' && (
                           <button
-                            className="p-1.5 hover:bg-primary-100 rounded text-primary-500 hover:text-blue-600"
+                            className="p-1.5 hover:bg-primary-100 rounded text-primary-500 hover:text-primary-600"
                             title="Envoyer"
                           >
                             <Send className="w-4 h-4" />

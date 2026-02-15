@@ -167,12 +167,12 @@ export function FileUploader({ onImportComplete, clientId = 'default', bankCode 
 
   const getFileIcon = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext === 'csv') return <FileText className="w-8 h-8 text-green-500" />;
-    if (ext === 'xlsx' || ext === 'xls') return <FileSpreadsheet className="w-8 h-8 text-blue-500" />;
+    if (ext === 'csv') return <FileText className="w-8 h-8 text-primary-500" />;
+    if (ext === 'xlsx' || ext === 'xls') return <FileSpreadsheet className="w-8 h-8 text-primary-500" />;
     if (['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff', 'tif'].includes(ext || '')) {
-      return <Image className="w-8 h-8 text-purple-500" />;
+      return <Image className="w-8 h-8 text-primary-500" />;
     }
-    if (ext === 'pdf') return <FileText className="w-8 h-8 text-red-500" />;
+    if (ext === 'pdf') return <FileText className="w-8 h-8 text-primary-500" />;
     return <FileText className="w-8 h-8 text-primary-400" />;
   };
 

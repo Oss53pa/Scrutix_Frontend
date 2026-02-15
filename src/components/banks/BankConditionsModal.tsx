@@ -811,7 +811,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="ouverture"
                 title="Ouverture de compte"
-                icon={<Plus className="w-5 h-5 text-green-600" />}
+                icon={<Plus className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Frais ouverture particulier"
@@ -833,7 +833,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="cloture"
                 title="Clôture de compte"
-                icon={<X className="w-5 h-5 text-red-600" />}
+                icon={<X className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Clôture compte particulier"
@@ -850,7 +850,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="releves"
                 title="Relevés et attestations"
-                icon={<FileText className="w-5 h-5 text-blue-600" />}
+                icon={<FileText className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Relevé mensuel (papier)"
@@ -897,7 +897,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="especes"
                 title="Opérations en espèces"
-                icon={<Banknote className="w-5 h-5 text-green-600" />}
+                icon={<Banknote className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Versement espèces (frais fixes)"
@@ -926,7 +926,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="change"
                 title="Change manuel"
-                icon={<Globe className="w-5 h-5 text-blue-600" />}
+                icon={<Globe className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Frais fixes change"
@@ -1116,7 +1116,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="virInternes"
                 title="Virements internes"
-                icon={<ArrowLeftRight className="w-5 h-5 text-green-600" />}
+                icon={<ArrowLeftRight className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Virement interne gratuit"
@@ -1136,7 +1136,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="virNationaux"
                 title="Virements nationaux"
-                icon={<Building className="w-5 h-5 text-blue-600" />}
+                icon={<Building className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Même banque (agence différente)"
@@ -1164,7 +1164,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="virZone"
                 title={`Virements zone ${zone || 'CEMAC/UEMOA'}`}
-                icon={<Globe className="w-5 h-5 text-amber-600" />}
+                icon={<Globe className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Frais fixes"
@@ -1182,7 +1182,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="virInternational"
                 title="Virements internationaux"
-                icon={<Globe className="w-5 h-5 text-red-600" />}
+                icon={<Globe className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Frais fixes"
@@ -1232,7 +1232,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="carnets"
                 title="Carnets de chèques"
-                icon={<FileText className="w-5 h-5 text-blue-600" />}
+                icon={<FileText className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Carnet 25 feuilles"
@@ -1254,7 +1254,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="typesCheques"
                 title="Types de chèques"
-                icon={<Receipt className="w-5 h-5 text-green-600" />}
+                icon={<Receipt className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Chèque de guichet"
@@ -1276,7 +1276,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="incidentsCheques"
                 title="Incidents sur chèques"
-                icon={<AlertTriangle className="w-5 h-5 text-red-600" />}
+                icon={<AlertTriangle className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Opposition sur chèque"
@@ -1298,7 +1298,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="encaissement"
                 title="Encaissement de chèques"
-                icon={<Wallet className="w-5 h-5 text-amber-600" />}
+                icon={<Wallet className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Encaissement sur place"
@@ -1331,7 +1331,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="decouvert"
                 title="Découverts"
-                icon={<AlertTriangle className="w-5 h-5 text-red-600" />}
+                icon={<AlertTriangle className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Taux découvert autorisé (TEG)"
@@ -1368,7 +1368,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="credits"
                 title="Crédits"
-                icon={<Percent className="w-5 h-5 text-blue-600" />}
+                icon={<Percent className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Frais de dossier crédit"
@@ -1422,7 +1422,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="abonnement"
                 title="Abonnements"
-                icon={<Smartphone className="w-5 h-5 text-blue-600" />}
+                icon={<Smartphone className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Abonnement mensuel"
@@ -1445,7 +1445,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="operations"
                 title="Opérations en ligne"
-                icon={<Globe className="w-5 h-5 text-green-600" />}
+                icon={<Globe className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Par opération"
@@ -1472,7 +1472,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="alertes"
                 title="Alertes SMS"
-                icon={<Phone className="w-5 h-5 text-amber-600" />}
+                icon={<Phone className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Par SMS"
@@ -1516,7 +1516,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="garanties"
                 title="Garanties et cautions"
-                icon={<Shield className="w-5 h-5 text-green-600" />}
+                icon={<Shield className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Assurance compte"
@@ -1545,7 +1545,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="incidents"
                 title="Incidents et contentieux"
-                icon={<AlertTriangle className="w-5 h-5 text-red-600" />}
+                icon={<AlertTriangle className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Lettre d'injonction"
@@ -1572,7 +1572,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="succession"
                 title="Succession et procurations"
-                icon={<Users className="w-5 h-5 text-blue-600" />}
+                icon={<Users className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Procuration"
@@ -1595,7 +1595,7 @@ export function BankConditionsModal({
               <CollapsibleSection
                 id="taxes"
                 title="Taxes et timbres"
-                icon={<Receipt className="w-5 h-5 text-amber-600" />}
+                icon={<Receipt className="w-5 h-5 text-primary-600" />}
               >
                 <EditableField
                   label="Droit de timbre"
@@ -1720,9 +1720,9 @@ export function BankConditionsModal({
                 }`}>
                   <div className="flex items-center gap-3">
                     {extractionResult.success ? (
-                      <Sparkles className="w-5 h-5 text-green-600" />
+                      <Sparkles className="w-5 h-5 text-primary-600" />
                     ) : (
-                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                      <AlertTriangle className="w-5 h-5 text-primary-600" />
                     )}
                     <div>
                       <p className={`font-medium ${extractionResult.success ? 'text-green-800' : 'text-red-800'}`}>
@@ -1751,7 +1751,7 @@ export function BankConditionsModal({
                     {conditions.documents.map(doc => (
                       <div key={doc.id} className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
                         <div className="flex items-center gap-3">
-                          <FileText className="w-5 h-5 text-red-600" />
+                          <FileText className="w-5 h-5 text-primary-600" />
                           <div>
                             <p className="font-medium text-primary-900">{doc.name}</p>
                             <p className="text-xs text-primary-500">

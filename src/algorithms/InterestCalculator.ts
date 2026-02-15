@@ -11,6 +11,7 @@ import {
   DetectionThresholds,
   TransactionType,
 } from '../types';
+import { RegulatoryFetchService } from '../services/RegulatoryFetchService';
 
 interface InterestAnalysis {
   transaction: Transaction;
@@ -21,6 +22,14 @@ interface InterestAnalysis {
   period: InterestPeriod | null;
   reason: string;
   details: InterestCalculationDetails;
+  // Contrôle taux d'usure
+  usuryViolation?: {
+    isViolation: boolean;
+    appliedRate: number;
+    usuryRate: number;
+    excess: number;
+    zone: 'CEMAC' | 'UEMOA';
+  };
 }
 
 interface InterestPeriod {
@@ -39,6 +48,7 @@ interface InterestCalculationDetails {
 
 export class InterestCalculator {
   private thresholds: DetectionThresholds['interestCalculation'];
+  private currentBankConditions?: BankConditions;
 
   constructor(thresholds?: DetectionThresholds['interestCalculation']) {
     this.thresholds = thresholds || {
@@ -56,6 +66,8 @@ export class InterestCalculator {
     accountBalances: DailyBalance[]
   ): Anomaly[] {
     const anomalies: Anomaly[] = [];
+    // Stocker les conditions pour les méthodes internes
+    this.currentBankConditions = bankConditions;
 
     // Find interest transactions
     const interestTransactions = transactions.filter(
@@ -69,7 +81,7 @@ export class InterestCalculator {
         bankConditions
       );
 
-      if (analysis.hasError) {
+      if (analysis.hasError || analysis.usuryViolation?.isViolation) {
         anomalies.push(this.createAnomaly(analysis));
       }
     }
@@ -159,6 +171,16 @@ export class InterestCalculator {
       }
     }
 
+    // Calculer le taux appliqué et vérifier le taux d'usure
+    const appliedRate = this.estimateAppliedRate(charged, details);
+    const zone = this.detectZone(conditions);
+    const usuryViolation = this.checkUsuryViolation(appliedRate, zone);
+
+    // Mettre à jour la raison si violation d'usure
+    if (usuryViolation.isViolation) {
+      reason = `VIOLATION DU TAUX D'USURE: Taux appliqué ${usuryViolation.appliedRate.toFixed(2)}% dépasse le plafond légal de ${usuryViolation.usuryRate}%`;
+    }
+
     return {
       transaction: charge,
       hasError,
@@ -170,8 +192,9 @@ export class InterestCalculator {
       details: {
         ...details,
         theoreticalRate: annualRate,
-        appliedRate: this.estimateAppliedRate(charged, details),
+        appliedRate,
       },
+      usuryViolation,
     };
   }
 
@@ -318,14 +341,20 @@ export class InterestCalculator {
    * Create anomaly from analysis
    */
   private createAnomaly(analysis: InterestAnalysis): Anomaly {
+    // Augmenter la sévérité si violation d'usure
+    let severity = this.calculateSeverity(analysis.difference);
+    if (analysis.usuryViolation?.isViolation) {
+      severity = Severity.CRITICAL; // Violation d'usure = toujours critique
+    }
+
     return {
       id: uuidv4(),
       type: AnomalyType.INTEREST_ERROR,
-      severity: this.calculateSeverity(analysis.difference),
-      confidence: 0.9,
+      severity,
+      confidence: analysis.usuryViolation?.isViolation ? 0.95 : 0.9,
       amount: analysis.difference,
       transactions: [analysis.transaction],
-      evidence: this.generateEvidence(analysis),
+      evidence: this.generateEvidence(analysis, this.currentBankConditions),
       recommendation: this.generateRecommendation(analysis),
       status: 'pending',
       detectedAt: new Date(),
@@ -343,10 +372,13 @@ export class InterestCalculator {
   }
 
   /**
-   * Generate evidence
+   * Generate evidence with regulatory references
    */
-  private generateEvidence(analysis: InterestAnalysis): Evidence[] {
+  private generateEvidence(analysis: InterestAnalysis, bankConditions?: BankConditions): Evidence[] {
     const evidence: Evidence[] = [];
+    const bankName = bankConditions?.bankName || 'Banque';
+    const zone = this.detectZone(bankConditions);
+    const sourceName = zone === 'CEMAC' ? 'BEAC/COBAC' : 'BCEAO/CB-UMOA';
 
     if (analysis.period) {
       evidence.push({
@@ -362,24 +394,55 @@ export class InterestCalculator {
       });
     }
 
+    // Comparaison montants avec source
     evidence.push({
-      type: 'AMOUNT_COMPARISON',
-      description: 'Comparaison des montants',
-      value: `Facturé: ${Math.round(analysis.chargedAmount).toLocaleString('fr-FR')} FCFA, Théorique: ${Math.round(analysis.theoreticalAmount).toLocaleString('fr-FR')} FCFA`,
+      type: 'COMPARISON',
+      description: 'Comparaison des agios',
+      value: analysis.difference,
+      expectedValue: analysis.theoreticalAmount,
+      appliedValue: analysis.chargedAmount,
+      source: `Conditions ${bankName}`,
+      conditionRef: 'Taux débiteur contractuel',
     });
 
-    evidence.push({
-      type: 'DIFFERENCE',
-      description: 'Écart constaté',
-      value: `${Math.round(analysis.difference).toLocaleString('fr-FR')} FCFA`,
-    });
-
+    // Comparaison taux
     if (analysis.details.theoreticalRate > 0) {
       evidence.push({
         type: 'RATE_COMPARISON',
         description: 'Taux appliqué vs contractuel',
         value: `${(analysis.details.appliedRate * 100).toFixed(2)}% vs ${(analysis.details.theoreticalRate * 100).toFixed(2)}%`,
+        expectedValue: `${(analysis.details.theoreticalRate * 100).toFixed(2)}%`,
+        appliedValue: `${(analysis.details.appliedRate * 100).toFixed(2)}%`,
       });
+    }
+
+    // Contrôle taux d'usure
+    if (analysis.usuryViolation) {
+      const usuryDoc = zone === 'CEMAC'
+        ? 'Règlement COBAC R-2018/01'
+        : 'Loi uniforme sur la répression de l\'usure';
+
+      evidence.push({
+        type: 'USURY_CHECK',
+        description: analysis.usuryViolation.isViolation
+          ? 'VIOLATION DU TAUX D\'USURE'
+          : 'Contrôle taux d\'usure',
+        value: analysis.usuryViolation.isViolation
+          ? `Taux ${analysis.usuryViolation.appliedRate.toFixed(2)}% > Plafond légal ${analysis.usuryViolation.usuryRate}%`
+          : `Taux ${analysis.usuryViolation.appliedRate.toFixed(2)}% < Plafond ${analysis.usuryViolation.usuryRate}%`,
+        source: sourceName,
+        conditionRef: usuryDoc,
+      });
+
+      if (analysis.usuryViolation.isViolation) {
+        evidence.push({
+          type: 'USURY_VIOLATION',
+          description: 'Dépassement du plafond légal',
+          value: `+${analysis.usuryViolation.excess.toFixed(2)} points au-dessus du taux d'usure`,
+          source: `Réglementation ${zone}`,
+          conditionRef: 'Article sanctionnant l\'usure - délit pénal',
+        });
+      }
     }
 
     if (analysis.reason) {
@@ -394,12 +457,59 @@ export class InterestCalculator {
   }
 
   /**
+   * Detect monetary zone from bank conditions
+   */
+  private detectZone(bankConditions?: BankConditions): 'CEMAC' | 'UEMOA' {
+    // Détection basée sur la devise ou le code pays
+    if (bankConditions?.currency === 'XAF') return 'CEMAC';
+    if (bankConditions?.currency === 'XOF') return 'UEMOA';
+    // Par défaut CEMAC
+    return 'CEMAC';
+  }
+
+  /**
+   * Check if rate exceeds usury limit
+   */
+  private checkUsuryViolation(appliedRate: number, zone: 'CEMAC' | 'UEMOA'): InterestAnalysis['usuryViolation'] {
+    const usuryRate = RegulatoryFetchService.getUsuryRate(zone);
+    const appliedRatePercent = appliedRate * 100;
+
+    return {
+      isViolation: appliedRatePercent > usuryRate,
+      appliedRate: appliedRatePercent,
+      usuryRate,
+      excess: Math.max(0, appliedRatePercent - usuryRate),
+      zone,
+    };
+  }
+
+  /**
    * Generate recommendation
    */
   private generateRecommendation(analysis: InterestAnalysis): string {
     const charged = Math.round(analysis.chargedAmount).toLocaleString('fr-FR');
     const theoretical = Math.round(analysis.theoreticalAmount).toLocaleString('fr-FR');
     const difference = Math.round(analysis.difference).toLocaleString('fr-FR');
+
+    // Cas de violation d'usure
+    if (analysis.usuryViolation?.isViolation) {
+      const zone = analysis.usuryViolation.zone;
+      const regulator = zone === 'CEMAC' ? 'la COBAC' : 'la Commission Bancaire de l\'UMOA';
+      const lawRef = zone === 'CEMAC'
+        ? 'Règlement COBAC R-2018/01 relatif à la répression de l\'usure'
+        : 'Loi uniforme portant répression de l\'usure dans l\'UEMOA';
+
+      return (
+        `⚠️ VIOLATION DU TAUX D'USURE DÉTECTÉE. ` +
+        `Le taux appliqué (${analysis.usuryViolation.appliedRate.toFixed(2)}%) dépasse le plafond légal (${analysis.usuryViolation.usuryRate}%). ` +
+        `Montant facturé: ${charged} FCFA vs ${theoretical} FCFA théorique. ` +
+        `ACTIONS RECOMMANDÉES: ` +
+        `1) Saisir ${regulator} pour signalement. ` +
+        `2) Demander le remboursement intégral des intérêts indûment perçus. ` +
+        `3) Référence légale: ${lawRef}. ` +
+        `L'usure constitue un délit pénal passible de sanctions.`
+      );
+    }
 
     return (
       `Erreur de calcul d'intérêts détectée. Montant facturé: ${charged} FCFA, ` +

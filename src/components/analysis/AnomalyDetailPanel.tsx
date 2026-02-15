@@ -102,10 +102,10 @@ ${anomaly.transactions.map(t => `- ${formatDate(t.date)}: ${t.description} = ${f
 
   // Severity colors and icons
   const severityConfig = {
-    [Severity.CRITICAL]: { color: 'bg-red-500', textColor: 'text-red-700', bgLight: 'bg-red-50', icon: AlertTriangle },
-    [Severity.HIGH]: { color: 'bg-orange-500', textColor: 'text-orange-700', bgLight: 'bg-orange-50', icon: AlertTriangle },
-    [Severity.MEDIUM]: { color: 'bg-yellow-500', textColor: 'text-yellow-700', bgLight: 'bg-yellow-50', icon: Flag },
-    [Severity.LOW]: { color: 'bg-blue-500', textColor: 'text-blue-700', bgLight: 'bg-blue-50', icon: Flag },
+    [Severity.CRITICAL]: { color: 'bg-primary-900', textColor: 'text-primary-700', bgLight: 'bg-primary-50', icon: AlertTriangle },
+    [Severity.HIGH]: { color: 'bg-primary-700', textColor: 'text-primary-700', bgLight: 'bg-primary-50', icon: AlertTriangle },
+    [Severity.MEDIUM]: { color: 'bg-primary-500', textColor: 'text-primary-600', bgLight: 'bg-primary-50', icon: Flag },
+    [Severity.LOW]: { color: 'bg-primary-400', textColor: 'text-primary-600', bgLight: 'bg-primary-50', icon: Flag },
   };
 
   const config = severityConfig[anomaly.severity];
@@ -253,7 +253,7 @@ Réponds en JSON:
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-2 bg-primary-200 rounded-full overflow-hidden">
                   <div
-                    className={`h-full ${anomaly.confidence >= 0.8 ? 'bg-green-500' : anomaly.confidence >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                    className="h-full bg-primary-600"
                     style={{ width: `${anomaly.confidence * 100}%` }}
                   />
                 </div>
@@ -314,21 +314,53 @@ Réponds en JSON:
                   <Scale className="w-4 h-4" />
                   Preuves détectées
                 </h4>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {anomaly.evidence.map((ev, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-primary-200 rounded-full flex items-center justify-center">
-                          <Target className="w-4 h-4 text-primary-600" />
+                    <div key={i} className="p-3 bg-primary-50 rounded-lg border border-primary-100">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-primary-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Target className="w-4 h-4 text-primary-600" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-primary-900">{ev.description}</p>
+                            {/* Affichage comparaison si disponible */}
+                            {ev.expectedValue !== undefined && ev.appliedValue !== undefined && (
+                              <div className="mt-1 flex items-center gap-2 text-xs">
+                                <span className="text-green-600">
+                                  Attendu: {typeof ev.expectedValue === 'number'
+                                    ? `${ev.expectedValue.toLocaleString('fr-FR')} FCFA`
+                                    : ev.expectedValue}
+                                </span>
+                                <span className="text-primary-400">→</span>
+                                <span className="text-red-600">
+                                  Facturé: {typeof ev.appliedValue === 'number'
+                                    ? `${ev.appliedValue.toLocaleString('fr-FR')} FCFA`
+                                    : ev.appliedValue}
+                                </span>
+                              </div>
+                            )}
+                            {/* Source et référence conditions */}
+                            {(ev.source || ev.conditionRef) && (
+                              <div className="mt-2 p-2 bg-primary-50 rounded border border-primary-100">
+                                {ev.source && (
+                                  <p className="text-xs text-primary-700 font-medium">
+                                    📄 {ev.source}
+                                  </p>
+                                )}
+                                {ev.conditionRef && (
+                                  <p className="text-xs text-primary-600 mt-0.5">
+                                    📍 {ev.conditionRef}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-primary-900">{ev.description}</p>
-                          <p className="text-xs text-primary-500">{ev.type}</p>
-                        </div>
+                        <span className="font-mono text-sm font-medium text-primary-900 bg-white px-3 py-1 rounded flex-shrink-0">
+                          {String(ev.value)}
+                        </span>
                       </div>
-                      <span className="font-mono text-sm font-medium text-primary-900 bg-white px-3 py-1 rounded">
-                        {String(ev.value)}
-                      </span>
                     </div>
                   ))}
                 </div>
@@ -371,12 +403,12 @@ Réponds en JSON:
                 </div>
               ) : loadingAI ? (
                 <div className="text-center py-8">
-                  <Loader2 className="w-12 h-12 text-purple-500 mx-auto mb-3 animate-spin" />
+                  <Loader2 className="w-12 h-12 text-primary-500 mx-auto mb-3 animate-spin" />
                   <p className="text-primary-600">Analyse IA en cours...</p>
                 </div>
               ) : aiError ? (
                 <div className="text-center py-8">
-                  <XCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+                  <XCircle className="w-12 h-12 text-primary-400 mx-auto mb-3" />
                   <p className="text-red-600 mb-2">Erreur d'analyse</p>
                   <p className="text-sm text-primary-400">{aiError}</p>
                   <Button variant="secondary" className="mt-4" onClick={fetchAIInsight}>
@@ -386,9 +418,9 @@ Réponds en JSON:
               ) : aiInsight ? (
                 <>
                   {/* AI Explanation */}
-                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+                  <div className="bg-primary-50 rounded-lg p-4 border border-primary-200">
                     <div className="flex items-start gap-3">
-                      <Brain className="w-5 h-5 text-purple-600 mt-0.5" />
+                      <Brain className="w-5 h-5 text-primary-600 mt-0.5" />
                       <div>
                         <h4 className="font-medium text-primary-900 mb-2">Explication IA</h4>
                         <p className="text-primary-700">{aiInsight.explanation}</p>
@@ -415,11 +447,7 @@ Réponds en JSON:
                   </div>
 
                   {/* Risk Assessment */}
-                  <div className={`p-4 rounded-lg ${
-                    aiInsight.riskAssessment.level === 'ÉLEVÉ' ? 'bg-red-50 border border-red-200' :
-                    aiInsight.riskAssessment.level === 'MOYEN' ? 'bg-yellow-50 border border-yellow-200' :
-                    'bg-green-50 border border-green-200'
-                  }`}>
+                  <div className="p-4 rounded-lg bg-primary-50 border border-primary-200">
                     <h4 className="flex items-center gap-2 text-sm font-medium text-primary-700 mb-2">
                       <Shield className="w-4 h-4" />
                       Évaluation du risque: <span className="font-bold">{aiInsight.riskAssessment.level}</span>
@@ -443,7 +471,7 @@ Réponds en JSON:
                       {aiInsight.actionPlan.map((action, i) => (
                         <div key={i} className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg">
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                            action.priority === 1 ? 'bg-red-500' : action.priority === 2 ? 'bg-orange-500' : 'bg-blue-500'
+                            action.priority === 1 ? 'bg-primary-900' : action.priority === 2 ? 'bg-primary-700' : 'bg-primary-500'
                           }`}>
                             {action.priority}
                           </div>
@@ -459,21 +487,21 @@ Réponds en JSON:
                   </div>
 
                   {/* Legal Context */}
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="flex items-center gap-2 text-sm font-medium text-blue-800 mb-2">
+                  <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg">
+                    <h4 className="flex items-center gap-2 text-sm font-medium text-primary-800 mb-2">
                       <Scale className="w-4 h-4" />
                       Contexte réglementaire
                     </h4>
-                    <p className="text-sm text-blue-700">{aiInsight.legalContext}</p>
+                    <p className="text-sm text-primary-700">{aiInsight.legalContext}</p>
                   </div>
 
                   {/* Recovery Strategy */}
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <h4 className="flex items-center gap-2 text-sm font-medium text-green-800 mb-2">
+                  <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg">
+                    <h4 className="flex items-center gap-2 text-sm font-medium text-primary-800 mb-2">
                       <TrendingUp className="w-4 h-4" />
                       Stratégie de récupération
                     </h4>
-                    <p className="text-sm text-green-700">{aiInsight.recoveryStrategy}</p>
+                    <p className="text-sm text-primary-700">{aiInsight.recoveryStrategy}</p>
                   </div>
 
                   {/* Similar Patterns */}

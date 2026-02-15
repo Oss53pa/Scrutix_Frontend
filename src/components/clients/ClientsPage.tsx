@@ -161,7 +161,7 @@ export function ClientsPage() {
                   <div className="flex items-center gap-1.5 text-xs"><FileText className="w-3.5 h-3.5 text-primary-400" /><span className="text-primary-600">{stats.statements} relevés</span></div>
                   <div className="flex items-center gap-1.5 text-xs"><BarChart3 className="w-3.5 h-3.5 text-primary-400" /><span className="text-primary-600">{stats.transactions} tx</span></div>
                   <div className="flex items-center gap-1.5 text-xs"><AlertTriangle className="w-3.5 h-3.5 text-severity-medium" /><span className="text-primary-600">{stats.anomalies} anom.</span></div>
-                  <div className="flex items-center gap-1.5 text-xs"><PiggyBank className="w-3.5 h-3.5 text-green-600" /><span className="text-green-600 font-medium">{stats.savings.toLocaleString('fr-FR', { style: 'currency', currency: 'XAF' })}</span></div>
+                  <div className="flex items-center gap-1.5 text-xs"><PiggyBank className="w-3.5 h-3.5 text-primary-600" /><span className="text-primary-600 font-medium">{stats.savings.toLocaleString('fr-FR', { style: 'currency', currency: 'XAF' })}</span></div>
                 </div>
                 {client.accounts.length > 0 && (
                   <div className="mt-2 pt-2 border-t border-primary-100">
@@ -245,7 +245,7 @@ export function ClientsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <span className="text-sm font-medium text-green-600">
+                          <span className="text-sm font-medium text-primary-600">
                             {stats.savings.toLocaleString('fr-FR', { style: 'currency', currency: 'XAF' })}
                           </span>
                         </td>

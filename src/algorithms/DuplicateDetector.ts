@@ -7,6 +7,7 @@ import {
   Severity,
   Evidence,
   DetectionThresholds,
+  BankConditions,
 } from '../types';
 import { transactionSimilarity, descriptionSimilarity, amountSimilarity } from './utils/similarity';
 
@@ -30,7 +31,7 @@ export class DuplicateDetector {
   /**
    * Detect duplicate transactions in a list
    */
-  detectDuplicates(transactions: Transaction[]): Anomaly[] {
+  detectDuplicates(transactions: Transaction[], bankConditions?: BankConditions): Anomaly[] {
     const anomalies: Anomaly[] = [];
     const processed = new Set<string>();
 
@@ -59,7 +60,7 @@ export class DuplicateDetector {
           similarity: this.calculateGroupSimilarity(trans, duplicates),
         };
 
-        anomalies.push(this.createAnomaly(group));
+        anomalies.push(this.createAnomaly(group, bankConditions));
 
         // Mark all as processed
         processed.add(trans.id);
@@ -135,7 +136,7 @@ export class DuplicateDetector {
   /**
    * Create anomaly from duplicate group
    */
-  private createAnomaly(group: DuplicateGroup): Anomaly {
+  private createAnomaly(group: DuplicateGroup, bankConditions?: BankConditions): Anomaly {
     const totalAmount = group.duplicates.reduce(
       (sum, t) => sum + Math.abs(t.amount),
       0
@@ -148,8 +149,8 @@ export class DuplicateDetector {
       confidence: group.similarity,
       amount: totalAmount,
       transactions: [group.original, ...group.duplicates],
-      evidence: this.generateEvidence(group),
-      recommendation: this.generateRecommendation(group, totalAmount),
+      evidence: this.generateEvidence(group, bankConditions),
+      recommendation: this.generateRecommendation(group, totalAmount, bankConditions),
       status: 'pending',
       detectedAt: new Date(),
     };
@@ -166,20 +167,39 @@ export class DuplicateDetector {
   }
 
   /**
-   * Generate evidence for the anomaly
+   * Generate evidence for the anomaly with source references
    */
-  private generateEvidence(group: DuplicateGroup): Evidence[] {
+  private generateEvidence(group: DuplicateGroup, bankConditions?: BankConditions): Evidence[] {
     const evidence: Evidence[] = [];
+    const bankName = bankConditions?.bankName || 'Banque';
+    const gridDate = bankConditions?.effectiveDate
+      ? new Date(bankConditions.effectiveDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      : '';
+    const sourceName = gridDate ? `Grille tarifaire ${bankName} - ${gridDate}` : `Conditions ${bankName}`;
+
+    // Montant dupliqué avec comparaison
+    const originalAmount = Math.abs(group.original.amount);
+    const totalDuplicated = group.duplicates.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    evidence.push({
+      type: 'COMPARISON',
+      description: 'Double facturation détectée',
+      value: totalDuplicated,
+      expectedValue: originalAmount,
+      appliedValue: originalAmount + totalDuplicated,
+      source: sourceName,
+      conditionRef: this.identifyFeeType(group.original.description),
+    });
 
     evidence.push({
       type: 'DUPLICATE_COUNT',
-      description: 'Nombre de transactions dupliquées',
-      value: group.duplicates.length,
+      description: 'Nombre de doublons',
+      value: `${group.duplicates.length} transaction(s) en double`,
     });
 
     evidence.push({
       type: 'SIMILARITY_SCORE',
-      description: 'Score de similarité moyen',
+      description: 'Score de similarité',
       value: `${Math.round(group.similarity * 100)}%`,
     });
 
@@ -194,18 +214,6 @@ export class DuplicateDetector {
       value: `${minDate.toLocaleDateString('fr-FR')} - ${maxDate.toLocaleDateString('fr-FR')}`,
     });
 
-    // Amount comparison
-    const amounts = [group.original, ...group.duplicates].map((t) => t.amount);
-    const amountSim = amountSimilarity(amounts[0], amounts[1], 0.01);
-
-    if (amountSim === 1) {
-      evidence.push({
-        type: 'EXACT_AMOUNT_MATCH',
-        description: 'Montants identiques',
-        value: `${Math.abs(group.original.amount)} FCFA`,
-      });
-    }
-
     // Description comparison
     const descSim = descriptionSimilarity(
       group.original.description,
@@ -213,25 +221,41 @@ export class DuplicateDetector {
     );
 
     evidence.push({
-      type: 'DESCRIPTION_SIMILARITY',
-      description: 'Similarité des libellés',
-      value: `${Math.round(descSim * 100)}%`,
-      reference: group.original.description,
+      type: 'DESCRIPTION_MATCH',
+      description: 'Libellé identifié',
+      value: group.original.description,
+      reference: `Similarité: ${Math.round(descSim * 100)}%`,
     });
 
     return evidence;
   }
 
   /**
-   * Generate recommendation text
+   * Identify fee type from description
    */
-  private generateRecommendation(group: DuplicateGroup, totalAmount: number): string {
+  private identifyFeeType(description: string): string {
+    const desc = description.toLowerCase();
+    if (desc.includes('tenue') || desc.includes('compte')) return 'Frais de tenue de compte';
+    if (desc.includes('virement') || desc.includes('vir')) return 'Frais de virement';
+    if (desc.includes('carte') || desc.includes('cb')) return 'Frais de carte bancaire';
+    if (desc.includes('retrait') || desc.includes('dab')) return 'Frais de retrait';
+    if (desc.includes('sms') || desc.includes('alerte')) return 'Frais SMS/Alertes';
+    if (desc.includes('commission')) return 'Commission bancaire';
+    return 'Frais bancaires';
+  }
+
+  /**
+   * Generate recommendation text with source reference
+   */
+  private generateRecommendation(group: DuplicateGroup, totalAmount: number, bankConditions?: BankConditions): string {
     const count = group.duplicates.length;
+    const bankName = bankConditions?.bankName || 'la banque';
+    const feeType = this.identifyFeeType(group.original.description);
 
     return (
-      `Contester ${count} transaction${count > 1 ? 's' : ''} en double pour un montant total de ${Math.round(totalAmount).toLocaleString('fr-FR')} FCFA. ` +
-      `Ces frais présentent une similarité de ${Math.round(group.similarity * 100)}% avec la transaction originale. ` +
-      `Demander le remboursement et la correction du système de facturation pour éviter les futurs doublons.`
+      `Double facturation de ${feeType} détectée: ${count} transaction${count > 1 ? 's' : ''} en double pour ${Math.round(totalAmount).toLocaleString('fr-FR')} FCFA. ` +
+      `Similarité: ${Math.round(group.similarity * 100)}%. ` +
+      `Réclamer auprès de ${bankName} le remboursement de ${Math.round(totalAmount).toLocaleString('fr-FR')} FCFA.`
     );
   }
 }

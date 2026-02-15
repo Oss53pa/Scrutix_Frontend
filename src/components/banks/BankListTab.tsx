@@ -90,22 +90,10 @@ export function BankListTab({
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          zone === 'CEMAC'
-                            ? 'bg-blue-100'
-                            : zone === 'UEMOA'
-                            ? 'bg-green-100'
-                            : 'bg-primary-100'
-                        }`}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary-100"
                       >
                         <Landmark
-                          className={`w-5 h-5 ${
-                            zone === 'CEMAC'
-                              ? 'text-blue-600'
-                              : zone === 'UEMOA'
-                              ? 'text-green-600'
-                              : 'text-primary-600'
-                          }`}
+                          className="w-5 h-5 text-primary-600"
                         />
                       </div>
                       <span className="font-medium text-primary-900">{bank.name}</span>

@@ -69,7 +69,7 @@ export class OverchargeAnalyzer {
       const analysis = this.analyzeFee(fee, bankConditions, historicalData);
 
       if (analysis.isOvercharge) {
-        anomalies.push(this.createAnomaly(analysis));
+        anomalies.push(this.createAnomaly(analysis, bankConditions));
       }
     }
 
@@ -255,7 +255,7 @@ export class OverchargeAnalyzer {
   /**
    * Create anomaly from analysis
    */
-  private createAnomaly(analysis: OverchargeAnalysis): Anomaly {
+  private createAnomaly(analysis: OverchargeAnalysis, bankConditions?: BankConditions): Anomaly {
     return {
       id: uuidv4(),
       type: AnomalyType.OVERCHARGE,
@@ -263,8 +263,8 @@ export class OverchargeAnalyzer {
       confidence: this.calculateConfidence(analysis),
       amount: analysis.excessAmount,
       transactions: [analysis.transaction],
-      evidence: this.generateEvidence(analysis),
-      recommendation: this.generateRecommendation(analysis),
+      evidence: this.generateEvidence(analysis, bankConditions),
+      recommendation: this.generateRecommendation(analysis, bankConditions),
       status: 'pending',
       detectedAt: new Date(),
     };
@@ -299,49 +299,64 @@ export class OverchargeAnalyzer {
   }
 
   /**
-   * Generate evidence
+   * Generate evidence with source references
    */
-  private generateEvidence(analysis: OverchargeAnalysis): Evidence[] {
+  private generateEvidence(analysis: OverchargeAnalysis, bankConditions?: BankConditions): Evidence[] {
     const evidence: Evidence[] = [];
+    const bankName = bankConditions?.bankName || 'Banque';
+    const gridDate = bankConditions?.effectiveDate
+      ? new Date(bankConditions.effectiveDate).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      : '';
+    const sourceName = gridDate ? `Grille tarifaire ${bankName} - ${gridDate}` : `Conditions ${bankName}`;
 
+    // Comparaison montant facturé vs attendu
     evidence.push({
-      type: 'CHARGED_AMOUNT',
-      description: 'Montant facturé',
-      value: `${Math.round(analysis.chargedAmount).toLocaleString('fr-FR')} FCFA`,
+      type: 'COMPARISON',
+      description: 'Comparaison tarifaire',
+      value: analysis.excessAmount,
+      expectedValue: analysis.expectedAmount,
+      appliedValue: analysis.chargedAmount,
+      source: sourceName,
+      conditionRef: analysis.matchedFee
+        ? `${analysis.matchedFee.code} - ${analysis.matchedFee.name}`
+        : undefined,
     });
 
-    evidence.push({
-      type: 'EXPECTED_AMOUNT',
-      description: 'Montant attendu',
-      value: `${Math.round(analysis.expectedAmount).toLocaleString('fr-FR')} FCFA`,
-      reference: analysis.matchedFee?.name || 'Estimation',
-    });
-
+    // Écart en pourcentage
     evidence.push({
       type: 'EXCESS_PERCENTAGE',
-      description: 'Écart',
-      value: `+${Math.round(analysis.excessPercentage * 100)}%`,
+      description: 'Écart constaté',
+      value: `+${Math.round(analysis.excessPercentage * 100)}% (${Math.round(analysis.excessAmount).toLocaleString('fr-FR')} FCFA)`,
     });
 
+    // Référence au tarif officiel si trouvé
+    if (analysis.matchedFee) {
+      const feeDetails = analysis.matchedFee.type === 'percentage' && analysis.matchedFee.percentage
+        ? `${(analysis.matchedFee.percentage * 100).toFixed(2)}%${analysis.matchedFee.minAmount ? ` (min: ${analysis.matchedFee.minAmount} FCFA)` : ''}`
+        : `${analysis.matchedFee.amount.toLocaleString('fr-FR')} FCFA`;
+
+      evidence.push({
+        type: 'OFFICIAL_RATE',
+        description: 'Tarif contractuel',
+        value: feeDetails,
+        source: sourceName,
+        conditionRef: `Section: ${this.getServiceTypeLabel(analysis.serviceType)}`,
+        reference: analysis.matchedFee.code,
+      });
+    }
+
+    // Type de service identifié
     evidence.push({
       type: 'SERVICE_TYPE',
       description: 'Type de service',
       value: this.getServiceTypeLabel(analysis.serviceType),
     });
 
-    if (analysis.matchedFee) {
-      evidence.push({
-        type: 'OFFICIAL_FEE',
-        description: 'Tarif officiel',
-        value: `${analysis.matchedFee.name}: ${analysis.matchedFee.amount} FCFA`,
-        reference: 'Grille tarifaire',
-      });
-    }
-
+    // Motifs de l'anomalie
     for (const reason of analysis.reasons) {
       evidence.push({
         type: 'REASON',
-        description: 'Motif',
+        description: 'Motif de détection',
         value: reason,
       });
     }
@@ -369,18 +384,24 @@ export class OverchargeAnalyzer {
   }
 
   /**
-   * Generate recommendation
+   * Generate recommendation with source reference
    */
-  private generateRecommendation(analysis: OverchargeAnalysis): string {
+  private generateRecommendation(analysis: OverchargeAnalysis, bankConditions?: BankConditions): string {
     const excess = Math.round(analysis.excessAmount).toLocaleString('fr-FR');
     const percentage = Math.round(analysis.excessPercentage * 100);
     const charged = Math.round(analysis.chargedAmount).toLocaleString('fr-FR');
     const expected = Math.round(analysis.expectedAmount).toLocaleString('fr-FR');
+    const bankName = bankConditions?.bankName || 'la banque';
 
-    return (
-      `Surfacturation de ${excess} FCFA (${percentage}%) détectée pour ${this.getServiceTypeLabel(analysis.serviceType)}. ` +
-      `Montant facturé: ${charged} FCFA, montant attendu: ${expected} FCFA. ` +
-      `Réclamer le remboursement de la différence et demander l'application correcte des tarifs.`
-    );
+    let recommendation = `Surfacturation de ${excess} FCFA (+${percentage}%) détectée pour ${this.getServiceTypeLabel(analysis.serviceType)}. `;
+    recommendation += `Montant facturé: ${charged} FCFA vs tarif contractuel: ${expected} FCFA. `;
+
+    if (analysis.matchedFee) {
+      recommendation += `Référence: ${analysis.matchedFee.code} - ${analysis.matchedFee.name}. `;
+    }
+
+    recommendation += `Réclamer auprès de ${bankName} le remboursement de ${excess} FCFA et l'application du tarif contractuel.`;
+
+    return recommendation;
   }
 }

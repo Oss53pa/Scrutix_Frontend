@@ -8,8 +8,8 @@ export function AboutSettings() {
       <Card>
         <CardBody>
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Info className="w-6 h-6 text-blue-600" />
+            <div className="p-3 bg-primary-100 rounded-lg">
+              <Info className="w-6 h-6 text-primary-600" />
             </div>
             <div className="space-y-4 flex-1">
               <div>
@@ -53,8 +53,8 @@ export function AboutSettings() {
         <Card>
           <CardBody>
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Shield className="w-5 h-5 text-orange-600" />
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <Shield className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h5 className="font-medium text-primary-900">18 Modules de Detection</h5>
@@ -84,8 +84,8 @@ export function AboutSettings() {
         <Card>
           <CardBody>
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Brain className="w-5 h-5 text-purple-600" />
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <Brain className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h5 className="font-medium text-primary-900">Multi-IA</h5>
@@ -109,8 +109,8 @@ export function AboutSettings() {
         <Card>
           <CardBody>
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <BookOpen className="w-5 h-5 text-green-600" />
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <BookOpen className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h5 className="font-medium text-primary-900">Sources Reglementaires</h5>
@@ -133,8 +133,8 @@ export function AboutSettings() {
         <Card>
           <CardBody>
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Zap className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <Zap className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h5 className="font-medium text-primary-900">Fonctionnalites</h5>
@@ -199,7 +199,7 @@ export function AboutSettings() {
               ].map((provider) => (
                 <span
                   key={provider}
-                  className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium"
+                  className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-xs font-medium"
                 >
                   {provider}
                 </span>

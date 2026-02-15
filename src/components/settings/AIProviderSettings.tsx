@@ -185,16 +185,8 @@ export function AIProviderSettings({ onSave }: AIProviderSettingsProps) {
     return key.substring(0, 4) + '************' + key.substring(key.length - 4);
   };
 
-  const getProviderColor = (provider: string) => {
-    const colors: Record<string, string> = {
-      purple: 'from-purple-50 to-purple-100 border-purple-200',
-      green: 'from-green-50 to-green-100 border-green-200',
-      orange: 'from-orange-50 to-orange-100 border-orange-200',
-      blue: 'from-blue-50 to-blue-100 border-blue-200',
-      gray: 'from-primary-50 to-primary-100 border-primary-200',
-      primary: 'from-primary-50 to-primary-100 border-primary-200',
-    };
-    return colors[provider] || colors.primary;
+  const getProviderColor = (_provider: string) => {
+    return 'from-primary-50 to-primary-100 border-primary-200';
   };
 
   const renderProviderCard = (providerKey: AIProviderType) => {
@@ -213,18 +205,18 @@ export function AIProviderSettings({ onSave }: AIProviderSettingsProps) {
         key={providerKey}
         className={`p-4 border-2 rounded-lg transition-all cursor-pointer ${
           isActive
-            ? `bg-gradient-to-br ${getProviderColor(provider.color)} border-${provider.color}-500`
+            ? `bg-gradient-to-br ${getProviderColor(provider.color)} border-primary-500`
             : 'border-primary-200 hover:border-primary-300 bg-white'
         }`}
         onClick={() => setActiveAIProvider(providerKey)}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Icon className={`w-5 h-5 ${isActive ? `text-${provider.color}-600` : 'text-primary-500'}`} />
+            <Icon className={`w-5 h-5 ${isActive ? 'text-primary-600' : 'text-primary-500'}`} />
             <span className="font-medium text-primary-900">{provider.name}</span>
           </div>
           <div className="flex items-center gap-2">
-            {isValidated && <CheckCircle className="w-4 h-4 text-green-500" />}
+            {isValidated && <CheckCircle className="w-4 h-4 text-primary-500" />}
             <input
               type="radio"
               checked={isActive}
@@ -269,9 +261,9 @@ export function AIProviderSettings({ onSave }: AIProviderSettingsProps) {
                     {validating === providerKey ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : validationStatus[providerKey] === 'valid' ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      <CheckCircle className="w-4 h-4 text-primary-500" />
                     ) : validationStatus[providerKey] === 'invalid' ? (
-                      <XCircle className="w-4 h-4 text-red-500" />
+                      <XCircle className="w-4 h-4 text-primary-500" />
                     ) : (
                       'Test'
                     )}
@@ -378,7 +370,7 @@ export function AIProviderSettings({ onSave }: AIProviderSettingsProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-purple-500" />
+          <Brain className="w-5 h-5 text-primary-500" />
           <CardTitle>Providers d'Intelligence Artificielle</CardTitle>
         </div>
         <CardDescription>
