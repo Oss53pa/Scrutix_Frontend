@@ -101,7 +101,7 @@ export class InternationalAudit {
       t.description.toLowerCase().includes('swift')
     );
 
-    const targetFees = internationalFees.filter(t =>
+    const _targetFees = internationalFees.filter(t =>
       t.description.toLowerCase().includes('target') ||
       t.description.toLowerCase().includes('sepa')
     );

@@ -9,7 +9,7 @@ import {
   DetectionThresholds,
   BankConditions,
 } from '../types';
-import { transactionSimilarity, descriptionSimilarity, amountSimilarity } from './utils/similarity';
+import { transactionSimilarity, descriptionSimilarity } from './utils/similarity';
 
 interface DuplicateGroup {
   original: Transaction;

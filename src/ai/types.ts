@@ -3,7 +3,7 @@
 // Types et interfaces pour l'abstraction multi-fournisseur IA
 // ============================================================================
 
-import { Transaction, Anomaly, AnomalyType, Severity, BankConditions, TransactionType } from '../types';
+import { Transaction, Anomaly, AnomalyType, BankConditions, TransactionType } from '../types';
 
 // ----------------------------------------------------------------------------
 // AI Provider Types

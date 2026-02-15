@@ -12,7 +12,7 @@ import {
   AI_DETECTION_LABELS,
   DEFAULT_DETECTION_CONFIG,
 } from '../types';
-import { Transaction, Anomaly, BankConditions, AnomalyType } from '../../types';
+import { Transaction, Anomaly, BankConditions } from '../../types';
 import { AIProviderFactory } from '../AIProviderFactory';
 
 /**

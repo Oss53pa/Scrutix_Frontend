@@ -22,7 +22,7 @@ import {
   DETECTION_TO_ANOMALY_MAP,
   IAIProvider,
 } from '../types';
-import { Transaction, Anomaly, AnomalyType, Severity, BankConditions, TransactionType } from '../../types';
+import { Transaction, Anomaly, Severity, BankConditions, TransactionType } from '../../types';
 
 /**
  * Classe abstraite de base pour les fournisseurs IA

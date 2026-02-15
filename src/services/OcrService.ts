@@ -1,4 +1,4 @@
-import Tesseract, { createWorker, Worker } from 'tesseract.js';
+import { createWorker, Worker } from 'tesseract.js';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker

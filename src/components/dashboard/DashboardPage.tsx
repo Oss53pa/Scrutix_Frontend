@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import {
   Line,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -35,16 +34,14 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  RadialBarChart,
-  RadialBar,
 } from 'recharts';
-import { Card, CardHeader, CardTitle, CardBody, Button, Badge, SeverityBadge } from '../ui';
+import { Card, CardHeader, CardTitle, CardBody, Button, Badge } from '../ui';
 import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
 import { useAnalysisStore } from '../../store/analysisStore';
 import { useBillingStore } from '../../store/billingStore';
 import { useTransactionStore } from '../../store/transactionStore';
-import { formatCurrency, formatDate } from '../../utils';
+import { formatCurrency } from '../../utils';
 import { Severity, AnomalyType, ANOMALY_TYPE_LABELS } from '../../types';
 
 export function DashboardPage() {

@@ -16,7 +16,7 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import { Button, Badge } from '../ui';
-import { getClaudeService, ChatMessage, ClaudeService } from '../../services/ClaudeService';
+import { getClaudeService, ChatMessage } from '../../services/ClaudeService';
 import { useSettingsStore } from '../../store/settingsStore';
 
 // Paloma - Jeune femme africaine professionnelle

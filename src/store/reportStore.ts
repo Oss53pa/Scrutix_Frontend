@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Anomaly, ClientReport } from '../types';
+import { Anomaly } from '../types';
 
 interface ReportDraft {
   id: string;

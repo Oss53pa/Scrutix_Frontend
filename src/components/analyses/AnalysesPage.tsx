@@ -14,9 +14,8 @@ import {
   FileWarning,
   TrendingUp,
   Cpu,
-  Search,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardBody, Button, Input, Select, Badge, DetectionBadge, SeverityBadge } from '../ui';
+import { Card, CardBody, Button, Input, Select, Badge, SeverityBadge } from '../ui';
 import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
 import { useAnalysisStore } from '../../store/analysisStore';
@@ -139,8 +138,8 @@ export function AnalysesPage() {
   const {
     currentAnalysis,
     isAnalyzing,
-    progress,
-    currentStep,
+    progress: _progress,
+    currentStep: _currentStep,
     startAnalysis,
     updateProgress,
     completeAnalysis,
@@ -651,7 +650,7 @@ export function AnalysesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-primary-100">
-                {displayTransactions.slice(0, 100).map((tx, i) => {
+                {displayTransactions.slice(0, 100).map((tx, _i) => {
                   // Check if this transaction is part of an anomaly
                   const relatedAnomaly = anomalies.find(a =>
                     a.transactions.some(t => t.id === tx.id)

@@ -193,7 +193,7 @@ export class ReportService {
       margin: { left: 14, right: 14 },
     });
 
-    // @ts-ignore - autoTable adds finalY to doc
+    // @ts-expect-error - autoTable adds finalY to doc
     yPos = doc.lastAutoTable.finalY + 15;
 
     // Check if need new page

@@ -175,7 +175,7 @@ export class PdfExtractionService {
       if (match) {
         // Extract number, remove spaces and convert
         const numStr = match[1] || match[0];
-        const cleaned = numStr.replace(/[^\d,\.]/g, '').replace(',', '.');
+        const cleaned = numStr.replace(/[^\d,.]/g, '').replace(',', '.');
         const value = parseFloat(cleaned);
         if (!isNaN(value)) {
           return value;
@@ -190,7 +190,7 @@ export class PdfExtractionService {
       const match = text.match(pattern);
       if (match) {
         const numStr = match[1] || match[0];
-        const cleaned = numStr.replace(/[^\d,\.]/g, '').replace(',', '.');
+        const cleaned = numStr.replace(/[^\d,.]/g, '').replace(',', '.');
         const value = parseFloat(cleaned);
         if (!isNaN(value)) {
           return value;
@@ -335,8 +335,8 @@ export class PdfExtractionService {
 
   private extractTransferFees(text: string): TransferFees {
     const virementCemac = this.extractPercentage(text, [
-      /virement\s*(?:cemac|beac|zone)[^\d]*(\d[\d,\.]*)\s*%/i,
-      /transfert\s*r[eé]gional[^\d]*(\d[\d,\.]*)\s*%/i,
+      /virement\s*(?:cemac|beac|zone)[^\d]*(\d[\d,.]*)\s*%/i,
+      /transfert\s*r[eé]gional[^\d]*(\d[\d,.]*)\s*%/i,
     ]) || 0.5;
 
     const virementCemacMin = this.extractAmount(text, [
@@ -345,9 +345,9 @@ export class PdfExtractionService {
     ]) || 5000;
 
     const virementInternational = this.extractPercentage(text, [
-      /virement\s*international[^\d]*(\d[\d,\.]*)\s*%/i,
-      /transfert\s*international[^\d]*(\d[\d,\.]*)\s*%/i,
-      /virement\s*[eé]tranger[^\d]*(\d[\d,\.]*)\s*%/i,
+      /virement\s*international[^\d]*(\d[\d,.]*)\s*%/i,
+      /transfert\s*international[^\d]*(\d[\d,.]*)\s*%/i,
+      /virement\s*[eé]tranger[^\d]*(\d[\d,.]*)\s*%/i,
     ]) || 1;
 
     const virementIntMin = this.extractAmount(text, [
@@ -434,36 +434,36 @@ export class PdfExtractionService {
 
   private extractCreditFees(text: string): CreditFees {
     const tauxDecouvertAutorise = this.extractPercentage(text, [
-      /d[eé]couvert\s*autoris[eé][^\d]*(\d[\d,\.]*)\s*%/i,
-      /taux\s*d[eé]biteur\s*autoris[eé][^\d]*(\d[\d,\.]*)\s*%/i,
+      /d[eé]couvert\s*autoris[eé][^\d]*(\d[\d,.]*)\s*%/i,
+      /taux\s*d[eé]biteur\s*autoris[eé][^\d]*(\d[\d,.]*)\s*%/i,
     ]) || 14.5;
 
     const tauxDecouvertNonAutorise = this.extractPercentage(text, [
-      /d[eé]couvert\s*non\s*autoris[eé][^\d]*(\d[\d,\.]*)\s*%/i,
-      /d[eé]couvert\s*d[eé]pass[eé][^\d]*(\d[\d,\.]*)\s*%/i,
-      /taux\s*d[eé]biteur\s*non\s*autoris[eé][^\d]*(\d[\d,\.]*)\s*%/i,
+      /d[eé]couvert\s*non\s*autoris[eé][^\d]*(\d[\d,.]*)\s*%/i,
+      /d[eé]couvert\s*d[eé]pass[eé][^\d]*(\d[\d,.]*)\s*%/i,
+      /taux\s*d[eé]biteur\s*non\s*autoris[eé][^\d]*(\d[\d,.]*)\s*%/i,
     ]) || 18;
 
     const commissionMouvement = this.extractPercentage(text, [
-      /commission\s*(?:de\s*)?mouvement[^\d]*(\d[\d,\.]*)\s*%/i,
+      /commission\s*(?:de\s*)?mouvement[^\d]*(\d[\d,.]*)\s*%/i,
     ]) || 0.025;
 
     const commissionPlusForte = this.extractPercentage(text, [
-      /plus\s*forte\s*d[eé]couverte[^\d]*(\d[\d,\.]*)\s*%/i,
-      /commission\s*(?:de\s*)?plus\s*fort[^\d]*(\d[\d,\.]*)\s*%/i,
+      /plus\s*forte\s*d[eé]couverte[^\d]*(\d[\d,.]*)\s*%/i,
+      /commission\s*(?:de\s*)?plus\s*fort[^\d]*(\d[\d,.]*)\s*%/i,
     ]) || 0.05;
 
     const tauxUsure = this.extractPercentage(text, [
-      /taux\s*(?:d['´])?usure[^\d]*(\d[\d,\.]*)\s*%/i,
+      /taux\s*(?:d['´])?usure[^\d]*(\d[\d,.]*)\s*%/i,
     ]) || 27;
 
     const tauxCreditConsommationMin = this.extractPercentage(text, [
-      /cr[eé]dit\s*consommation.*?(\d[\d,\.]*)\s*%/i,
+      /cr[eé]dit\s*consommation.*?(\d[\d,.]*)\s*%/i,
     ]) || 12;
 
     const tauxCreditImmobilierMin = this.extractPercentage(text, [
-      /cr[eé]dit\s*immobilier.*?(\d[\d,\.]*)\s*%/i,
-      /pr[eê]t\s*immobilier.*?(\d[\d,\.]*)\s*%/i,
+      /cr[eé]dit\s*immobilier.*?(\d[\d,.]*)\s*%/i,
+      /pr[eê]t\s*immobilier.*?(\d[\d,.]*)\s*%/i,
     ]) || 8;
 
     return {

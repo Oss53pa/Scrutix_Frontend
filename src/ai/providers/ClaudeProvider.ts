@@ -9,7 +9,6 @@ import {
   AIProviderConfig,
   AIModel,
   AI_MODELS,
-  AIError,
   AIErrorCode,
 } from '../types';
 

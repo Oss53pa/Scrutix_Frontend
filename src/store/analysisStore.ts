@@ -236,10 +236,11 @@ export const useAnalysisStore = create<AnalysisStore>()(
             case 'amount':
               comparison = a.amount - b.amount;
               break;
-            case 'severity':
+            case 'severity': {
               const severityOrder = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
               comparison = severityOrder[a.severity] - severityOrder[b.severity];
               break;
+            }
             case 'confidence':
               comparison = a.confidence - b.confidence;
               break;

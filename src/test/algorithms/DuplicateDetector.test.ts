@@ -236,7 +236,7 @@ describe('DuplicateDetector', () => {
       const anomalies = detector.detectDuplicates(transactions);
 
       expect(anomalies[0].recommendation).toBeDefined();
-      expect(anomalies[0].recommendation).toContain('Contester');
+      expect(anomalies[0].recommendation).toContain('Réclamer');
       expect(anomalies[0].recommendation).toContain('FCFA');
     });
   });

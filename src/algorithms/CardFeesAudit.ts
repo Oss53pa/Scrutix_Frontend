@@ -240,7 +240,7 @@ export class CardFeesAudit {
     // Vérifier si frais par rapport au nombre de retraits
     const withdrawalCount = withdrawals.length;
     const freeWithdrawals = this.bankConditions?.cardFees?.retraitGratuits || 0;
-    const feePerWithdrawal = this.bankConditions?.cardFees?.fraisRetrait || 0;
+    const _feePerWithdrawal = this.bankConditions?.cardFees?.fraisRetrait || 0;
 
     if (freeWithdrawals > 0 && withdrawalCount <= freeWithdrawals && atmFees.length > 0) {
       const totalFees = atmFees.reduce((sum, f) => sum + Math.abs(f.amount), 0);
@@ -284,7 +284,7 @@ export class CardFeesAudit {
   /**
    * Vérifier les plafonds
    */
-  private checkLimits(withdrawals: Transaction[], payments: Transaction[]): Anomaly[] {
+  private checkLimits(withdrawals: Transaction[], _payments: Transaction[]): Anomaly[] {
     const anomalies: Anomaly[] = [];
 
     // Grouper les retraits par jour

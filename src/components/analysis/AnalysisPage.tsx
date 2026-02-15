@@ -2,13 +2,12 @@ import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, Filter, Download, ChevronDown, Brain, AlertTriangle,
-  TrendingUp, Shield, ChevronRight, Sparkles, Calendar, Tv
+  TrendingUp, Shield, ChevronRight, Sparkles, Calendar
 } from 'lucide-react';
 import {
   Card,
   CardHeader,
   CardTitle,
-  CardDescription,
   CardBody,
   Button,
   Progress,
@@ -40,7 +39,7 @@ export function AnalysisPage() {
     getFilteredAnomalies,
   } = useAnalysisStore();
   const { thresholds, bankConditions, claudeApi, getEnabledDetectors } = useSettingsStore();
-  const { banks, getGridForDate, getBankByCode } = useBankStore();
+  const { banks: _banks, getGridForDate, getBankByCode } = useBankStore();
 
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
   const [showFilters, setShowFilters] = useState(false);

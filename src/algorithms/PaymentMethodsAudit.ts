@@ -137,7 +137,7 @@ export class PaymentMethodsAudit {
     );
 
     if (unpaidChecks.length > 0) {
-      const totalUnpaidFees = unpaidChecks.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      const _totalUnpaidFees = unpaidChecks.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
       // Regrouper par mois
       const monthlyUnpaid = new Map<string, Transaction[]>();
@@ -286,7 +286,7 @@ export class PaymentMethodsAudit {
 
     // Catégoriser les virements
     const domesticTransfers = transferFees.filter(t => this.isDomesticTransfer(t));
-    const internationalTransfers = transferFees.filter(t => this.isInternationalTransfer(t));
+    const _internationalTransfers = transferFees.filter(t => this.isInternationalTransfer(t));
 
     // Analyser les virements domestiques
     if (domesticTransfers.length > 0 && this.bankConditions?.transferFees?.domestic) {

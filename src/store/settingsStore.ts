@@ -5,7 +5,6 @@ import type {
   AISettings,
   AIProviderConfig as NewAIProviderConfig,
   AIFeatureFlags,
-  AIUsageStats,
 } from '../ai/types';
 
 // Types for custom regulatory sources

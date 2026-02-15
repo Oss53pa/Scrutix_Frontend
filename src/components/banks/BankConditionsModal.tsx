@@ -34,7 +34,6 @@ import {
 import { Button, Badge } from '../ui';
 import type { Bank, BankConditions, ArchivedDocument } from '../../types';
 import { AFRICAN_COUNTRIES, ZONE_CURRENCIES } from '../../types';
-import { formatCurrency } from '../../utils';
 import { pdfExtractionService, type ExtractionResult } from '../../services/PdfExtractionService';
 import { v4 as uuidv4 } from 'uuid';
 
