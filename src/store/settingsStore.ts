@@ -6,6 +6,10 @@ import type {
   AIProviderConfig as NewAIProviderConfig,
   AIFeatureFlags,
 } from '../ai/types';
+import { DEFAULT_PROPH3T_CONFIG } from '../ai/proph3t/types';
+import type { Proph3tConfig } from '../ai/proph3t/types';
+import { DEFAULT_GATEWAY_CONFIG } from '../ai/gateway/GatewayTypes';
+import type { GatewayConfig } from '../ai/gateway/GatewayTypes';
 
 // Types for custom regulatory sources
 export interface CustomRegulatorySource {
@@ -237,6 +241,14 @@ interface SettingsStore {
   clearAIApiKey: () => void;
   resetAIMonthlyUsage: () => void;
   setAIConnectionStatus: (status: 'unknown' | 'connected' | 'error', error?: string) => void;
+
+  // PROPH3T Engine configuration
+  proph3tConfig: Proph3tConfig;
+  updateProph3tConfig: (config: Partial<Proph3tConfig>) => void;
+
+  // Gateway configuration
+  gateway: GatewayConfig;
+  updateGateway: (config: Partial<GatewayConfig>) => void;
 
   // Organization actions
   updateOrganization: (config: Partial<OrganizationSettings>) => void;
@@ -534,6 +546,8 @@ export const useSettingsStore = create<SettingsStore>()(
       regulatorySources: defaultRegulatorySources,
       aiProviders: defaultAIProviders,
       aiSettings: defaultAISettings,
+      proph3tConfig: DEFAULT_PROPH3T_CONFIG,
+      gateway: DEFAULT_GATEWAY_CONFIG,
 
       // Threshold actions
       updateThresholds: (updates) =>
@@ -877,6 +891,24 @@ export const useSettingsStore = create<SettingsStore>()(
             },
           };
         }),
+
+      // PROPH3T Engine actions
+      updateProph3tConfig: (config) =>
+        set((state) => ({
+          proph3tConfig: {
+            ...state.proph3tConfig,
+            ...config,
+            models: config.models
+              ? { ...state.proph3tConfig.models, ...config.models }
+              : state.proph3tConfig.models,
+          },
+        })),
+
+      // Gateway actions
+      updateGateway: (config) =>
+        set((state) => ({
+          gateway: { ...state.gateway, ...config },
+        })),
 
       // Organization actions
       updateOrganization: (config) =>

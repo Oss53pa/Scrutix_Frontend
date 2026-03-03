@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, X, AlertTriangle, CheckCircle, FileText, Upload, Clock, Play } from 'lucide-react';
+import { Bell, X, AlertTriangle, CheckCircle, FileText, Upload, Clock, Play, DollarSign } from 'lucide-react';
 import { Button } from '../ui';
 import { useAppStore } from '../../store';
+import { AIProviderFactory } from '../../ai';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { NotificationType } from '../../types';
@@ -48,6 +49,36 @@ export function NotificationsDropdown() {
   const getUnreadCount = useAppStore((state) => state.getUnreadCount);
 
   const unreadCount = getUnreadCount();
+
+  // Check gateway budget alerts
+  useEffect(() => {
+    const checkBudgetAlerts = async () => {
+      const gateway = AIProviderFactory.getGateway();
+      if (!gateway) return;
+
+      try {
+        const status = await gateway.getBudgetStatus();
+
+        if (status.budgetExceeded) {
+          addNotification({
+            type: 'anomaly_critical' as NotificationType,
+            title: 'Budget IA depasse',
+            message: `Le budget mensuel de ${status.monthlyBudgetXAF.toLocaleString('fr-FR')} FCFA est depasse (${Math.round(status.usedPercent * 100)}%). Basculement automatique sur PROPH3T.`,
+          });
+        } else if (status.alertTriggered) {
+          addNotification({
+            type: 'anomaly_detected' as NotificationType,
+            title: 'Alerte budget IA',
+            message: `${Math.round(status.usedPercent * 100)}% du budget mensuel utilise (${status.usedXAF.toLocaleString('fr-FR')} / ${status.monthlyBudgetXAF.toLocaleString('fr-FR')} FCFA).`,
+          });
+        }
+      } catch {
+        // Budget check failed silently
+      }
+    };
+
+    checkBudgetAlerts();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDemoNotifications = () => {
     DEMO_NOTIFICATIONS.forEach((notif) => {

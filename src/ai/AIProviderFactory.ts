@@ -17,6 +17,10 @@ import {
   MistralProvider,
   OllamaProvider,
 } from './providers';
+import { Proph3tEngine } from './proph3t/Proph3tEngine';
+import type { Proph3tConfig } from './proph3t/types';
+import { PremiumGateway } from './gateway/PremiumGateway';
+import type { GatewayConfig, GatewayTaskType } from './gateway/GatewayTypes';
 
 /**
  * Factory pour créer des instances de providers IA
@@ -25,11 +29,12 @@ import {
 class AIProviderFactoryClass {
   private currentProvider: IAIProvider | null = null;
   private currentConfig: AIProviderConfig | null = null;
+  private gateway: PremiumGateway | null = null;
 
   /**
    * Crée un nouveau provider basé sur la configuration
    */
-  createProvider(config: AIProviderConfig): IAIProvider {
+  createProvider(config: AIProviderConfig & { proph3tConfig?: Proph3tConfig }): IAIProvider {
     switch (config.provider) {
       case 'claude':
         return new ClaudeProvider(config);
@@ -38,6 +43,10 @@ class AIProviderFactoryClass {
       case 'mistral':
         return new MistralProvider(config);
       case 'ollama':
+        // If PROPH3T config exists and is enabled, use Proph3tEngine
+        if (config.proph3tConfig?.enabled) {
+          return new Proph3tEngine(config, config.proph3tConfig);
+        }
         return new OllamaProvider(config);
       case 'custom':
         // Pour un provider custom, on pourrait implémenter une classe générique
@@ -159,6 +168,38 @@ class AIProviderFactoryClass {
         error: error instanceof Error ? error.message : 'Erreur inconnue',
       };
     }
+  }
+
+  // ============================================================================
+  // Gateway Premium
+  // ============================================================================
+
+  /**
+   * Configure le gateway premium
+   */
+  configureGateway(config: Partial<GatewayConfig>): void {
+    if (!this.gateway) {
+      this.gateway = new PremiumGateway(config);
+    } else {
+      this.gateway.updateConfig(config);
+    }
+  }
+
+  /**
+   * Retourne le type de provider a utiliser pour une tache via le gateway
+   */
+  async getGatewayProvider(taskType: GatewayTaskType): Promise<AIProviderType> {
+    if (!this.gateway) {
+      return 'ollama';
+    }
+    return await this.gateway.getProviderForTask(taskType);
+  }
+
+  /**
+   * Retourne l'instance du gateway
+   */
+  getGateway(): PremiumGateway | null {
+    return this.gateway;
   }
 }
 

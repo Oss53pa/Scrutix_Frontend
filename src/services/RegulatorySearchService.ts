@@ -140,6 +140,68 @@ export const REGULATORY_KNOWLEDGE_BASE = [
 
 class RegulatorySearchServiceClass {
   private sources: RegulatorySource[] = REGULATORY_SOURCES;
+  private ragAvailable = false;
+
+  /**
+   * Indique si le RAG est disponible
+   */
+  setRagAvailable(available: boolean): void {
+    this.ragAvailable = available;
+  }
+
+  /**
+   * Recherche avec RAG si disponible, sinon fallback sur recherche par mots-cles
+   */
+  async searchWithRAG(
+    query: string,
+    options?: { region?: 'CEMAC' | 'UEMOA' | 'all'; limit?: number }
+  ): Promise<SearchResult[]> {
+    if (this.ragAvailable) {
+      try {
+        const { getRagPipeline } = await import('../store/ragStore');
+        const pipeline = getRagPipeline();
+
+        if (pipeline) {
+          const ragResults = await pipeline.search(query, options?.limit ?? 5);
+
+          if (ragResults.length > 0) {
+            return ragResults.map((r, i) => ({
+              id: `rag_${i}_${r.chunk.documentId}`,
+              sourceId: r.chunk.metadata.source === 'regulatory' ? 'rag' : 'custom',
+              sourceName: r.chunk.metadata.source === 'regulatory' ? 'RAG' : 'Document',
+              title: r.chunk.metadata.title,
+              snippet: r.chunk.text.slice(0, 300),
+              url: '',
+              type: 'regulation' as const,
+              relevanceScore: Math.round((r.rerankedScore ?? r.score) * 100),
+            }));
+          }
+        }
+      } catch {
+        // Fallback silencieux vers la recherche par mots-cles
+      }
+    }
+
+    // Fallback: recherche par mots-cles
+    return this.search(query, options);
+  }
+
+  /**
+   * Formate les resultats RAG pour injection dans un prompt IA
+   */
+  formatRAGResultsForAI(results: SearchResult[]): string {
+    if (results.length === 0) return '';
+
+    let text = '\n\n---\n[REFERENCES REGLEMENTAIRES]\n';
+    results.forEach((r, i) => {
+      text += `\n[Ref.${i + 1}] ${r.title}\n`;
+      text += `  Source: ${r.sourceName}\n`;
+      text += `  ${r.snippet}\n`;
+    });
+    text += '\nCitez les references pertinentes avec [Ref.N] dans votre reponse.\n';
+
+    return text;
+  }
 
   /**
    * Recherche dans les sources reglementaires

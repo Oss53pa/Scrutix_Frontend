@@ -12,6 +12,8 @@ import {
   ColumnMapping,
 } from '../types';
 import { OcrService } from './OcrService';
+import { OcrPipeline } from './ocr/OcrPipeline';
+import type { OcrPipelineOptions, OcrStructuredOutput } from './ocr/OcrPipelineTypes';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -766,5 +768,104 @@ export class ImportService {
     }
 
     return { headers: [], rows: [] };
+  }
+
+  /**
+   * Parse avec le pipeline OCR avance (4 couches)
+   * Complement aux methodes parsePDF/parseImage existantes
+   */
+  static async parseWithOcrPipeline(
+    file: File,
+    config: Partial<ImportConfig>,
+    bankCode?: string
+  ): Promise<{ importResult: ImportResult; ocrOutput?: OcrStructuredOutput }> {
+    try {
+      // OCR le fichier
+      const isImage = /\.(jpg|jpeg|png|tiff?|bmp|webp)$/i.test(file.name);
+      let rawText: string;
+      let wordBboxes: Array<{ text: string; bbox: { x0: number; y0: number; x1: number; y1: number } }> | undefined;
+
+      if (isImage) {
+        const bboxResult = await OcrService.recognizeImageWithBboxes(file);
+        rawText = bboxResult.text;
+        wordBboxes = bboxResult.words;
+      } else {
+        // PDF: extract text first, use OCR if needed
+        const ocrResult = await OcrService.recognizePdf(file);
+        rawText = ocrResult.text;
+      }
+
+      if (!rawText || rawText.trim().length === 0) {
+        return {
+          importResult: {
+            success: false,
+            totalRows: 0,
+            importedRows: 0,
+            skippedRows: 0,
+            errors: [{ row: 0, message: 'Aucun texte extrait du document' }],
+            transactions: [],
+          },
+        };
+      }
+
+      // Passer par le pipeline OCR avance
+      const pipeline = new OcrPipeline();
+      const pipelineOptions: OcrPipelineOptions = { bankCode };
+
+      const ocrOutput = await pipeline.process(rawText, pipelineOptions, wordBboxes);
+
+      // Convertir les lignes OCR en transactions
+      const transactions: Transaction[] = [];
+      const errors: ImportError[] = [];
+
+      for (let i = 0; i < ocrOutput.rows.length; i++) {
+        const row = ocrOutput.rows[i];
+        try {
+          const amount = row.credit ? row.credit : row.debit ? -row.debit : 0;
+          const tx: Transaction = {
+            id: uuidv4(),
+            date: row.date,
+            valueDate: row.valueDate || row.date,
+            description: row.description,
+            amount,
+            balance: row.balance || 0,
+            type: amount >= 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
+            category: '',
+            reference: row.reference || '',
+            currency: ocrOutput.metadata.currency || 'XAF',
+            bankCode: ocrOutput.metadata.bankCode || bankCode || '',
+          };
+          transactions.push(tx);
+        } catch (err) {
+          errors.push({
+            row: i + 1,
+            message: `Erreur conversion ligne ${i + 1}: ${err instanceof Error ? err.message : 'Erreur inconnue'}`,
+          });
+        }
+      }
+
+      return {
+        importResult: {
+          success: transactions.length > 0,
+          totalRows: ocrOutput.rows.length,
+          importedRows: transactions.length,
+          skippedRows: errors.length,
+          errors,
+          transactions,
+        },
+        ocrOutput,
+      };
+    } catch (error) {
+      return {
+        importResult: {
+          success: false,
+          totalRows: 0,
+          importedRows: 0,
+          skippedRows: 0,
+          errors: [{ row: 0, message: `Erreur pipeline OCR: ${error instanceof Error ? error.message : 'Erreur inconnue'}` }],
+          transactions: [],
+        },
+      };
+    }
   }
 }

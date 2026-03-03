@@ -89,6 +89,38 @@ export class OcrService {
   }
 
   /**
+   * Perform OCR with word-level bounding boxes for pre-analysis layer
+   */
+  static async recognizeImageWithBboxes(
+    imageSource: File | Blob | string
+  ): Promise<{
+    text: string;
+    confidence: number;
+    words: Array<{ text: string; bbox: { x0: number; y0: number; x1: number; y1: number }; confidence: number }>;
+  }> {
+    const worker = await this.getWorker();
+
+    let source: string | Blob = imageSource;
+    if (imageSource instanceof File) {
+      source = await this.fileToDataUrl(imageSource);
+    }
+
+    const result = await worker.recognize(source);
+
+    const words = result.data.words?.map((w: { text: string; bbox: { x0: number; y0: number; x1: number; y1: number }; confidence: number }) => ({
+      text: w.text,
+      bbox: w.bbox,
+      confidence: w.confidence,
+    })) || [];
+
+    return {
+      text: result.data.text,
+      confidence: result.data.confidence,
+      words,
+    };
+  }
+
+  /**
    * Perform OCR on a PDF file (converts each page to image first)
    */
   static async recognizePdf(

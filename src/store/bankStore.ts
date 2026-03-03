@@ -8,6 +8,8 @@ export type MonetaryZone = 'CEMAC' | 'UEMOA';
 
 export interface BankWithZone extends Omit<Bank, 'id' | 'createdAt' | 'updatedAt'> {
   zone: MonetaryZone;
+  /** Code du template OCR associe (si disponible) */
+  templateCode?: string;
 }
 
 // Banques CEMAC (Communauté Économique et Monétaire de l'Afrique Centrale)
@@ -54,13 +56,13 @@ const CEMAC_BANKS: BankWithZone[] = [
 // Monnaie: XOF (Franc CFA BCEAO)
 const UEMOA_BANKS: BankWithZone[] = [
   // Côte d'Ivoire
-  { code: 'SGBCCICI', name: 'SGBCI - Société Générale Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
+  { code: 'SGBCCICI', name: 'SGBCI - Société Générale Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true, templateCode: 'sgbci' },
   { code: 'BICICICX', name: 'BICICI - Banque Internationale pour le Commerce', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
-  { code: 'ECABCICI', name: 'Ecobank Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
-  { code: 'BOACICIX', name: 'BOA Côte d\'Ivoire - Bank of Africa', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
-  { code: 'NSIACICI', name: 'NSIA Banque Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
+  { code: 'ECABCICI', name: 'Ecobank Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true, templateCode: 'ecobank-ci' },
+  { code: 'BOACICIX', name: 'BOA Côte d\'Ivoire - Bank of Africa', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true, templateCode: 'boa-ci' },
+  { code: 'NSIACICI', name: 'NSIA Banque Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true, templateCode: 'nsia' },
   { code: 'COBACICI', name: 'Coris Bank International CI', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
-  { code: 'ATLNCICI', name: 'Banque Atlantique Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
+  { code: 'ATLNCICI', name: 'Banque Atlantique Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true, templateCode: 'atlantique' },
   { code: 'ORACICIX', name: 'Orabank Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
   { code: 'UBACICIX', name: 'UBA Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },
   { code: 'BGFICICI', name: 'BGFIBank Côte d\'Ivoire', country: 'CI', zone: 'UEMOA', conditions: null, isActive: true },

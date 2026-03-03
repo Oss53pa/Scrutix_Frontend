@@ -1,6 +1,6 @@
 // ============================================================================
 // SCRUTIX - AI Module Index
-// Point d'entrée principal pour le module IA
+// Point d'entree principal pour le module IA
 // ============================================================================
 
 // Types
@@ -30,3 +30,23 @@ export {
   type OrchestrationOptions,
   type OrchestrationProgress,
 } from './services/AIDetectionOrchestrator';
+
+// PROPH3T Engine
+export {
+  Proph3tEngine,
+  Proph3tModelRegistry,
+  JsonValidator,
+  DeterministicPreFilter,
+  CategorizationCache,
+  DEFAULT_PROPH3T_MODELS,
+  DEFAULT_PROPH3T_CONFIG,
+  DETECTION_MODEL_MAP,
+} from './proph3t';
+
+export type {
+  Proph3tModelRole,
+  Proph3tModelSlot,
+  Proph3tConfig,
+  Proph3tCallOptions,
+  Proph3tJsonResponse,
+} from './proph3t';

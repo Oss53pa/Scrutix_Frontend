@@ -12,7 +12,7 @@ import { Transaction, Anomaly, AnomalyType, BankConditions, TransactionType } fr
 /**
  * Fournisseurs d'IA supportés
  */
-export type AIProviderType = 'claude' | 'openai' | 'mistral' | 'ollama' | 'custom';
+export type AIProviderType = 'claude' | 'openai' | 'mistral' | 'ollama' | 'custom' | 'gemini' | 'deepseek';
 
 /**
  * Labels des fournisseurs
@@ -23,6 +23,8 @@ export const AI_PROVIDER_LABELS: Record<AIProviderType, string> = {
   mistral: 'Mistral AI',
   ollama: 'Ollama (Local)',
   custom: 'Personnalisé',
+  gemini: 'Google Gemini',
+  deepseek: 'DeepSeek',
 };
 
 /**
@@ -70,6 +72,8 @@ export const AI_MODELS: Record<AIProviderType, AIModel[]> = {
     { id: 'codellama:34b', name: 'Code Llama 34B', provider: 'ollama', contextWindow: 16000, maxOutputTokens: 4096 },
   ],
   custom: [],
+  gemini: [], // Phase 3 stub
+  deepseek: [], // Phase 3 stub
 };
 
 /**
@@ -134,6 +138,10 @@ export interface AIChatContext {
   clientName?: string;
   bankConditions?: BankConditions;
   period?: { start: Date; end: Date };
+  ragContext?: {
+    text: string;
+    sources: Array<{ title: string; source: string }>;
+  };
 }
 
 /**

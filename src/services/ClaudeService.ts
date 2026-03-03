@@ -28,6 +28,10 @@ interface ChatContext {
   anomalies?: Anomaly[];
   clientName?: string;
   bankConditions?: BankConditions;
+  ragContext?: {
+    text: string;
+    sources: Array<{ title: string; source: string }>;
+  };
 }
 
 interface ClaudeMessage {
@@ -595,6 +599,18 @@ Reponds toujours en francais, de maniere professionnelle et concise.`;
 
     if (context?.bankConditions) {
       systemContext += `\n\nConditions bancaires: ${context.bankConditions.bankName}`;
+    }
+
+    // Inject RAG context if available
+    if (context?.ragContext) {
+      systemContext += `\n\n[REFERENCES REGLEMENTAIRES]\n${context.ragContext.text}`;
+      if (context.ragContext.sources.length > 0) {
+        systemContext += '\n\nSources:\n';
+        context.ragContext.sources.forEach((s, i) => {
+          systemContext += `  [Ref.${i + 1}] ${s.title} (${s.source})\n`;
+        });
+        systemContext += '\nCite les references pertinentes avec [Ref.N] dans tes reponses.';
+      }
     }
 
     // Construire l'historique des messages

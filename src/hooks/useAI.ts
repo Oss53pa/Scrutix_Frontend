@@ -23,8 +23,14 @@ import {
   aiDetectionOrchestrator,
   OrchestrationResult,
   OrchestrationProgress,
+  Proph3tModelRegistry,
 } from '../ai';
+import type { Proph3tModelRole } from '../ai/proph3t/types';
+import { Proph3tEngine } from '../ai/proph3t/Proph3tEngine';
 import { encryptApiKey } from '../utils/crypto';
+import { useRagStore, getRagPipeline } from '../store/ragStore';
+import { PremiumGateway } from '../ai/gateway/PremiumGateway';
+import type { GatewayBudgetStatus } from '../ai/gateway/GatewayTypes';
 import type { Transaction, Anomaly, BankConditions } from '../types';
 
 /**
@@ -91,6 +97,28 @@ interface UseAIResult {
   // Usage
   usage: AIUsageState;
   resetMonthlyUsage: () => void;
+
+  // PROPH3T
+  proph3tStatus: {
+    enabled: boolean;
+    models: Record<Proph3tModelRole, { available: boolean; model: string; fallback: boolean }> | null;
+    cacheStats: { entries: number; hitRate: number } | null;
+  } | null;
+  refreshProph3tModels: () => Promise<void>;
+
+  // RAG
+  ragStatus: {
+    initialized: boolean;
+    documentCount: number;
+    chunkCount: number;
+  };
+
+  // Gateway
+  gatewayStatus: {
+    strategy: string;
+    budgetStatus: GatewayBudgetStatus | null;
+  } | null;
+  refreshGatewayStatus: () => Promise<void>;
 }
 
 /**
@@ -105,11 +133,15 @@ export function useAI(): UseAIResult {
     clearAIApiKey,
     resetAIMonthlyUsage,
     setAIConnectionStatus,
+    proph3tConfig,
+    gateway: gatewayConfig,
   } = useSettingsStore();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [providerInstance, setProviderInstance] = useState<IAIProvider | null>(null);
+  const [proph3tModelsStatus, setProph3tModelsStatus] = useState<Record<Proph3tModelRole, { available: boolean; model: string; fallback: boolean }> | null>(null);
+  const [proph3tCacheStats, _setProph3tCacheStats] = useState<{ entries: number; hitRate: number } | null>(null);
 
   // Configuration actuelle
   const config = aiSettings?.provider || {
@@ -177,10 +209,15 @@ export function useAI(): UseAIResult {
         // La logique de déchiffrement dépend de l'implémentation
       }
 
-      const providerConfig: AIProviderConfig = {
+      const providerConfig: AIProviderConfig & { proph3tConfig?: typeof proph3tConfig } = {
         ...config,
         apiKey,
       };
+
+      // Attach PROPH3T config when using Ollama
+      if (config.provider === 'ollama' && proph3tConfig?.enabled) {
+        providerConfig.proph3tConfig = proph3tConfig;
+      }
 
       const provider = AIProviderFactory.getProvider(providerConfig);
       setProviderInstance(provider);
@@ -198,12 +235,34 @@ export function useAI(): UseAIResult {
     }
   }, [config, isConfigured]);
 
+  // RAG store
+  const {
+    isInitialized: ragInitialized,
+    stats: ragStats,
+    initializeRAG,
+  } = useRagStore();
+
   // Effet pour initialiser le provider au changement de config
   useEffect(() => {
     if (isConfigured) {
       initializeProvider();
     }
   }, [isConfigured, config.provider, config.model]);
+
+  // Initialize RAG pipeline when PROPH3T is configured
+  useEffect(() => {
+    if (proph3tConfig?.enabled && config.provider === 'ollama') {
+      initializeRAG(proph3tConfig.baseUrl).then(() => {
+        // Attach RAG pipeline to Proph3tEngine if available
+        const pipeline = getRagPipeline();
+        if (pipeline && providerInstance && providerInstance instanceof Proph3tEngine) {
+          (providerInstance as Proph3tEngine).setRagPipeline(pipeline);
+        }
+      }).catch((err) => {
+        console.error('Erreur initialisation RAG:', err);
+      });
+    }
+  }, [proph3tConfig?.enabled, proph3tConfig?.baseUrl, config.provider]);
 
   // ============================================================================
   // Actions de configuration
@@ -545,6 +604,67 @@ export function useAI(): UseAIResult {
   }, [runDetection]);
 
   // ============================================================================
+  // Gateway Premium
+  // ============================================================================
+
+  const [gatewayBudgetStatus, setGatewayBudgetStatus] = useState<GatewayBudgetStatus | null>(null);
+  const [gatewayInstance] = useState<PremiumGateway | null>(() => {
+    if (gatewayConfig && gatewayConfig.strategy !== 'proph3t_only') {
+      return new PremiumGateway(gatewayConfig);
+    }
+    return null;
+  });
+
+  // Configure gateway in factory when config changes
+  useEffect(() => {
+    if (gatewayConfig) {
+      AIProviderFactory.configureGateway(gatewayConfig);
+    }
+  }, [gatewayConfig]);
+
+  const refreshGatewayStatus = useCallback(async () => {
+    const gw = AIProviderFactory.getGateway();
+    if (gw) {
+      const status = await gw.getBudgetStatus();
+      setGatewayBudgetStatus(status);
+    }
+  }, []);
+
+  const gatewayStatus = useMemo(() => {
+    if (!gatewayConfig || gatewayConfig.strategy === 'proph3t_only') return null;
+    return {
+      strategy: gatewayConfig.strategy,
+      budgetStatus: gatewayBudgetStatus,
+    };
+  }, [gatewayConfig, gatewayBudgetStatus]);
+
+  // ============================================================================
+  // PROPH3T
+  // ============================================================================
+
+  const refreshProph3tModels = useCallback(async () => {
+    if (!proph3tConfig?.enabled || config.provider !== 'ollama') return;
+
+    try {
+      const registry = new Proph3tModelRegistry(proph3tConfig.baseUrl);
+      await registry.refreshAvailableModels();
+      const status = registry.checkAllRoles(proph3tConfig);
+      setProph3tModelsStatus(status);
+    } catch (err) {
+      console.error('Error refreshing PROPH3T models:', err);
+    }
+  }, [proph3tConfig, config.provider]);
+
+  const proph3tStatus = useMemo(() => {
+    if (!proph3tConfig?.enabled || config.provider !== 'ollama') return null;
+    return {
+      enabled: proph3tConfig.enabled,
+      models: proph3tModelsStatus,
+      cacheStats: proph3tCacheStats,
+    };
+  }, [proph3tConfig, config.provider, proph3tModelsStatus, proph3tCacheStats]);
+
+  // ============================================================================
   // Usage
   // ============================================================================
 
@@ -605,6 +725,21 @@ export function useAI(): UseAIResult {
     // Usage
     usage,
     resetMonthlyUsage: resetAIMonthlyUsage,
+
+    // PROPH3T
+    proph3tStatus,
+    refreshProph3tModels,
+
+    // RAG
+    ragStatus: {
+      initialized: ragInitialized,
+      documentCount: ragStats?.totalDocuments ?? 0,
+      chunkCount: ragStats?.totalChunks ?? 0,
+    },
+
+    // Gateway
+    gatewayStatus,
+    refreshGatewayStatus,
   };
 }
 

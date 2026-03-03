@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BookOpen, Globe, Search, ExternalLink, Plus, Pencil, Trash2, X, Save, Database, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { BookOpen, Globe, Search, ExternalLink, Plus, Pencil, Trash2, X, Save, Database, ChevronDown, ChevronUp, Upload, RefreshCw, HardDrive } from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -15,6 +15,7 @@ import {
 import { useSettingsStore, CustomRegulatorySource } from '../../store';
 import { RegulatorySearchService, REGULATORY_SOURCES, SearchResult } from '../../services/RegulatorySearchService';
 import { RegulatoryDataPanel } from './RegulatoryDataPanel';
+import { useRagStore } from '../../store/ragStore';
 
 type CustomSourceFormData = Omit<CustomRegulatorySource, 'id' | 'createdAt'>;
 
@@ -45,6 +46,20 @@ export function RegulatorySourcesSettings() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [showDataPanel, setShowDataPanel] = useState(false);
+
+  // RAG state
+  const {
+    documents: ragDocuments,
+    indexingStatus,
+    isInitialized: ragInitialized,
+    stats: ragStats,
+    indexKnowledgeBase: ragIndexKB,
+    indexDocument: ragIndexDoc,
+    removeDocument: ragRemoveDoc,
+    reindexAll: ragReindexAll,
+  } = useRagStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Custom source modal state
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -362,6 +377,158 @@ export function RegulatorySourcesSettings() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Vector Knowledge Base (RAG) */}
+            <div className="border border-primary-200 rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="w-4 h-4 text-primary-600" />
+                  <h4 className="text-sm font-medium text-primary-700">
+                    Base de connaissances vectorielle
+                  </h4>
+                </div>
+                {ragInitialized && (
+                  <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                    Active
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-primary-500">
+                Indexation semantique des documents reglementaires pour une recherche IA plus precise (RAG).
+              </p>
+
+              {/* Stats */}
+              {ragStats && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-2 bg-primary-50 rounded text-center">
+                    <p className="text-lg font-bold text-primary-900">{ragStats.totalDocuments}</p>
+                    <p className="text-xs text-primary-500">Documents</p>
+                  </div>
+                  <div className="p-2 bg-primary-50 rounded text-center">
+                    <p className="text-lg font-bold text-primary-900">{ragStats.totalChunks}</p>
+                    <p className="text-xs text-primary-500">Chunks</p>
+                  </div>
+                  <div className="p-2 bg-primary-50 rounded text-center">
+                    <p className="text-lg font-bold text-primary-900">
+                      {ragStats.estimatedSizeBytes > 1048576
+                        ? `${(ragStats.estimatedSizeBytes / 1048576).toFixed(1)} Mo`
+                        : `${Math.round(ragStats.estimatedSizeBytes / 1024)} Ko`}
+                    </p>
+                    <p className="text-xs text-primary-500">Taille</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Indexing progress */}
+              {indexingStatus.isIndexing && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-primary-600">
+                    <span>Indexation en cours...</span>
+                    <span>{indexingStatus.indexedCount}/{indexingStatus.totalCount}</span>
+                  </div>
+                  <div className="w-full bg-primary-200 rounded-full h-2">
+                    <div
+                      className="bg-primary-600 h-2 rounded-full transition-all"
+                      style={{ width: `${indexingStatus.progress * 100}%` }}
+                    />
+                  </div>
+                  {indexingStatus.currentDocument && (
+                    <p className="text-xs text-primary-400 truncate">
+                      {indexingStatus.currentDocument}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => ragIndexKB()}
+                  disabled={!ragInitialized || indexingStatus.isIndexing}
+                >
+                  <Database className="w-3 h-3" />
+                  Indexer la base reglementaire
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => ragReindexAll()}
+                  disabled={!ragInitialized || indexingStatus.isIndexing}
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Re-indexer tout
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!ragInitialized || uploading}
+                >
+                  <Upload className="w-3 h-3" />
+                  Ajouter un document
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.txt"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploading(true);
+                    try {
+                      await ragIndexDoc(file);
+                    } catch (err) {
+                      console.error('Erreur upload document:', err);
+                    } finally {
+                      setUploading(false);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Document list */}
+              {ragDocuments.length > 0 && (
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {ragDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-2 text-xs border border-primary-100 rounded hover:bg-primary-50"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <span className={`inline-block px-1.5 py-0.5 rounded mr-2 ${
+                          doc.source === 'regulatory'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-orange-100 text-orange-700'
+                        }`}>
+                          {doc.source === 'regulatory' ? 'REG' : 'DOC'}
+                        </span>
+                        <span className="text-primary-700 truncate">{doc.title}</span>
+                        <span className="text-primary-400 ml-2">({doc.chunkCount} chunks)</span>
+                      </div>
+                      {doc.source === 'custom' && (
+                        <button
+                          onClick={() => ragRemoveDoc(doc.id)}
+                          className="p-1 text-primary-400 hover:text-red-600 hover:bg-red-50 rounded ml-2"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!ragInitialized && (
+                <p className="text-xs text-orange-600 italic">
+                  Configurez PROPH3T avec un modele d'embedding pour activer le RAG.
+                </p>
+              )}
             </div>
 
             {/* Live Data Panel */}

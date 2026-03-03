@@ -8,3 +8,7 @@ export { CloudBackupSettings } from './CloudBackupSettings';
 export { RegulatorySourcesSettings } from './RegulatorySourcesSettings';
 export { OrganizationSettings } from './OrganizationSettings';
 export { AboutSettings } from './AboutSettings';
+export { Proph3tSettingsPanel } from './Proph3tSettingsPanel';
+export { AICostDashboard } from './AICostDashboard';
+export { GatewaySettings } from './GatewaySettings';
+export { AIComparator } from './AIComparator';

@@ -21,6 +21,7 @@ export function ImportPage() {
   const [selectedBankCode, setSelectedBankCode] = useState<string>('');
   const [showNewAccount, setShowNewAccount] = useState(false);
   const [newAccountNumber, setNewAccountNumber] = useState('');
+  const [useAdvancedOcr, setUseAdvancedOcr] = useState(false);
 
   // Get selected client
   const selectedClient = useMemo(() =>

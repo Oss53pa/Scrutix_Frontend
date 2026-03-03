@@ -223,7 +223,7 @@ const OPUS_MODULES: ModuleConfig[] = [
   {
     module: 'chat',
     tier: 'opus',
-    description: 'Assistant conversationnel Paloma',
+    description: 'Assistant conversationnel Proph3t',
     avgInputTokens: 2000,
     avgOutputTokens: 1000,
   },
@@ -261,6 +261,36 @@ export const MODEL_ROUTING: Record<AnalysisModule, ModelTier> = {
 
 // Taux de change USD -> XAF (a mettre a jour periodiquement)
 const USD_TO_XAF = 615;
+
+// ============================================================================
+// TABLES DE COUTS MULTI-PROVIDER
+// ============================================================================
+
+export interface ProviderModelCost {
+  modelId: string;
+  displayName: string;
+  inputCostPer1M: number;  // USD
+  outputCostPer1M: number; // USD
+}
+
+export const PROVIDER_COST_TABLES: Record<string, ProviderModelCost[]> = {
+  claude: [
+    { modelId: 'claude-3-haiku-20240307', displayName: 'Claude 3 Haiku', inputCostPer1M: 0.25, outputCostPer1M: 1.25 },
+    { modelId: 'claude-sonnet-4-20250514', displayName: 'Claude Sonnet 4', inputCostPer1M: 3.0, outputCostPer1M: 15.0 },
+    { modelId: 'claude-opus-4-1-20250414', displayName: 'Claude Opus 4', inputCostPer1M: 15.0, outputCostPer1M: 75.0 },
+  ],
+  openai: [
+    { modelId: 'gpt-4o-mini', displayName: 'GPT-4o Mini', inputCostPer1M: 0.15, outputCostPer1M: 0.60 },
+    { modelId: 'gpt-4o', displayName: 'GPT-4o', inputCostPer1M: 2.50, outputCostPer1M: 10.0 },
+    { modelId: 'gpt-4-turbo', displayName: 'GPT-4 Turbo', inputCostPer1M: 10.0, outputCostPer1M: 30.0 },
+  ],
+  mistral: [
+    { modelId: 'mistral-small-latest', displayName: 'Mistral Small', inputCostPer1M: 0.10, outputCostPer1M: 0.30 },
+    { modelId: 'mistral-medium-latest', displayName: 'Mistral Medium', inputCostPer1M: 2.70, outputCostPer1M: 8.10 },
+    { modelId: 'mistral-large-latest', displayName: 'Mistral Large', inputCostPer1M: 2.0, outputCostPer1M: 6.0 },
+  ],
+  ollama: [],
+};
 
 // ============================================================================
 // SERVICE DE ROUTAGE
@@ -490,6 +520,40 @@ export class AIModelRouter {
       return '< 1 FCFA';
     }
     return `${costXAF.toLocaleString('fr-FR')} FCFA`;
+  }
+
+  /**
+   * Obtient le cout pour un provider/modele specifique
+   */
+  getProviderCost(
+    provider: string,
+    model: string,
+    inputTokens: number,
+    outputTokens: number
+  ): { costUSD: number; costXAF: number } {
+    // PROPH3T/Ollama is free
+    if (provider === 'ollama') {
+      return { costUSD: 0, costXAF: 0 };
+    }
+
+    const providerCosts = PROVIDER_COST_TABLES[provider];
+    if (!providerCosts) {
+      return { costUSD: 0, costXAF: 0 };
+    }
+
+    const modelCost = providerCosts.find(m => m.modelId === model);
+    if (!modelCost) {
+      // Fallback: use the first model in the provider's table
+      const fallback = providerCosts[0];
+      if (!fallback) return { costUSD: 0, costXAF: 0 };
+      const costUSD = (inputTokens / 1_000_000) * fallback.inputCostPer1M
+                    + (outputTokens / 1_000_000) * fallback.outputCostPer1M;
+      return { costUSD, costXAF: Math.round(costUSD * USD_TO_XAF) };
+    }
+
+    const costUSD = (inputTokens / 1_000_000) * modelCost.inputCostPer1M
+                  + (outputTokens / 1_000_000) * modelCost.outputCostPer1M;
+    return { costUSD, costXAF: Math.round(costUSD * USD_TO_XAF) };
   }
 
   /**

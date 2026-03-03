@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Brain, Sliders, Cloud, FileText, Info, Briefcase, Settings2, HardDrive, Cpu, Shield, Code2 } from 'lucide-react';
+import { Brain, Sliders, Cloud, FileText, Info, Briefcase, Settings2, HardDrive, Cpu, Shield, Code2, Sparkles, DollarSign, Router, BarChart3 } from 'lucide-react';
 import { Alert } from '../ui';
 import { IASettings } from './IASettings';
 import { AIProviderSettings } from './AIProviderSettings';
@@ -11,9 +11,14 @@ import { LocalBackupSettings } from './LocalBackupSettings';
 import { RegulatorySourcesSettings } from './RegulatorySourcesSettings';
 import { OrganizationSettings } from './OrganizationSettings';
 import { AboutSettings } from './AboutSettings';
+import { Proph3tSettingsPanel } from './Proph3tSettingsPanel';
+import { AICostDashboard } from './AICostDashboard';
+import { GatewaySettings } from './GatewaySettings';
+import { AIComparator } from './AIComparator';
 import { BackupService } from '../../services/BackupService';
+import { useSettingsStore } from '../../store/settingsStore';
 
-type SettingsTab = 'organization' | 'ai-providers' | 'ia' | 'detection-modules' | 'detection-thresholds' | 'detection-algorithms' | 'preferences' | 'local-backup' | 'cloud-backup' | 'regulatory' | 'about';
+type SettingsTab = 'organization' | 'ai-providers' | 'proph3t' | 'gateway' | 'ai-costs' | 'ai-comparator' | 'ia' | 'detection-modules' | 'detection-thresholds' | 'detection-algorithms' | 'preferences' | 'local-backup' | 'cloud-backup' | 'regulatory' | 'about';
 
 interface TabConfig {
   id: SettingsTab;
@@ -22,21 +27,40 @@ interface TabConfig {
   indent?: boolean;
 }
 
-const TABS: TabConfig[] = [
-  { id: 'organization', label: 'Organisation', icon: <Briefcase className="w-4 h-4" /> },
-  { id: 'ai-providers', label: 'Providers IA', icon: <Cpu className="w-4 h-4" /> },
-  { id: 'ia', label: 'Claude AI (avance)', icon: <Brain className="w-4 h-4" /> },
-  { id: 'detection-modules', label: 'Modules de detection', icon: <Shield className="w-4 h-4" /> },
-  { id: 'detection-thresholds', label: 'Seuils de detection', icon: <Sliders className="w-4 h-4" />, indent: true },
-  { id: 'detection-algorithms', label: 'Algorithmes', icon: <Code2 className="w-4 h-4" />, indent: true },
-  { id: 'preferences', label: 'Preferences', icon: <Settings2 className="w-4 h-4" /> },
-  { id: 'local-backup', label: 'Sauvegarde Locale', icon: <HardDrive className="w-4 h-4" /> },
-  { id: 'cloud-backup', label: 'Sauvegarde Cloud', icon: <Cloud className="w-4 h-4" /> },
-  { id: 'regulatory', label: 'Sources reglementaires', icon: <FileText className="w-4 h-4" /> },
-  { id: 'about', label: 'A propos', icon: <Info className="w-4 h-4" /> },
-];
+function useTabs(): TabConfig[] {
+  const { aiProviders } = useSettingsStore();
+  const isOllama = aiProviders.activeProvider === 'ollama';
+
+  const tabs: TabConfig[] = [
+    { id: 'organization', label: 'Organisation', icon: <Briefcase className="w-4 h-4" /> },
+    { id: 'ai-providers', label: 'Providers IA', icon: <Cpu className="w-4 h-4" /> },
+  ];
+
+  // Show PROPH3T tab when Ollama is active
+  if (isOllama) {
+    tabs.push({ id: 'proph3t', label: 'PROPH3T Engine', icon: <Sparkles className="w-4 h-4" />, indent: true });
+  }
+
+  tabs.push(
+    { id: 'gateway', label: 'Gateway Premium', icon: <Router className="w-4 h-4" /> },
+    { id: 'ai-costs', label: 'Couts IA', icon: <DollarSign className="w-4 h-4" />, indent: true },
+    { id: 'ai-comparator', label: 'Comparateur IA', icon: <BarChart3 className="w-4 h-4" />, indent: true },
+    { id: 'ia', label: 'Claude AI (avance)', icon: <Brain className="w-4 h-4" /> },
+    { id: 'detection-modules', label: 'Modules de detection', icon: <Shield className="w-4 h-4" /> },
+    { id: 'detection-thresholds', label: 'Seuils de detection', icon: <Sliders className="w-4 h-4" />, indent: true },
+    { id: 'detection-algorithms', label: 'Algorithmes', icon: <Code2 className="w-4 h-4" />, indent: true },
+    { id: 'preferences', label: 'Preferences', icon: <Settings2 className="w-4 h-4" /> },
+    { id: 'local-backup', label: 'Sauvegarde Locale', icon: <HardDrive className="w-4 h-4" /> },
+    { id: 'cloud-backup', label: 'Sauvegarde Cloud', icon: <Cloud className="w-4 h-4" /> },
+    { id: 'regulatory', label: 'Sources reglementaires', icon: <FileText className="w-4 h-4" /> },
+    { id: 'about', label: 'A propos', icon: <Info className="w-4 h-4" /> },
+  );
+
+  return tabs;
+}
 
 export function SettingsPage() {
+  const TABS = useTabs();
   const [activeTab, setActiveTab] = useState<SettingsTab>('organization');
   const [saved, setSaved] = useState(false);
   const [migrationInfo, setMigrationInfo] = useState<{ migrated: boolean; fromVersion: string | null } | null>(null);
@@ -60,6 +84,14 @@ export function SettingsPage() {
         return <OrganizationSettings onSave={handleSave} />;
       case 'ai-providers':
         return <AIProviderSettings onSave={handleSave} />;
+      case 'proph3t':
+        return <Proph3tSettingsPanel onSave={handleSave} />;
+      case 'gateway':
+        return <GatewaySettings onSave={handleSave} />;
+      case 'ai-costs':
+        return <AICostDashboard />;
+      case 'ai-comparator':
+        return <AIComparator />;
       case 'ia':
         return <IASettings onSave={handleSave} />;
       case 'detection-modules':

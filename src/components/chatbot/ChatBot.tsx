@@ -19,8 +19,8 @@ import { Button, Badge } from '../ui';
 import { getClaudeService, ChatMessage } from '../../services/ClaudeService';
 import { useSettingsStore } from '../../store/settingsStore';
 
-// Paloma - Jeune femme africaine professionnelle
-function PalomaAvatar({ size = 48, className = '' }: { size?: number; className?: string }) {
+// Proph3t - Avatar IA
+function Proph3tAvatar({ size = 48, className = '' }: { size?: number; className?: string }) {
   return (
     <svg
       viewBox="0 0 64 64"
@@ -196,6 +196,30 @@ export function ChatBot() {
       };
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  /**
+   * Render message content with [Ref.N] citations highlighted
+   */
+  const renderMessageContent = (content: string) => {
+    const parts = content.split(/(\[Ref\.\d+\])/g);
+    if (parts.length === 1) return content;
+
+    return parts.map((part, i) => {
+      const refMatch = part.match(/^\[Ref\.(\d+)\]$/);
+      if (refMatch) {
+        return (
+          <span
+            key={i}
+            className="inline-flex items-center px-1.5 py-0.5 mx-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded cursor-help"
+            title={`Reference reglementaire ${refMatch[1]}`}
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -493,7 +517,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
 
   return (
     <>
-      {/* Floating Paloma Robot */}
+      {/* Floating Proph3t Robot */}
       <button
         ref={buttonRef}
         onMouseDown={handleMouseDown}
@@ -512,12 +536,12 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
 
           {/* Robot */}
           <div className="relative bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl p-2 shadow-lg border-2 border-white/50 hover:shadow-xl transition-shadow">
-            <PalomaAvatar size={52} />
+            <Proph3tAvatar size={52} />
           </div>
 
           {/* Name badge */}
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-primary-600 text-white text-xs font-medium rounded-full shadow-md whitespace-nowrap">
-            Paloma
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-primary-600 text-white text-xs font-medium rounded-full shadow-md whitespace-nowrap font-display">
+            Proph3t
           </div>
 
           {/* Tooltip on hover */}
@@ -537,9 +561,9 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
         {/* Header */}
         <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <PalomaAvatar size={36} />
+            <Proph3tAvatar size={36} />
             <div>
-              <span className="font-semibold">Paloma</span>
+              <span className="font-semibold font-display text-lg">Proph3t</span>
               <p className="text-xs text-primary-200">Assistant Scrutix</p>
             </div>
           </div>
@@ -572,8 +596,8 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
                 : 'text-primary-500 hover:text-primary-600 hover:bg-primary-50'
             }`}
           >
-            <PalomaAvatar size={18} />
-            Chat Paloma
+            <Proph3tAvatar size={18} />
+            <span className="font-display">Chat Proph3t</span>
             {!claudeApi.apiKey && (
               <Badge variant="warning" className="text-xs px-1.5 py-0.5">!</Badge>
             )}
@@ -617,9 +641,9 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
                 {chatHistory.length === 0 && (
                   <div className="text-center py-8">
                     <div className="flex justify-center mb-3">
-                      <PalomaAvatar size={64} />
+                      <Proph3tAvatar size={64} />
                     </div>
-                    <p className="text-primary-600 font-medium mb-2">Bonjour ! Je suis Paloma</p>
+                    <p className="text-primary-600 font-medium mb-2">Bonjour ! Je suis <span className="font-display text-xl">Proph3t</span></p>
                     <p className="text-sm text-primary-400">
                       Posez-moi des questions sur l'audit bancaire, l'analyse des anomalies, ou l'utilisation de Scrutix.
                     </p>
@@ -649,7 +673,9 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
                           : 'bg-primary-100 text-primary-900 rounded-bl-md'
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <p className="text-sm whitespace-pre-wrap">
+                        {renderMessageContent(msg.content)}
+                      </p>
                       <p className={`text-xs mt-1 ${
                         msg.role === 'user' ? 'text-primary-300' : 'text-primary-400'
                       }`}>

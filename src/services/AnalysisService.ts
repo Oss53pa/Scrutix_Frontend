@@ -35,6 +35,7 @@ import { InternationalAudit } from '../algorithms/InternationalAudit';
 import { AncillaryServicesAudit } from '../algorithms/AncillaryServicesAudit';
 import { PackagesAudit } from '../algorithms/PackagesAudit';
 import { ClaudeService } from './ClaudeService';
+import { DetectionWorkerPool } from '../workers/WorkerPool';
 
 interface AnalysisOptions {
   accountBalances?: DailyBalance[];
@@ -43,6 +44,7 @@ interface AnalysisOptions {
   claudeService?: ClaudeService;
   enableAICategorization?: boolean;
   enableAIFraudDetection?: boolean;
+  useWorkers?: boolean;
 }
 
 interface ExtendedAnalysisResult extends AnalysisResult {
@@ -71,8 +73,12 @@ export class AnalysisService {
   private internationalAudit: InternationalAudit;
   private ancillaryServicesAudit: AncillaryServicesAudit;
   private packagesAudit: PackagesAudit;
+  // Worker pool for parallel execution
+  private workerPool: DetectionWorkerPool | null = null;
+  private thresholds?: DetectionThresholds;
 
   constructor(thresholds?: DetectionThresholds) {
+    this.thresholds = thresholds;
     // Modules existants
     this.duplicateDetector = new DuplicateDetector(thresholds?.duplicateDetection);
     this.ghostFeeDetector = new GhostFeeDetector(thresholds?.ghostFeeDetection);
@@ -114,6 +120,82 @@ export class AnalysisService {
 
       progress(10, `Analyse de ${filteredTransactions.length} transactions...`);
 
+      // Parallel detection path via Web Workers
+      if (options?.useWorkers) {
+        try {
+          progress(12, 'Lancement de la detection parallele...');
+          const workerAnomalies = await this.runDetectorsParallel(
+            filteredTransactions, config, bankConditions, options
+          );
+
+          if (workerAnomalies.length >= 0) {
+            // Workers succeeded - skip sequential path
+            progress(70, 'Calcul des statistiques...');
+
+            const statistics = this.calculateStatistics(filteredTransactions, workerAnomalies);
+            let aiAnalysis: AIAuditResponse | undefined;
+            let categorizedCount = 0;
+            let fraudPatternsCount = 0;
+
+            if (options?.claudeService) {
+              if (options.enableAICategorization && filteredTransactions.length > 0) {
+                progress(75, 'Categorisation IA des transactions...');
+                try {
+                  const categories = await options.claudeService.categorizeTransactions(
+                    filteredTransactions.slice(0, 200)
+                  );
+                  categorizedCount = categories.filter(c => c.confidence > 0.5).length;
+                } catch (error) {
+                  console.error('Erreur categorisation IA:', error);
+                }
+              }
+              if (options.enableAIFraudDetection && filteredTransactions.length > 0) {
+                progress(82, 'Detection de fraude IA...');
+                try {
+                  const fraudPatterns = await options.claudeService.detectFraudPatterns(
+                    filteredTransactions, workerAnomalies
+                  );
+                  fraudPatternsCount = fraudPatterns.filter(f => f.isSuspicious).length;
+                } catch (error) {
+                  console.error('Erreur detection fraude IA:', error);
+                }
+              }
+              if (workerAnomalies.length > 0) {
+                progress(88, 'Analyse approfondie IA...');
+                try {
+                  aiAnalysis = await options.claudeService.analyzeAnomalies(workerAnomalies, bankConditions);
+                } catch (error) {
+                  console.error('Erreur analyse IA:', error);
+                }
+              }
+            }
+
+            progress(95, 'Generation du resume...');
+            const summary = this.generateSummary(workerAnomalies, statistics, aiAnalysis);
+            progress(100, 'Analyse terminee');
+
+            return {
+              id: `analysis-${Date.now()}`,
+              config,
+              status: AnalysisStatus.COMPLETED,
+              progress: 100,
+              anomalies: workerAnomalies,
+              statistics,
+              summary,
+              startedAt,
+              completedAt: new Date(),
+              aiAnalysis,
+              categorizedTransactions: categorizedCount,
+              fraudPatternsDetected: fraudPatternsCount,
+            };
+          }
+        } catch (err) {
+          console.warn('Workers failed, falling back to sequential:', err);
+          // Fall through to sequential path
+        }
+      }
+
+      // Sequential detection path (existing behavior)
       // Run enabled detectors
       const allAnomalies: Anomaly[] = [];
       let currentProgress = 10;
@@ -414,6 +496,63 @@ export class AnalysisService {
         completedAt: new Date(),
         error: error instanceof Error ? error.message : 'Erreur inconnue',
       };
+    }
+  }
+
+  /**
+   * Run all enabled detectors in parallel using Web Workers
+   */
+  private async runDetectorsParallel(
+    filteredTransactions: Transaction[],
+    config: AnalysisConfig,
+    bankConditions: BankConditions,
+    options?: AnalysisOptions
+  ): Promise<Anomaly[]> {
+    if (!this.workerPool) {
+      this.workerPool = new DetectionWorkerPool();
+    }
+
+    if (!this.workerPool.isInitialized) {
+      const ok = this.workerPool.initialize();
+      if (!ok) return []; // Fallback: caller will use sequential
+    }
+
+    // Build detector type list from enabled detectors
+    const detectorTypes: string[] = [];
+    for (const detector of config.enabledDetectors) {
+      if (detector === AnomalyType.FEE_ANOMALY) {
+        // Expand FEE_ANOMALY into sub-detectors
+        detectorTypes.push(
+          'FEE_ANOMALY_ACCOUNT',
+          'FEE_ANOMALY_CARD',
+          'FEE_ANOMALY_PAYMENT',
+          'FEE_ANOMALY_INTERNATIONAL',
+          'FEE_ANOMALY_ANCILLARY',
+          'FEE_ANOMALY_PACKAGES'
+        );
+      } else {
+        detectorTypes.push(detector);
+      }
+    }
+
+    return this.workerPool.runParallel(detectorTypes, filteredTransactions, {
+      bankConditions,
+      thresholds: this.thresholds,
+      accountBalances: options?.accountBalances,
+      onProgress: (completed, total, currentType) => {
+        const pct = 10 + Math.round((completed / total) * 55);
+        options?.onProgress?.(pct, `Detection parallele: ${currentType} (${completed}/${total})`);
+      },
+    });
+  }
+
+  /**
+   * Libere les ressources workers
+   */
+  dispose(): void {
+    if (this.workerPool) {
+      this.workerPool.terminate();
+      this.workerPool = null;
     }
   }
 

@@ -3,7 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { MainLayout } from './components/layout';
 import { ErrorBoundary } from './components/ui';
 import { useBankStore } from './store/bankStore';
-import { LoginScreen, isAuthenticated } from './components/auth';
+import { LoginScreen } from './components/auth';
+import { useAuthStore } from './store/authStore';
 
 // Lazy load all pages for code splitting
 const HomePage = lazy(() => import('./components/home').then(m => ({ default: m.HomePage })));
@@ -31,16 +32,34 @@ function PageLoader() {
 
 function App() {
   const { initializeDefaults } = useBankStore();
-  const [authenticated, setAuthenticated] = useState(isAuthenticated());
+  const { isInitialized, isAuthenticated, initialize } = useAuthStore();
+  const [authReady, setAuthReady] = useState(false);
+
+  // Initialize auth on mount
+  useEffect(() => {
+    initialize().then(() => setAuthReady(true));
+  }, [initialize]);
 
   // Initialize default banks on first load
   useEffect(() => {
     initializeDefaults();
   }, [initializeDefaults]);
 
+  // Show loading while auth initializes
+  if (!authReady || !isInitialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-3 border-white/20 border-t-white rounded-full animate-spin" />
+          <span className="text-white/70 text-sm">Chargement de Scrutix...</span>
+        </div>
+      </div>
+    );
+  }
+
   // Show login screen if not authenticated
-  if (!authenticated) {
-    return <LoginScreen onSuccess={() => setAuthenticated(true)} />;
+  if (!isAuthenticated) {
+    return <LoginScreen onSuccess={() => {}} />;
   }
 
   return (
