@@ -1,5 +1,5 @@
 -- ============================================================================
--- SCRUTIX - Initial Database Schema
+-- ATLASBANX - Initial Database Schema
 -- Phase 1: Organizations, Profiles, User Settings
 -- ============================================================================
 

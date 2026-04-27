@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - BOA CI Template (Bank of Africa Cote d'Ivoire)
+// ATLASBANX - BOA CI Template (Bank of Africa Cote d'Ivoire)
 // Layout du releve de compte BOA CI
 // ============================================================================
 

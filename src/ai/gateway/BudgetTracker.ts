@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Budget Tracker
+// ATLASBANX - Budget Tracker
 // Suivi du budget IA avec stockage IndexedDB et reset mensuel
 // ============================================================================
 
@@ -7,7 +7,7 @@ import { openDB, IDBPDatabase } from 'idb';
 import type { GatewayUsageRecord, GatewayBudgetStatus } from './GatewayTypes';
 import type { AIProviderType } from '../types';
 
-const DB_NAME = 'scrutix-ai-budget';
+const DB_NAME = 'atlasbanx-ai-budget';
 const STORE_NAME = 'usage';
 const DB_VERSION = 1;
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - AI Providers Index
+// ATLASBANX - AI Providers Index
 // Export centralisé de tous les providers IA
 // ============================================================================
 

@@ -116,7 +116,7 @@ export const useRegulatoryStore = create<RegulatoryState>()(
       },
     }),
     {
-      name: 'scrutix-regulatory-store',
+      name: 'atlasbanx-regulatory-store',
       partialize: (state) => ({
         rates: state.rates,
         documents: state.documents,

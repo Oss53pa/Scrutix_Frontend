@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - AI Gateway Module
+// ATLASBANX - AI Gateway Module
 // Premium AI Gateway avec routage et budget tracking
 // ============================================================================
 

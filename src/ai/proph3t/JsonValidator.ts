@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - PROPH3T JSON Validator
+// ATLASBANX - PROPH3T JSON Validator
 // Extraction et validation robuste de JSON depuis les reponses LLM
 // ============================================================================
 

@@ -1,9 +1,26 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
+        // Surface colors (theme-aware via CSS variables)
+        surface: {
+          app: 'rgb(var(--bg-app) / <alpha-value>)',
+          card: 'rgb(var(--bg-card) / <alpha-value>)',
+          sidebar: 'rgb(var(--bg-sidebar) / <alpha-value>)',
+          header: 'rgb(var(--bg-header) / <alpha-value>)',
+          input: 'rgb(var(--bg-input) / <alpha-value>)',
+          hover: 'rgb(var(--bg-hover) / <alpha-value>)',
+          muted: 'rgb(var(--bg-muted) / <alpha-value>)',
+        },
+        on: {
+          surface: 'rgb(var(--text-primary) / <alpha-value>)',
+          'surface-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
+          'surface-muted': 'rgb(var(--text-muted) / <alpha-value>)',
+        },
+        'border-theme': 'rgb(var(--border-default) / <alpha-value>)',
         // Primary grayscale palette - Professional banking theme
         primary: {
           50: '#fafafa',

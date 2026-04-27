@@ -13,9 +13,9 @@ export function AboutSettings() {
             </div>
             <div className="space-y-4 flex-1">
               <div>
-                <h4 className="font-display text-primary-900 text-2xl">Scrutix</h4>
+                <h4 className="font-display text-primary-900 text-2xl">AtlasBanx</h4>
                 <p className="text-sm text-primary-600 mt-2">
-                  Scrutix est une application d'audit bancaire pour cabinets d'expertise comptable
+                  AtlasBanx est une application d'audit bancaire pour cabinets d'expertise comptable
                   en Afrique (CEMAC & UEMOA). Elle permet de detecter automatiquement les anomalies
                   dans les releves bancaires grace a des algorithmes avances et l'intelligence artificielle.
                 </p>

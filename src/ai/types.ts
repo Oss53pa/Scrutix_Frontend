@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - AI Types
+// ATLASBANX - AI Types
 // Types et interfaces pour l'abstraction multi-fournisseur IA
 // ============================================================================
 

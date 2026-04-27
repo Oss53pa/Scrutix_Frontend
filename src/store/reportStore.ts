@@ -334,7 +334,7 @@ export const useReportStore = create<ReportStore>()(
       },
     }),
     {
-      name: 'scrutix-reports',
+      name: 'atlasbanx-reports',
     }
   )
 );

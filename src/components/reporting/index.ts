@@ -1,4 +1,4 @@
-// Reporting Components - Scrutix Report Viewer System
+// Reporting Components - AtlasBanx Report Viewer System
 
 // Main viewer
 export { ReportViewer } from './ReportViewer';
@@ -18,5 +18,5 @@ export { ReportCoverEditor } from './ReportCoverEditor';
 export { ReportContentEditor } from './ReportContentEditor';
 export { ReportSectionEditor } from './ReportSectionEditor';
 
-// Scrutix-specific report generator
-export { generateScrutixAuditReport, useScrutixAuditReport } from './ScrutixAuditReport';
+// AtlasBanx-specific report generator
+export { generateAtlasBanxAuditReport, useAtlasBanxAuditReport } from './AtlasBanxAuditReport';

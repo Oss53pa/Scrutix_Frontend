@@ -14,7 +14,7 @@ import type { AnalysisResult, Client } from '../../types';
 import { formatCurrency, formatDate } from '../../utils';
 import { ANOMALY_TYPE_LABELS, SEVERITY_LABELS, Severity, AnomalyType } from '../../types';
 
-interface ScrutixAuditReportProps {
+interface AtlasBanxAuditReportProps {
   client: Client;
   analysis: AnalysisResult;
   auditorName?: string;
@@ -31,13 +31,13 @@ const SEVERITY_COLORS: Record<Severity, string> = {
 };
 
 // Génère un rapport complet pour le ReportViewer
-export function generateScrutixAuditReport({
+export function generateAtlasBanxAuditReport({
   client,
   analysis,
   auditorName = 'Expert-Comptable',
   auditorCompany = 'Cabinet d\'Expertise Comptable',
   auditorLogo,
-}: ScrutixAuditReportProps): FullReport {
+}: AtlasBanxAuditReportProps): FullReport {
   const currency = client.currency || 'XAF';
   const now = new Date();
 
@@ -91,8 +91,8 @@ export function generateScrutixAuditReport({
     legalMention: 'Document confidentiel - Usage strictement réservé au client',
     disclaimer: `Ce rapport a été établi sur la base des relevés bancaires fournis par le client.
 Les anomalies identifiées sont soumises à vérification auprès des établissements bancaires concernés.
-Scrutix et ${auditorCompany} déclinent toute responsabilité quant à l'exhaustivité des données analysées.`,
-    copyright: `© ${now.getFullYear()} ${auditorCompany} - Propulsé par Scrutix`,
+AtlasBanx et ${auditorCompany} déclinent toute responsabilité quant à l'exhaustivité des données analysées.`,
+    copyright: `© ${now.getFullYear()} ${auditorCompany} - Propulsé par AtlasBanx`,
   };
 
   // Statistiques
@@ -238,7 +238,7 @@ ${analysis.summary.status === 'CRITICAL'
   : '✓ La situation globale est satisfaisante avec quelques points d\'amélioration possibles.'}`
     : `**Ceci est un modèle de rapport de démonstration.**
 
-Ce rapport illustre la structure et la présentation des rapports d'audit bancaire générés par Scrutix pour ${client.name}.
+Ce rapport illustre la structure et la présentation des rapports d'audit bancaire générés par AtlasBanx pour ${client.name}.
 
 Pour obtenir un rapport avec des données réelles:
 1. Importez vos relevés bancaires
@@ -246,7 +246,7 @@ Pour obtenir un rapport avec des données réelles:
 3. Lancez une analyse des transactions
 4. Générez votre rapport personnalisé
 
-Scrutix vous aidera à identifier les anomalies et optimiser vos frais bancaires.`;
+AtlasBanx vous aidera à identifier les anomalies et optimiser vos frais bancaires.`;
 
   const pages: ReportViewerPage[] = [
     // Page 1: Sommaire exécutif
@@ -269,7 +269,7 @@ Scrutix vous aidera à identifier les anomalies et optimiser vos frais bancaires
           visible: true,
         },
       ],
-      header: { show: true, title: 'Rapport d\'Audit Bancaire - Scrutix' },
+      header: { show: true, title: 'Rapport d\'Audit Bancaire - AtlasBanx' },
       footer: { show: true, showPageNumber: true, text: client.name },
     },
     // Page 2: Analyse par type
@@ -293,7 +293,7 @@ Scrutix vous aidera à identifier les anomalies et optimiser vos frais bancaires
           visible: true,
         },
       ],
-      header: { show: true, title: 'Rapport d\'Audit Bancaire - Scrutix' },
+      header: { show: true, title: 'Rapport d\'Audit Bancaire - AtlasBanx' },
       footer: { show: true, showPageNumber: true, text: client.name },
     },
     // Page 3: Analyse par sévérité
@@ -320,7 +320,7 @@ Scrutix vous aidera à identifier les anomalies et optimiser vos frais bancaires
           visible: true,
         },
       ],
-      header: { show: true, title: 'Rapport d\'Audit Bancaire - Scrutix' },
+      header: { show: true, title: 'Rapport d\'Audit Bancaire - AtlasBanx' },
       footer: { show: true, showPageNumber: true, text: client.name },
     },
     // Page 4: Détail des anomalies
@@ -337,7 +337,7 @@ Scrutix vous aidera à identifier les anomalies et optimiser vos frais bancaires
           visible: true,
         },
       ],
-      header: { show: true, title: 'Rapport d\'Audit Bancaire - Scrutix' },
+      header: { show: true, title: 'Rapport d\'Audit Bancaire - AtlasBanx' },
       footer: { show: true, showPageNumber: true, text: client.name },
     },
     // Page 5: Conclusions
@@ -364,7 +364,7 @@ Scrutix vous aidera à identifier les anomalies et optimiser vos frais bancaires
 Pour toute question concernant ce rapport, n'hésitez pas à contacter votre expert-comptable.`
             : `**Ce rapport est un modèle de démonstration.**
 
-Ce document illustre le format et la présentation des rapports d'audit bancaire Scrutix.
+Ce document illustre le format et la présentation des rapports d'audit bancaire AtlasBanx.
 
 **Pour générer un vrai rapport:**
 1. Rendez-vous sur la page d'import pour charger vos relevés bancaires
@@ -372,7 +372,7 @@ Ce document illustre le format et la présentation des rapports d'audit bancaire
 3. Lancez une analyse depuis la page Analyses
 4. Revenez ici pour générer votre rapport personnalisé
 
-Scrutix analyse automatiquement vos transactions et identifie les anomalies de facturation bancaire.`,
+AtlasBanx analyse automatiquement vos transactions et identifie les anomalies de facturation bancaire.`,
           visible: true,
         },
         {
@@ -392,7 +392,7 @@ ${auditorCompany}
           visible: true,
         },
       ],
-      header: { show: true, title: 'Rapport d\'Audit Bancaire - Scrutix' },
+      header: { show: true, title: 'Rapport d\'Audit Bancaire - AtlasBanx' },
       footer: { show: true, showPageNumber: true, text: client.name },
     },
   ];
@@ -410,8 +410,8 @@ ${auditorCompany}
 }
 
 // Hook pour générer le rapport
-export function useScrutixAuditReport(props: ScrutixAuditReportProps): FullReport {
-  return useMemo(() => generateScrutixAuditReport(props), [
+export function useAtlasBanxAuditReport(props: AtlasBanxAuditReportProps): FullReport {
+  return useMemo(() => generateAtlasBanxAuditReport(props), [
     props.client,
     props.analysis,
     props.auditorName,

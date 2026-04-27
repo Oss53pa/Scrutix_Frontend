@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - OCR Pipeline Module
+// ATLASBANX - OCR Pipeline Module
 // Pipeline OCR multi-couches pour l'extraction de releves bancaires
 // ============================================================================
 

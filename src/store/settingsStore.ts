@@ -935,7 +935,7 @@ export const useSettingsStore = create<SettingsStore>()(
         ),
     }),
     {
-      name: 'scrutix-settings',
+      name: 'atlasbanx-settings',
     }
   )
 );

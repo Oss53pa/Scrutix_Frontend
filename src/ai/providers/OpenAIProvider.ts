@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - OpenAI Provider
+// ATLASBANX - OpenAI Provider
 // Implémentation du provider pour OpenAI GPT
 // ============================================================================
 

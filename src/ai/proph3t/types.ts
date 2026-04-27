@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - PROPH3T Engine Types
+// ATLASBANX - PROPH3T Engine Types
 // Systeme de types pour le moteur IA multi-modele PROPH3T
 // ============================================================================
 

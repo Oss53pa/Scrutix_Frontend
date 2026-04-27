@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Banque Atlantique Template
+// ATLASBANX - Banque Atlantique Template
 // Layout du releve de compte Banque Atlantique
 // ============================================================================
 

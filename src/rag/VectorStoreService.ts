@@ -1,12 +1,12 @@
 // ============================================================================
-// SCRUTIX - Vector Store Service
+// ATLASBANX - Vector Store Service
 // Stockage IndexedDB de vecteurs avec recherche cosinus en memoire
 // ============================================================================
 
 import { openDB, IDBPDatabase } from 'idb';
 import type { RagChunk, RagChunkMetadata, RagStoreStats } from './types';
 
-const DB_NAME = 'scrutix-rag-vectors';
+const DB_NAME = 'atlasbanx-rag-vectors';
 const CHUNKS_STORE = 'chunks';
 const DOCS_STORE = 'documents';
 const DB_VERSION = 1;

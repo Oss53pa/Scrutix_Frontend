@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Mistral Provider
+// ATLASBANX - Mistral Provider
 // Implémentation du provider pour Mistral AI
 // ============================================================================
 

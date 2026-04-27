@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - OCR Pre-Analysis Layer (Layer 1)
+// ATLASBANX - OCR Pre-Analysis Layer (Layer 1)
 // Detection du type de document, banque, rotation, mode recommande
 // ============================================================================
 

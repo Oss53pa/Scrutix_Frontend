@@ -135,11 +135,11 @@ export function AnalysisPage() {
       if (primaryGridInfo?.grid) {
         // Use the conditions from the versioned grid
         analysisConditions = primaryGridInfo.grid.conditions;
-        console.log(`[Scrutix] Using versioned grid: ${primaryGridInfo.grid.name} (v${primaryGridInfo.version})`);
+        console.log(`[AtlasBanx] Using versioned grid: ${primaryGridInfo.grid.name} (v${primaryGridInfo.version})`);
       } else if (primaryGridInfo?.conditions) {
         // Use the bank's current conditions
         analysisConditions = primaryGridInfo.conditions;
-        console.log(`[Scrutix] Using bank conditions for: ${primaryGridInfo.bankName}`);
+        console.log(`[AtlasBanx] Using bank conditions for: ${primaryGridInfo.bankName}`);
       } else {
         // Fallback to settings bankConditions
         analysisConditions = bankConditions[0] || {
@@ -153,7 +153,7 @@ export function AnalysisPage() {
           interestRates: [],
           isActive: true,
         };
-        console.log('[Scrutix] Using default conditions from settings');
+        console.log('[AtlasBanx] Using default conditions from settings');
       }
 
       // Setup Claude service if enabled

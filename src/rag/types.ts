@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - RAG Types
+// ATLASBANX - RAG Types
 // Types pour le systeme de Retrieval Augmented Generation
 // ============================================================================
 

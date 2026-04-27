@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - useAI Hook
+// ATLASBANX - useAI Hook
 // Hook React pour l'intégration IA multi-fournisseur
 // ============================================================================
 
@@ -201,12 +201,16 @@ export function useAI(): UseAIResult {
     if (!isConfigured) return null;
 
     try {
-      const apiKey = config.apiKey;
+      let apiKey = config.apiKey;
 
       // Déchiffrer la clé si nécessaire
-      if (config.apiKeyEncrypted) {
-        // Note: on suppose que apiKeyEncrypted contient l'IV
-        // La logique de déchiffrement dépend de l'implémentation
+      if (config.apiKeyEncrypted && apiKey) {
+        try {
+          const { decryptApiKey } = await import('../utils/crypto');
+          apiKey = await decryptApiKey(apiKey, config.apiKeyEncrypted);
+        } catch {
+          // Decryption failed — apiKey is likely stored in plaintext (legacy fallback)
+        }
       }
 
       const providerConfig: AIProviderConfig & { proph3tConfig?: typeof proph3tConfig } = {
@@ -247,7 +251,7 @@ export function useAI(): UseAIResult {
     if (isConfigured) {
       initializeProvider();
     }
-  }, [isConfigured, config.provider, config.model]);
+  }, [isConfigured, config.provider, config.model, initializeProvider]);
 
   // Initialize RAG pipeline when PROPH3T is configured
   useEffect(() => {
@@ -471,7 +475,12 @@ export function useAI(): UseAIResult {
       const provider = providerInstance || await initializeProvider();
       if (!provider) throw new Error('Service non disponible');
 
-      const result = await provider.chat(history || [], { context });
+      const chatMessages: AIChatMessage[] = [...(history || [])];
+      // Append the user's current message to the conversation
+      if (message.trim()) {
+        chatMessages.push({ role: 'user', content: message });
+      }
+      const result = await provider.chat(chatMessages, { context });
       updateAIUsage(result.tokensUsed.total);
 
       return result;

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   CheckCircle2,
   ChevronRight,
@@ -21,6 +21,7 @@ import { useBankStore } from '../../store/bankStore';
 import { useAnalysisStore } from '../../store/analysisStore';
 import { useTransactionStore } from '../../store/transactionStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useAccountType } from '../../hooks/useAccountType';
 import { formatCurrency, formatDate } from '../../utils';
 import { AnomalyType, Severity, ANOMALY_TYPE_LABELS, DetectionSource, DEFAULT_THRESHOLDS, Anomaly, Transaction } from '../../types';
 import { getAnalysisService, ClaudeService } from '../../services';
@@ -132,6 +133,7 @@ const DEMO_ANOMALIES: Anomaly[] = [
 ];
 
 export function AnalysesPage() {
+  const { isEnterprise } = useAccountType();
   const { clients = [] } = useClientStore();
   const { banks = [] } = useBankStore();
   const { transactions } = useTransactionStore();
@@ -147,10 +149,20 @@ export function AnalysesPage() {
   } = useAnalysisStore();
   const { thresholds, bankConditions, claudeApi } = useSettingsStore();
 
+  // Enterprise mode: the implicit self client is the only client
+  const selfClient = isEnterprise ? clients[0] : undefined;
+
   const [viewMode, setViewMode] = useState<ViewMode>('config');
   const [isDemoMode, setIsDemoMode] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<string>('');
+  const [selectedClient, setSelectedClient] = useState<string>(() => (isEnterprise ? selfClient?.id ?? '' : ''));
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+  // Enterprise mode: keep selectedClient pinned to the self client
+  useEffect(() => {
+    if (isEnterprise && selfClient && selectedClient !== selfClient.id) {
+      setSelectedClient(selfClient.id);
+    }
+  }, [isEnterprise, selfClient, selectedClient]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
   const [selectedAnomaly, setSelectedAnomaly] = useState<number | null>(null);
   const [zoom, setZoom] = useState(100);
@@ -369,20 +381,22 @@ export function AnalysesPage() {
         <Card>
           <CardBody className="p-4">
             {/* Config Grid - 2 rows */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <div>
-                <label className="block text-xs font-medium text-primary-600 mb-1">Client *</label>
-                <Select
-                  value={selectedClient}
-                  onChange={(e) => setSelectedClient(e.target.value)}
-                  className="h-9 text-sm"
-                >
-                  <option value="">Sélectionner</option>
-                  {clients.map((client) => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </Select>
-              </div>
+            <div className={`grid grid-cols-2 ${isEnterprise ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-3 mb-4`}>
+              {!isEnterprise && (
+                <div>
+                  <label className="block text-xs font-medium text-primary-600 mb-1">Client *</label>
+                  <Select
+                    value={selectedClient}
+                    onChange={(e) => setSelectedClient(e.target.value)}
+                    className="h-9 text-sm"
+                  >
+                    <option value="">Sélectionner</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>{client.name}</option>
+                    ))}
+                  </Select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-primary-600 mb-1">Début</label>
                 <Input

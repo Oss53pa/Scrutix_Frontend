@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Categorization Cache (IndexedDB)
+// ATLASBANX - Categorization Cache (IndexedDB)
 // Cache IndexedDB pour les resultats de categorisation
 // Pipeline 3 tiers: Cache -> Dictionnaire -> IA
 // ============================================================================
@@ -7,7 +7,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 import { TransactionType, Transaction } from '../../types';
 
-const DB_NAME = 'scrutix-categorization-cache';
+const DB_NAME = 'atlasbanx-categorization-cache';
 const STORE_NAME = 'categories';
 const DB_VERSION = 1;
 const DEFAULT_TTL_DAYS = 30;

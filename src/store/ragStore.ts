@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - RAG Store
+// ATLASBANX - RAG Store
 // Store Zustand pour la gestion du RAG
 // ============================================================================
 
@@ -169,7 +169,7 @@ export const useRagStore = create<RagState & RagActions>()(
       },
     }),
     {
-      name: 'scrutix-rag',
+      name: 'atlasbanx-rag',
       partialize: (state) => ({
         ragConfig: state.ragConfig,
         // Ne pas persister les documents (ils sont dans IndexedDB)

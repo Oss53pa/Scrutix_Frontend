@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Custom Template Support
+// ATLASBANX - Custom Template Support
 // Creation de templates personnalises par annotation utilisateur
 // ============================================================================
 

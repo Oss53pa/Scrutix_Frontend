@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - OCR Structuration Layer (Layer 4)
+// ATLASBANX - OCR Structuration Layer (Layer 4)
 // Mapping vers le schema Transaction, normalisation, corrections
 // ============================================================================
 

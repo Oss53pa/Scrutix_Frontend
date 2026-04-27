@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - OCR Extraction Layer (Layer 2)
+// ATLASBANX - OCR Extraction Layer (Layer 2)
 // Extraction multi-mode: Template -> Vision AI -> Tesseract+AI
 // ============================================================================
 

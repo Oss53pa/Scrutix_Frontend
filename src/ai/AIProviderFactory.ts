@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - AI Provider Factory
+// ATLASBANX - AI Provider Factory
 // Factory pour créer et gérer les instances de providers IA
 // ============================================================================
 

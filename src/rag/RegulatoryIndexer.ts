@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Regulatory Indexer
+// ATLASBANX - Regulatory Indexer
 // Indexation de la base reglementaire et documents personnalises dans le RAG
 // ============================================================================
 

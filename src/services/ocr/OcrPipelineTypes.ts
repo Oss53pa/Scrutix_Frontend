@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - OCR Pipeline Types
+// ATLASBANX - OCR Pipeline Types
 // Types pour le pipeline OCR multi-couches
 // ============================================================================
 

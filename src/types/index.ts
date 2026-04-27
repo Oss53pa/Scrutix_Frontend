@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Types TypeScript
+// ATLASBANX - Types TypeScript
 // Application d'audit bancaire pour cabinet d'expertise comptable
 // ============================================================================
 

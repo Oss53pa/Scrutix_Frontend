@@ -86,7 +86,7 @@ export function CloudBackupSettings() {
         // Ajouter d'autres stores si necessaire
       };
 
-      const fileName = `scrutix-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const fileName = `atlasbanx-backup-${new Date().toISOString().slice(0, 10)}.json`;
       const result = await GoogleDriveService.backup(dataToBackup, fileName);
 
       if (result.success) {

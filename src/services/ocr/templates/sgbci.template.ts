@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - SGBCI Template (Societe Generale Cote d'Ivoire)
+// ATLASBANX - SGBCI Template (Societe Generale Cote d'Ivoire)
 // Layout du releve de compte SGBCI
 // ============================================================================
 

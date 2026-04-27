@@ -60,7 +60,7 @@ export function AlgorithmsInfo() {
         <CardBody>
           <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-primary-800">
-              Scrutix utilise des algorithmes deterministes bases sur la theorie de l'information,
+              AtlasBanx utilise des algorithmes deterministes bases sur la theorie de l'information,
               la similarite de chaines et les calculs financiers. Ces algorithmes fonctionnent
               <strong> sans intelligence artificielle</strong> et produisent des resultats explicables et auditables.
             </p>

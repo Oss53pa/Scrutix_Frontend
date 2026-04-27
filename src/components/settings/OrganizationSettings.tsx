@@ -394,7 +394,7 @@ export function OrganizationSettings({ onSave }: Props) {
               <textarea
                 value={organization.footerText}
                 onChange={(e) => handleChange('footerText', e.target.value)}
-                placeholder="Ex: Document genere par Scrutix. Pour toute question, contactez-nous..."
+                placeholder="Ex: Document genere par AtlasBanx. Pour toute question, contactez-nous..."
                 className="w-full h-20 px-3 py-2 text-sm border border-primary-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
               />
             </CardBody>
@@ -405,7 +405,7 @@ export function OrganizationSettings({ onSave }: Props) {
       {/* Credits + Actions */}
       <div className="flex items-center justify-between pt-2 border-t border-primary-100">
         <div className="text-xs text-primary-400">
-          <span>{organization.developedBy}</span> • <span>Scrutix v1.0</span>
+          <span>{organization.developedBy}</span> • <span>AtlasBanx v1.0</span>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={handleReset}>

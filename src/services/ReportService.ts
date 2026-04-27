@@ -3,6 +3,13 @@ import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import { Anomaly, AnalysisResult, ANOMALY_TYPE_LABELS, SEVERITY_LABELS, Severity } from '../types';
 import { formatCurrency, formatDate } from '../utils';
+import {
+  auditLog,
+  auditLogCritical,
+  AuditEventType,
+  generateIntegrityCertificate,
+  formatCertificateForPdf,
+} from './auditTrail';
 
 interface ReportData {
   title: string;
@@ -26,6 +33,14 @@ export class ReportService {
    * Generate PDF report
    */
   static generatePDF(data: ReportData): Blob {
+    return this.buildReportDoc(data).output('blob');
+  }
+
+  /**
+   * Internal builder — returns the jsPDF doc instance so we can append extra
+   * pages (e.g. the integrity certificate) before serializing.
+   */
+  private static buildReportDoc(data: ReportData): jsPDF {
     // Créer le document en A4 Portrait explicitement
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -48,7 +63,7 @@ export class ReportService {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('SCRUTIX', 14, 18);
+    doc.text('ATLASBANX', 14, 18);
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
@@ -248,14 +263,14 @@ export class ReportService {
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
       doc.text(
-        `Page ${i} / ${pageCount} - Scrutix © ${new Date().getFullYear()} - Document confidentiel`,
+        `Page ${i} / ${pageCount} - AtlasBanx © ${new Date().getFullYear()} - Document confidentiel`,
         pageWidth / 2,
         doc.internal.pageSize.getHeight() - 10,
         { align: 'center' }
       );
     }
 
-    return doc.output('blob');
+    return doc;
   }
 
   /**
@@ -263,7 +278,7 @@ export class ReportService {
    */
   static async generateExcel(data: ReportData): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Scrutix';
+    workbook.creator = 'AtlasBanx';
     workbook.created = new Date();
 
     // Summary sheet
@@ -404,12 +419,84 @@ export class ReportService {
   }
 
   /**
-   * Generate and download PDF
+   * Generate a PDF with a cryptographic integrity certificate appended as the
+   * last page. Requires a reportId so we can pull the audit trail chain for
+   * this report. The certificate is legal-grade proof that the report was
+   * produced by AtlasBanx and has not been tampered with since generation.
    */
-  static downloadPDF(data: ReportData, filename?: string): void {
-    const blob = this.generatePDF(data);
+  static async generatePDFWithCertificate(
+    data: ReportData,
+    reportId: string,
+  ): Promise<Blob> {
+    const doc = this.buildReportDoc(data);
+
+    const certificate = await generateIntegrityCertificate(reportId);
+    const lines = formatCertificateForPdf(certificate);
+
+    doc.addPage();
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(30, 30, 30);
+    let y = 15;
+    const lineHeight = 4;
+    for (const line of lines) {
+      if (y > 285) {
+        doc.addPage();
+        y = 15;
+      }
+      doc.text(line, 14, y);
+      y += lineHeight;
+    }
+    doc.setFont('helvetica', 'normal');
+
+    return doc.output('blob');
+  }
+
+  /**
+   * Generate and download PDF.
+   *
+   * When `reportId` is provided, appends a cryptographic integrity certificate
+   * as the last page and records a REPORT_EXPORTED_PDF audit event.
+   */
+  static async downloadPDF(
+    data: ReportData,
+    filename?: string,
+    reportId?: string,
+  ): Promise<void> {
+    const blob = reportId
+      ? await this.generatePDFWithCertificate(data, reportId)
+      : this.generatePDF(data);
+
     const name = filename || `rapport-audit-${data.clientName.replace(/\s+/g, '-').toLowerCase()}-${formatDate(new Date()).replace(/\//g, '-')}.pdf`;
     this.downloadBlob(blob, name);
+
+    // Audit trail — export is a critical event (legal evidence)
+    if (reportId) {
+      try {
+        await auditLogCritical({
+          eventType: AuditEventType.REPORT_EXPORTED_PDF,
+          resourceType: 'report',
+          action: 'exported',
+          resourceId: reportId,
+          payload: {
+            filename: name,
+            anomalyCount: data.anomalies.length,
+            totalAmount: data.statistics.totalAmount,
+          },
+        });
+      } catch (err) {
+        // logCritical throws on failure — we don't want to block the download,
+        // but we do want to surface the issue in the console.
+        console.warn('[ReportService] audit log for REPORT_EXPORTED_PDF failed:', err);
+      }
+    } else {
+      auditLog({
+        eventType: AuditEventType.REPORT_EXPORTED_PDF,
+        resourceType: 'report',
+        action: 'exported',
+        payload: { filename: name, anomalyCount: data.anomalies.length },
+      });
+    }
   }
 
   /**

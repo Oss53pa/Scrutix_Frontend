@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - AI Comparator Service
+// ATLASBANX - AI Comparator Service
 // Compare les resultats entre PROPH3T et providers premium
 // ============================================================================
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - PROPH3T Model Registry
+// ATLASBANX - PROPH3T Model Registry
 // Decouverte et gestion des modeles Ollama installes
 // ============================================================================
 

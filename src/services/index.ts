@@ -1,4 +1,23 @@
-// Scrutix Services
+// AtlasBanx Services
+
+// Audit Trail (immutable event log + integrity certificates)
+export {
+  AuditTrailService,
+  getAuditTrailService,
+  auditLog,
+  auditLogCritical,
+  generateIntegrityCertificate,
+  formatCertificateForPdf,
+  AuditEventType,
+} from './auditTrail';
+export type {
+  AuditEventInput,
+  AuditEntry,
+  AuditResourceType,
+  AuditAction,
+  IntegrityReport,
+  IntegrityCertificate,
+} from './auditTrail';
 
 export { ImportService } from './ImportService';
 export { OcrService } from './OcrService';

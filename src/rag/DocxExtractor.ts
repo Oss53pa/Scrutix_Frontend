@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - DOCX Text Extractor
+// ATLASBANX - DOCX Text Extractor
 // Extraction de texte depuis fichiers DOCX via jszip
 // ============================================================================
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Re-Ranking Service
+// ATLASBANX - Re-Ranking Service
 // Re-classement des resultats RAG sans appel IA supplementaire
 // ============================================================================
 

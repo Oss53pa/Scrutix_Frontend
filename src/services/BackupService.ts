@@ -94,8 +94,8 @@ export class BackupService {
    */
   static downloadBackup(data: AnyBackupData, filename?: string): void {
     const defaultFilename = data.type === 'settings'
-      ? `scrutix-settings-${new Date().toISOString().slice(0, 10)}.json`
-      : `scrutix-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      ? `atlasbanx-settings-${new Date().toISOString().slice(0, 10)}.json`
+      : `atlasbanx-backup-${new Date().toISOString().slice(0, 10)}.json`;
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -182,11 +182,12 @@ export class BackupService {
     this.restoreSettings(data);
 
     // Restaurer transactions
+    // Note: the legacy backup format had `clients` and `accounts` duplicated
+    // on the transactionStore state — we now ignore them (clientStore is the
+    // source of truth for those).
     if (data.data.transactions) {
       useTransactionStore.setState({
         transactions: data.data.transactions.transactions,
-        clients: data.data.transactions.clients,
-        accounts: data.data.transactions.accounts,
       });
     }
 
@@ -230,14 +231,14 @@ export class BackupService {
   static resetAll(): void {
     // Clear localStorage items related to Zustand stores
     const storeKeys = [
-      'scrutix-transactions',
-      'scrutix-analysis',
-      'scrutix-settings',
-      'scrutix-clients',
-      'scrutix-banks',
-      'scrutix-billing',
-      'scrutix-reports',
-      'scrutix-app',
+      'atlasbanx-transactions',
+      'atlasbanx-analysis',
+      'atlasbanx-settings',
+      'atlasbanx-clients',
+      'atlasbanx-banks',
+      'atlasbanx-billing',
+      'atlasbanx-reports',
+      'atlasbanx-app',
     ];
 
     storeKeys.forEach(key => localStorage.removeItem(key));
@@ -250,18 +251,18 @@ export class BackupService {
    * Vérifier et migrer les données si nécessaire
    */
   static checkAndMigrate(): { migrated: boolean; fromVersion: string | null; toVersion: string } {
-    const storedVersion = localStorage.getItem('scrutix-app-version');
+    const storedVersion = localStorage.getItem('atlasbanx-app-version');
 
     if (!storedVersion) {
       // Première utilisation
-      localStorage.setItem('scrutix-app-version', APP_VERSION);
+      localStorage.setItem('atlasbanx-app-version', APP_VERSION);
       return { migrated: false, fromVersion: null, toVersion: APP_VERSION };
     }
 
     if (storedVersion !== APP_VERSION) {
       // Migration nécessaire
       this.migrateData(storedVersion, APP_VERSION);
-      localStorage.setItem('scrutix-app-version', APP_VERSION);
+      localStorage.setItem('atlasbanx-app-version', APP_VERSION);
       return { migrated: true, fromVersion: storedVersion, toVersion: APP_VERSION };
     }
 
@@ -292,7 +293,7 @@ export class BackupService {
    * Obtenir la version stockée
    */
   static getStoredVersion(): string | null {
-    return localStorage.getItem('scrutix-app-version');
+    return localStorage.getItem('atlasbanx-app-version');
   }
 
   /**

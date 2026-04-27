@@ -1,4 +1,4 @@
-// Scrutix Detection Algorithms
+// AtlasBanx Detection Algorithms
 
 // Modules existants
 export { DuplicateDetector } from './DuplicateDetector';

@@ -13,10 +13,10 @@ import {
   Select,
 } from '../ui';
 import { useAnalysisStore, useTransactionStore, useSettingsStore, useClientStore } from '../../store';
-import { ReportService } from '../../services';
+import { ReportService, auditLog, AuditEventType } from '../../services';
 import { formatCurrency, formatDate } from '../../utils';
 import { Severity } from '../../types';
-import { ReportViewer, generateScrutixAuditReport } from '../reporting';
+import { ReportViewer, generateAtlasBanxAuditReport } from '../reporting';
 import type { FullReport, BankStatement, ClientReport, Client } from '../../types';
 
 type ViewMode = 'table' | 'card';
@@ -108,6 +108,21 @@ export function ReportsPage() {
       // Add to store
       addReport(reportData);
 
+      // Audit trail — report generation event
+      auditLog({
+        eventType: AuditEventType.REPORT_GENERATED,
+        resourceType: 'report',
+        action: 'created',
+        resourceId: reportData.id,
+        clientId: statement.clientId,
+        payload: {
+          reportType: reportConfig.type,
+          anomalyCount: stats.anomalies,
+          totalAmount: stats.amount,
+          period: { start: reportData.period.start, end: reportData.period.end },
+        },
+      });
+
       // Generate PDF
       const allAnalyses = [...(currentAnalysis ? [currentAnalysis] : []), ...(analysisHistory || [])];
       const analysisData = allAnalyses.find(a =>
@@ -127,7 +142,7 @@ export function ReportsPage() {
           includeAIAnalysis: reportConfig.includeAI && claudeApi.isEnabled,
           aiSummary: analysisData.summary.message,
         };
-        ReportService.downloadPDF(pdfData);
+        await ReportService.downloadPDF(pdfData, undefined, reportData.id);
       }
 
       setShowGenerateModal(false);
@@ -149,7 +164,7 @@ export function ReportsPage() {
       a.anomalies.some(an => an.transactions.some(t => t.clientId === statement.clientId))
     ) || createEmptyAnalysis(client);
 
-    const report = generateScrutixAuditReport({
+    const report = generateAtlasBanxAuditReport({
       client: client as any,
       analysis: analysisData,
       auditorName: 'Expert-Comptable',

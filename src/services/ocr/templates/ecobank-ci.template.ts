@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Ecobank CI Template
+// ATLASBANX - Ecobank CI Template
 // Layout du releve de compte Ecobank Cote d'Ivoire
 // ============================================================================
 

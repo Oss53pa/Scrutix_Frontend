@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Brain, Sliders, Cloud, FileText, Info, Briefcase, Settings2, HardDrive, Cpu, Shield, Code2, Sparkles, DollarSign, Router, BarChart3 } from 'lucide-react';
+import { Brain, Sliders, Cloud, FileText, Info, Briefcase, Settings2, HardDrive, Cpu, Shield, Code2, Sparkles, DollarSign, Router, BarChart3, ScrollText } from 'lucide-react';
 import { Alert } from '../ui';
 import { IASettings } from './IASettings';
 import { AIProviderSettings } from './AIProviderSettings';
@@ -15,10 +15,11 @@ import { Proph3tSettingsPanel } from './Proph3tSettingsPanel';
 import { AICostDashboard } from './AICostDashboard';
 import { GatewaySettings } from './GatewaySettings';
 import { AIComparator } from './AIComparator';
+import { AuditTrailPanel } from './AuditTrailPanel';
 import { BackupService } from '../../services/BackupService';
 import { useSettingsStore } from '../../store/settingsStore';
 
-type SettingsTab = 'organization' | 'ai-providers' | 'proph3t' | 'gateway' | 'ai-costs' | 'ai-comparator' | 'ia' | 'detection-modules' | 'detection-thresholds' | 'detection-algorithms' | 'preferences' | 'local-backup' | 'cloud-backup' | 'regulatory' | 'about';
+type SettingsTab = 'organization' | 'ai-providers' | 'proph3t' | 'gateway' | 'ai-costs' | 'ai-comparator' | 'ia' | 'detection-modules' | 'detection-thresholds' | 'detection-algorithms' | 'preferences' | 'local-backup' | 'cloud-backup' | 'regulatory' | 'audit-trail' | 'about';
 
 interface TabConfig {
   id: SettingsTab;
@@ -53,6 +54,7 @@ function useTabs(): TabConfig[] {
     { id: 'local-backup', label: 'Sauvegarde Locale', icon: <HardDrive className="w-4 h-4" /> },
     { id: 'cloud-backup', label: 'Sauvegarde Cloud', icon: <Cloud className="w-4 h-4" /> },
     { id: 'regulatory', label: 'Sources reglementaires', icon: <FileText className="w-4 h-4" /> },
+    { id: 'audit-trail', label: 'Journal d\'activite', icon: <ScrollText className="w-4 h-4" /> },
     { id: 'about', label: 'A propos', icon: <Info className="w-4 h-4" /> },
   );
 
@@ -107,6 +109,8 @@ export function SettingsPage() {
         return <CloudBackupSettings />;
       case 'regulatory':
         return <RegulatorySourcesSettings />;
+      case 'audit-trail':
+        return <AuditTrailPanel />;
       case 'about':
         return <AboutSettings />;
       default:

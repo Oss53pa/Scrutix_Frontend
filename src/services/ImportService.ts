@@ -14,6 +14,7 @@ import {
 import { OcrService } from './OcrService';
 import { OcrPipeline } from './ocr/OcrPipeline';
 import type { OcrPipelineOptions, OcrStructuredOutput } from './ocr/OcrPipelineTypes';
+import { auditLog, AuditEventType } from './auditTrail';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -42,26 +43,63 @@ export class ImportService {
     }
 
     const fileType = this.detectFileType(file);
+    const started = Date.now();
 
-    switch (fileType) {
-      case 'csv':
-        return this.parseCSV(file, config);
-      case 'excel':
-        return this.parseExcel(file, config);
-      case 'pdf':
-        return this.parsePDF(file, config);
-      case 'image':
-        return this.parseImage(file, config);
-      default:
-        return {
-          success: false,
-          totalRows: 0,
-          importedRows: 0,
-          skippedRows: 0,
-          errors: [{ row: 0, message: `Type de fichier non supporté: ${file.type}` }],
-          transactions: [],
-        };
+    const result = await (async () => {
+      switch (fileType) {
+        case 'csv':
+          return this.parseCSV(file, config);
+        case 'excel':
+          return this.parseExcel(file, config);
+        case 'pdf':
+          return this.parsePDF(file, config);
+        case 'image':
+          return this.parseImage(file, config);
+        default:
+          return {
+            success: false,
+            totalRows: 0,
+            importedRows: 0,
+            skippedRows: 0,
+            errors: [{ row: 0, message: `Type de fichier non supporté: ${file.type}` }],
+            transactions: [],
+          } as ImportResult;
+      }
+    })();
+
+    // Audit trail — statement import event
+    auditLog({
+      eventType: AuditEventType.STATEMENT_IMPORTED,
+      resourceType: 'statement',
+      action: result.success ? 'created' : 'failed',
+      payload: {
+        filename: file.name,
+        fileType,
+        fileSizeBytes: file.size,
+        importedRows: result.importedRows,
+        skippedRows: result.skippedRows,
+        errorCount: result.errors.length,
+        durationMs: Date.now() - started,
+      },
+    });
+
+    // For PDF/image imports, also log OCR completion explicitly so dashboards
+    // can filter on OCR-specific metrics independently.
+    if (fileType === 'pdf' || fileType === 'image') {
+      auditLog({
+        eventType: AuditEventType.OCR_COMPLETED,
+        resourceType: 'import',
+        action: 'completed',
+        payload: {
+          filename: file.name,
+          fileType,
+          extractedTransactionCount: result.transactions.length,
+          durationMs: Date.now() - started,
+        },
+      });
     }
+
+    return result;
   }
 
   /**

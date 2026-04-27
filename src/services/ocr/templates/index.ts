@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Template Registry
+// ATLASBANX - Template Registry
 // Registre des templates de releves bancaires
 // ============================================================================
 

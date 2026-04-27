@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - OCR Validation Layer (Layer 3)
+// ATLASBANX - OCR Validation Layer (Layer 3)
 // Validation des donnees extraites: soldes, dates, montants, doublons
 // ============================================================================
 

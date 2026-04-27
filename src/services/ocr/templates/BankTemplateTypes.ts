@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Bank Template Types
+// ATLASBANX - Bank Template Types
 // Types pour les templates de releves bancaires
 // ============================================================================
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - OCR Pipeline Orchestrator
+// ATLASBANX - OCR Pipeline Orchestrator
 // Chaine les 4 couches: Pre-analyse -> Extraction -> Validation -> Structuration
 // ============================================================================
 

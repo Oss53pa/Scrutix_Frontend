@@ -264,7 +264,7 @@ export function LocalBackupSettings() {
             </Button>
 
             <p className="text-xs text-primary-400 text-center">
-              Formats acceptes: scrutix-backup-*.json, scrutix-settings-*.json
+              Formats acceptes: atlasbanx-backup-*.json, atlasbanx-settings-*.json (aussi scrutix-*.json)
             </p>
           </div>
 

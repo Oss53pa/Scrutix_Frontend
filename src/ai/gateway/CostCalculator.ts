@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Cost Calculator
+// ATLASBANX - Cost Calculator
 // Calcul des couts par provider et modele
 // ============================================================================
 

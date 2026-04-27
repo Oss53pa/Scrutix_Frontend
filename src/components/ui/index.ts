@@ -1,4 +1,4 @@
-// UI Components - Scrutix Design System
+// UI Components - AtlasBanx Design System
 // Professional banking theme with white/gray/black palette
 
 // Buttons
@@ -46,9 +46,6 @@ export { StatCard, StatGrid } from './StatCard';
 // Tab Navigation
 export { TabNav, TabPanel } from './TabNav';
 export type { Tab } from './TabNav';
-
-// Logo
-export { ScrutixLogo, ScrutixIcon } from './ScrutixLogo';
 
 // Error Handling
 export { ErrorBoundary } from './ErrorBoundary';

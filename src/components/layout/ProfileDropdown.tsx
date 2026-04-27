@@ -2,16 +2,36 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Settings, LogOut, Building2, ChevronDown,
-  HelpCircle, FileText, Moon, Sun, Shield
+  HelpCircle, FileText, Moon, Sun, Shield, Briefcase,
 } from 'lucide-react';
 import { useSettingsStore } from '../../store';
+import { useAuthStore } from '../../store/authStore';
+import { useClientStore } from '../../store/clientStore';
+import { useAccountType } from '../../hooks/useAccountType';
 
 export function ProfileDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    try { return localStorage.getItem('atlasbanx-dark-mode') === 'true'; } catch { return false; }
+  });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { organization } = useSettingsStore();
+  const { signOut, profile, setAccountType } = useAuthStore();
+  const ensureSelfClient = useClientStore((s) => s.ensureSelfClient);
+  const { isEnterprise } = useAccountType();
+  const [isSwitchingAccountType, setIsSwitchingAccountType] = useState(false);
+
+  const handleToggleAccountType = async () => {
+    if (isSwitchingAccountType) return;
+    setIsSwitchingAccountType(true);
+    const next = isEnterprise ? 'cabinet' : 'enterprise';
+    const ok = await setAccountType(next);
+    if (ok && next === 'enterprise') {
+      ensureSelfClient(profile?.full_name ?? undefined);
+    }
+    setIsSwitchingAccountType(false);
+  };
 
   // Fermer le dropdown quand on clique en dehors
   useEffect(() => {
@@ -31,8 +51,10 @@ export function ProfileDropdown() {
   };
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    // TODO: Implementer le mode sombre
+    const next = !darkMode;
+    setDarkMode(next);
+    document.documentElement.classList.toggle('dark', next);
+    try { localStorage.setItem('atlasbanx-dark-mode', String(next)); } catch { /* ignore */ }
   };
 
   const menuItems = [
@@ -55,7 +77,7 @@ export function ProfileDropdown() {
     {
       icon: <FileText className="w-4 h-4" />,
       label: 'Documentation',
-      onClick: () => window.open('https://docs.scrutix.com', '_blank'),
+      onClick: () => window.open('https://docs.atlasbanx.com', '_blank'),
     },
     {
       icon: <HelpCircle className="w-4 h-4" />,
@@ -87,7 +109,7 @@ export function ProfileDropdown() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary-100 transition-colors"
       >
-        {organization.logo ? (
+        {organization.logo && (organization.logo.startsWith('data:image/') || organization.logo.startsWith('https://')) ? (
           <img
             src={organization.logo}
             alt="Logo"
@@ -113,7 +135,7 @@ export function ProfileDropdown() {
           {/* Header avec infos utilisateur */}
           <div className="px-4 py-4 bg-gradient-to-r from-primary-800 to-primary-900 text-white">
             <div className="flex items-center gap-3">
-              {organization.logo ? (
+              {organization.logo && (organization.logo.startsWith('data:image/') || organization.logo.startsWith('https://')) ? (
                 <img
                   src={organization.logo}
                   alt="Logo"
@@ -136,6 +158,49 @@ export function ProfileDropdown() {
                 {organization.city}, {organization.country}
               </p>
             )}
+          </div>
+
+          {/* Account type switch (Entreprise / Cabinet) */}
+          <div className="px-4 py-3 border-b border-primary-100 bg-primary-50/40">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-primary-600 uppercase tracking-wide">
+                Type de compte
+              </span>
+              {isSwitchingAccountType && (
+                <div className="w-3 h-3 border-2 border-primary-300 border-t-primary-600 rounded-full animate-spin" />
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-1 p-1 bg-white rounded-lg border border-primary-200">
+              <button
+                onClick={() => { if (!isEnterprise) handleToggleAccountType(); }}
+                disabled={isSwitchingAccountType || isEnterprise}
+                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  isEnterprise
+                    ? 'bg-primary-900 text-white shadow-sm'
+                    : 'text-primary-600 hover:bg-primary-50'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                Entreprise
+              </button>
+              <button
+                onClick={() => { if (isEnterprise) handleToggleAccountType(); }}
+                disabled={isSwitchingAccountType || !isEnterprise}
+                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  !isEnterprise
+                    ? 'bg-primary-900 text-white shadow-sm'
+                    : 'text-primary-600 hover:bg-primary-50'
+                }`}
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                Cabinet
+              </button>
+            </div>
+            <p className="text-[10px] text-primary-400 mt-1.5 leading-snug">
+              {isEnterprise
+                ? "J'audite les transactions de ma société"
+                : "J'audite plusieurs sociétés clientes"}
+            </p>
           </div>
 
           {/* Menu items */}
@@ -170,21 +235,22 @@ export function ProfileDropdown() {
           {/* Footer - Deconnexion */}
           <div className="border-t border-primary-100 py-2">
             <button
-              onClick={() => {
-                // TODO: Deconnexion
+              onClick={async () => {
                 setIsOpen(false);
+                await signOut();
+                window.location.reload();
               }}
               className="w-full px-4 py-2.5 flex items-center gap-3 text-red-600 hover:bg-red-50 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              <span className="text-sm">Se deconnecter</span>
+              <span className="text-sm">Se déconnecter</span>
             </button>
           </div>
 
           {/* Credits Atlas Studio */}
           <div className="px-4 py-3 bg-primary-50 border-t border-primary-100">
             <p className="text-xs text-primary-400 text-center">
-              <span className="font-display text-sm">Scrutix</span> v1.0 - Developpe par <span className="font-display text-sm text-primary-600">{organization.developedBy || 'Atlas Studio'}</span>
+              <span className="font-display text-sm">AtlasBanx</span> v1.0 - Developpe par <span className="font-display text-sm text-primary-600">{organization.developedBy || 'Atlas Studio'}</span>
             </p>
           </div>
         </div>

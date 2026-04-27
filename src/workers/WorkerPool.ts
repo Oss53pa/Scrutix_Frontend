@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Detection Worker Pool Manager
+// ATLASBANX - Detection Worker Pool Manager
 // Gestion du pool de Web Workers pour execution parallele
 // ============================================================================
 

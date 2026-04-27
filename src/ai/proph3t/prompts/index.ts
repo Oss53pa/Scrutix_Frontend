@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - PROPH3T Optimized Prompt Templates
+// ATLASBANX - PROPH3T Optimized Prompt Templates
 // Templates de prompts optimises pour modeles locaux avec few-shot examples
 // ============================================================================
 

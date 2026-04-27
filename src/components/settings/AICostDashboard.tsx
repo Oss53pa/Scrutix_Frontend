@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - AI Cost Dashboard
+// ATLASBANX - AI Cost Dashboard
 // Tableau de bord des couts IA avec budget et utilisation par provider
 // ============================================================================
 

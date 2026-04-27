@@ -18,3 +18,12 @@ export { useFeedback } from './useFeedback';
 
 // Debounce & Async Actions
 export { useDebounce, useDebounceCallback, useAsyncAction } from './useDebounce';
+
+// Session security
+export { useSessionTimeout } from './useSessionTimeout';
+
+// Account type (Enterprise vs Cabinet)
+export { useAccountType } from './useAccountType';
+
+// Audit trail (immutable event logging)
+export { useAuditTrail } from './useAuditTrail';

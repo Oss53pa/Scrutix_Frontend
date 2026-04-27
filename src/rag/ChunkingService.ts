@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Chunking Service
+// ATLASBANX - Chunking Service
 // Decoupage de texte en chunks pour le RAG
 // ============================================================================
 

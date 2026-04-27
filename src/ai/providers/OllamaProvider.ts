@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Ollama Provider
+// ATLASBANX - Ollama Provider
 // Implémentation du provider pour Ollama (modèles locaux)
 // ============================================================================
 

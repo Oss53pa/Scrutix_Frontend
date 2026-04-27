@@ -278,7 +278,7 @@ export const useAnalysisStore = create<AnalysisStore>()(
           .reduce((sum, a) => sum + a.amount, 0) || 0,
     }),
     {
-      name: 'scrutix-analysis',
+      name: 'atlasbanx-analysis',
       partialize: (state) => ({
         analysisHistory: state.analysisHistory,
         currentAnalysis: state.currentAnalysis,

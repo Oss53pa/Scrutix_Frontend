@@ -11,26 +11,37 @@ import {
   Home,
   X,
 } from 'lucide-react';
-import { Button, ScrutixLogo } from '../ui';
+import { Button } from '../ui';
+import { useAccountType } from '../../hooks/useAccountType';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const navigation = [
+type NavItem = {
+  name: string;
+  href: string;
+  icon: typeof Home;
+  cabinetOnly?: boolean;
+};
+
+const navigation: NavItem[] = [
   { name: 'Accueil', href: '/', icon: Home },
   { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Import', href: '/import', icon: Upload },
   { name: 'Analyses', href: '/analyses', icon: Search },
-  { name: 'Clients', href: '/clients', icon: Users },
+  { name: 'Clients', href: '/clients', icon: Users, cabinetOnly: true },
   { name: 'Banques & Conditions', href: '/banks', icon: Landmark },
   { name: 'Rapports', href: '/reports', icon: FileBarChart },
-  { name: 'Facturation', href: '/billing', icon: Receipt },
+  { name: 'Facturation', href: '/billing', icon: Receipt, cabinetOnly: true },
   { name: 'Paramètres', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const { isEnterprise } = useAccountType();
+  const visibleNavigation = navigation.filter((item) => !(isEnterprise && item.cabinetOnly));
+
   return (
     <>
       {/* Mobile overlay */}
@@ -51,10 +62,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         `}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-primary-200">
             <NavLink to="/" className="flex items-center">
-              <ScrutixLogo size="sm" />
+              <span className="font-display text-3xl font-bold text-primary-900 tracking-tight">
+                AtlasBanx
+              </span>
             </NavLink>
             <Button
               variant="ghost"
@@ -69,7 +81,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {navigation.map((item) => (
+            {visibleNavigation.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.href}

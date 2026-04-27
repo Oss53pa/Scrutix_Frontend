@@ -263,7 +263,7 @@ export function ChatBot() {
 
 En attendant, voici quelques informations utiles:
 
-**Scrutix** est un outil d'audit bancaire qui vous permet de:
+**AtlasBanx** est un outil d'audit bancaire qui vous permet de:
 - Importer et analyser vos relevés bancaires
 - Détecter automatiquement les anomalies
 - Générer des rapports d'audit professionnels
@@ -314,7 +314,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
       icon: <Lightbulb className="w-5 h-5 text-primary-500" />,
       content: (
         <div className="space-y-3 text-sm text-primary-700">
-          <p><strong>Bienvenue sur Scrutix !</strong> Outil d'audit bancaire pour experts-comptables.</p>
+          <p><strong>Bienvenue sur AtlasBanx !</strong> Outil d'audit bancaire pour experts-comptables.</p>
           <p className="font-medium text-primary-900">Workflow recommandé :</p>
           <ol className="list-decimal list-inside space-y-2 ml-2">
             <li><strong>Clients</strong> → Créez une fiche client avec ses informations</li>
@@ -564,7 +564,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
             <Proph3tAvatar size={36} />
             <div>
               <span className="font-semibold font-display text-lg">Proph3t</span>
-              <p className="text-xs text-primary-200">Assistant Scrutix</p>
+              <p className="text-xs text-primary-200">Assistant AtlasBanx</p>
             </div>
           </div>
           <button
@@ -645,7 +645,7 @@ Consultez l'onglet **Aide** pour plus de détails sur chaque fonctionnalité.`,
                     </div>
                     <p className="text-primary-600 font-medium mb-2">Bonjour ! Je suis <span className="font-display text-xl">Proph3t</span></p>
                     <p className="text-sm text-primary-400">
-                      Posez-moi des questions sur l'audit bancaire, l'analyse des anomalies, ou l'utilisation de Scrutix.
+                      Posez-moi des questions sur l'audit bancaire, l'analyse des anomalies, ou l'utilisation de AtlasBanx.
                     </p>
                     {!claudeApi.apiKey && (
                       <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">

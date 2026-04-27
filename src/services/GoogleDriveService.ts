@@ -1,5 +1,5 @@
 /**
- * Service Google Drive pour le backup cloud des archives Scrutix
+ * Service Google Drive pour le backup cloud des archives AtlasBanx
  * Utilise Google Drive API via OAuth2
  */
 
@@ -8,7 +8,9 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
-const SCRUTIX_FOLDER_NAME = 'Scrutix_Backups';
+const ATLASBANX_FOLDER_NAME = 'AtlasBanx_Backups';
+// Legacy folder — adopted automatically if the new one doesn't exist yet
+const LEGACY_FOLDER_NAME = 'Scrutix_Backups';
 
 export interface BackupFile {
   id: string;
@@ -48,7 +50,7 @@ class GoogleDriveServiceClass {
   private gapiInited = false;
   private gisInited = false;
   private accessToken: string | null = null;
-  private scrutixFolderId: string | null = null;
+  private atlasbanxFolderId: string | null = null;
 
   /**
    * Initialise le service Google Drive
@@ -147,8 +149,8 @@ class GoogleDriveServiceClass {
         // Obtenir les infos utilisateur
         const status = await this.getStatus();
 
-        // Creer/trouver le dossier Scrutix
-        await this.getOrCreateScrutixFolder();
+        // Creer/trouver le dossier AtlasBanx
+        await this.getOrCreateAtlasBanxFolder();
 
         resolve(status);
       };
@@ -170,7 +172,7 @@ class GoogleDriveServiceClass {
     if (this.accessToken) {
       window.google.accounts.oauth2.revoke(this.accessToken);
       this.accessToken = null;
-      this.scrutixFolderId = null;
+      this.atlasbanxFolderId = null;
     }
   }
 
@@ -206,36 +208,49 @@ class GoogleDriveServiceClass {
   }
 
   /**
-   * Trouve ou cree le dossier Scrutix_Backups
+   * Trouve ou cree le dossier AtlasBanx_Backups.
+   * Backward compat: si seul le dossier legacy Scrutix_Backups existe,
+   * il est adopte automatiquement (aucune migration des fichiers).
    */
-  private async getOrCreateScrutixFolder(): Promise<string> {
-    if (this.scrutixFolderId) {
-      return this.scrutixFolderId;
+  private async getOrCreateAtlasBanxFolder(): Promise<string> {
+    if (this.atlasbanxFolderId) {
+      return this.atlasbanxFolderId;
     }
 
     try {
-      // Chercher le dossier existant
+      // Chercher le nouveau dossier
       const response = await window.gapi.client.drive.files.list({
-        q: `name='${SCRUTIX_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        q: `name='${ATLASBANX_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
         fields: 'files(id, name)',
       });
 
       if (response.result.files && response.result.files.length > 0) {
-        this.scrutixFolderId = response.result.files[0].id;
-        return this.scrutixFolderId;
+        this.atlasbanxFolderId = response.result.files[0].id;
+        return this.atlasbanxFolderId;
       }
 
-      // Creer le dossier
+      // Fallback: adopter le dossier legacy s'il existe
+      const legacyResponse = await window.gapi.client.drive.files.list({
+        q: `name='${LEGACY_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id, name)',
+      });
+
+      if (legacyResponse.result.files && legacyResponse.result.files.length > 0) {
+        this.atlasbanxFolderId = legacyResponse.result.files[0].id;
+        return this.atlasbanxFolderId;
+      }
+
+      // Creer le nouveau dossier
       const createResponse = await window.gapi.client.drive.files.create({
         resource: {
-          name: SCRUTIX_FOLDER_NAME,
+          name: ATLASBANX_FOLDER_NAME,
           mimeType: 'application/vnd.google-apps.folder',
         },
         fields: 'id',
       });
 
-      this.scrutixFolderId = createResponse.result.id;
-      return this.scrutixFolderId;
+      this.atlasbanxFolderId = createResponse.result.id;
+      return this.atlasbanxFolderId;
     } catch (error) {
       console.error('Erreur creation dossier:', error);
       throw error;
@@ -251,7 +266,7 @@ class GoogleDriveServiceClass {
     }
 
     try {
-      const folderId = await this.getOrCreateScrutixFolder();
+      const folderId = await this.getOrCreateAtlasBanxFolder();
       const content = JSON.stringify(data, null, 2);
       const blob = new Blob([content], { type: 'application/json' });
 
@@ -320,6 +335,10 @@ class GoogleDriveServiceClass {
       body: content,
     });
 
+    if (!response.ok) {
+      throw new Error(`Echec mise à jour fichier Drive (${response.status})`);
+    }
+
     return response.json();
   }
 
@@ -328,9 +347,11 @@ class GoogleDriveServiceClass {
    */
   private async findFile(fileName: string): Promise<BackupFile | null> {
     try {
-      const folderId = await this.getOrCreateScrutixFolder();
+      const folderId = await this.getOrCreateAtlasBanxFolder();
+      // Escape single quotes in fileName to prevent Drive API query injection
+      const safeName = fileName.replace(/'/g, "\\'");
       const response = await window.gapi.client.drive.files.list({
-        q: `name='${fileName}' and '${folderId}' in parents and trashed=false`,
+        q: `name='${safeName}' and '${folderId}' in parents and trashed=false`,
         fields: 'files(id, name, size, createdTime, modifiedTime, mimeType)',
       });
 
@@ -362,7 +383,7 @@ class GoogleDriveServiceClass {
     }
 
     try {
-      const folderId = await this.getOrCreateScrutixFolder();
+      const folderId = await this.getOrCreateAtlasBanxFolder();
       const response = await window.gapi.client.drive.files.list({
         q: `'${folderId}' in parents and trashed=false`,
         fields: 'files(id, name, size, createdTime, modifiedTime, mimeType)',

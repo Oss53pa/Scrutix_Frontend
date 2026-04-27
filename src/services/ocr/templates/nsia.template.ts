@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - NSIA Banque Template
+// ATLASBANX - NSIA Banque Template
 // Layout du releve de compte NSIA Banque
 // ============================================================================
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - useComparator Hook
+// ATLASBANX - useComparator Hook
 // Hook React pour le comparateur PROPH3T vs Premium
 // ============================================================================
 

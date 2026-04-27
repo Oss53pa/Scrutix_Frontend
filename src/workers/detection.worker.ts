@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Detection Web Worker
+// ATLASBANX - Detection Web Worker
 // Execution parallele des modules de detection algorithmique
 // ============================================================================
 

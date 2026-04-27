@@ -1,5 +1,6 @@
 import { Menu } from 'lucide-react';
 import { Button } from '../ui';
+import { AIQuotaIndicator } from './AIQuotaIndicator';
 import { NotificationsDropdown } from './NotificationsDropdown';
 import { ProfileDropdown } from './ProfileDropdown';
 
@@ -28,6 +29,9 @@ export function Header({ onMenuClick }: HeaderProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            {/* AI quota indicator */}
+            <AIQuotaIndicator />
+
             {/* Notifications dropdown */}
             <NotificationsDropdown />
 

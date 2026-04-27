@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - PROPH3T Engine
+// ATLASBANX - PROPH3T Engine
 // Moteur IA multi-modele avec routage intelligent
 // ============================================================================
 

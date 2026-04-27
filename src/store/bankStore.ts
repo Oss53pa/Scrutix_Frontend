@@ -609,7 +609,7 @@ export const useBankStore = create<BankState>()(
       },
     }),
     {
-      name: 'scrutix-banks',
+      name: 'atlasbanx-banks',
       partialize: (state) => ({
         banks: state.banks,
       }),

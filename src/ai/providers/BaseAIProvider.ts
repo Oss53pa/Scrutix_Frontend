@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Base AI Provider
+// ATLASBANX - Base AI Provider
 // Classe abstraite de base pour tous les fournisseurs IA
 // ============================================================================
 
@@ -23,6 +23,7 @@ import {
   IAIProvider,
 } from '../types';
 import { Transaction, Anomaly, Severity, BankConditions, TransactionType } from '../../types';
+import { rateLimiter } from '../RateLimiter';
 
 /**
  * Classe abstraite de base pour les fournisseurs IA
@@ -61,7 +62,8 @@ export abstract class BaseAIProvider implements IAIProvider {
   }
 
   getConfig(): AIProviderConfig {
-    return { ...this.config };
+    const { apiKey: _redacted, ...safeConfig } = this.config;
+    return { ...safeConfig, apiKey: this.config.apiKey ? '••••••••' : '' } as AIProviderConfig;
   }
 
   // Méthode abstraite - chaque provider implémente sa propre logique de test
@@ -107,12 +109,16 @@ export abstract class BaseAIProvider implements IAIProvider {
       }
     }
 
+    // Vérification du rate limit avant appel
+    this.enforceRateLimit();
+
     const result = await this.callAPI(apiMessages, {
       maxTokens: options?.maxTokens ?? this.config.maxTokens,
       temperature: options?.temperature ?? this.config.temperature,
     });
 
     this.updateUsage(result.inputTokens, result.outputTokens);
+    rateLimiter.recordRequest(this.type, result.inputTokens + result.outputTokens);
 
     return {
       content: result.content,
@@ -131,6 +137,9 @@ export abstract class BaseAIProvider implements IAIProvider {
   // ============================================================================
 
   async complete(prompt: string, options?: { temperature?: number; maxTokens?: number }): Promise<string> {
+    // Vérification du rate limit avant appel
+    this.enforceRateLimit();
+
     const result = await this.callAPI(
       [{ role: 'user', content: prompt }],
       {
@@ -140,6 +149,7 @@ export abstract class BaseAIProvider implements IAIProvider {
     );
 
     this.updateUsage(result.inputTokens, result.outputTokens);
+    rateLimiter.recordRequest(this.type, result.inputTokens + result.outputTokens);
     return result.content;
   }
 
@@ -585,8 +595,8 @@ Si aucune anomalie n'est détectée, retourne: []`;
     }
 
     // Try to find JSON array or object
-    const arrayMatch = text.match(/\[[\s\S]*\]/);
-    const objectMatch = text.match(/\{[\s\S]*\}/);
+    const arrayMatch = text.match(/\[[\s\S]*?\]/);
+    const objectMatch = text.match(/\{[\s\S]*?\}/);
 
     if (arrayMatch && (!objectMatch || arrayMatch.index! < objectMatch.index!)) {
       return arrayMatch[0];
@@ -629,6 +639,23 @@ Si aucune anomalie n'est détectée, retourne: []`;
     return Object.entries(groups)
       .map(([type, data]) => `- ${type}: ${data.count} cas, ${data.amount.toLocaleString('fr-FR')} FCFA`)
       .join('\n');
+  }
+
+  // ============================================================================
+  // Rate Limiting
+  // ============================================================================
+
+  private enforceRateLimit(): void {
+    const check = rateLimiter.checkLimit(this.type);
+    if (!check.allowed) {
+      const minutes = Math.ceil((check.retryAfterMs ?? 60_000) / 60_000);
+      throw this.createError(
+        'RATE_LIMIT',
+        `Limite de requêtes atteinte pour ${this.name}. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}.`,
+        429,
+        check.retryAfterMs ? Math.ceil(check.retryAfterMs / 1000) : 60
+      );
+    }
   }
 
   // ============================================================================

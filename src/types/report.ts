@@ -1,4 +1,4 @@
-// Types pour le système de rapports Scrutix (Report Viewer)
+// Types pour le système de rapports AtlasBanx (Report Viewer)
 
 export interface ReportViewerConfig {
   id: string;

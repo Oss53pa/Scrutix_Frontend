@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Template-Based Extractor
+// ATLASBANX - Template-Based Extractor
 // Extraction basee sur les templates de releves bancaires
 // ============================================================================
 

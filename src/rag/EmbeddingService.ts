@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Embedding Service
+// ATLASBANX - Embedding Service
 // Generation d'embeddings via Ollama /api/embeddings
 // ============================================================================
 

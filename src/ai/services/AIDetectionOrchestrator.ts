@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - AI Detection Orchestrator
+// ATLASBANX - AI Detection Orchestrator
 // Orchestrateur pour toutes les détections IA
 // ============================================================================
 
@@ -14,6 +14,7 @@ import {
 } from '../types';
 import { Transaction, Anomaly, BankConditions } from '../../types';
 import { AIProviderFactory } from '../AIProviderFactory';
+import { auditLog, AuditEventType } from '../../services/auditTrail';
 
 /**
  * Résultat complet d'une orchestration de détection
@@ -87,9 +88,26 @@ export class AIDetectionOrchestrator {
     const errors: Array<{ type: AIDetectionType; error: string }> = [];
     let totalTokens = 0;
 
+    // Audit trail — start of orchestration
+    auditLog({
+      eventType: AuditEventType.ANALYSIS_STARTED,
+      resourceType: 'analysis',
+      action: 'started',
+      payload: {
+        transactionCount: transactions.length,
+        enabledTypes: options?.enabledTypes ?? config.enabledTypes,
+      },
+    });
+
     // Récupérer le provider
     const provider = this.provider || AIProviderFactory.getProvider();
     if (!provider) {
+      auditLog({
+        eventType: AuditEventType.ANALYSIS_FAILED,
+        resourceType: 'analysis',
+        action: 'failed',
+        payload: { reason: 'no_provider_configured' },
+      });
       return {
         success: false,
         results: [],
@@ -135,6 +153,38 @@ export class AIDetectionOrchestrator {
         const tokens = (tokensUsed?.input || 0) + (tokensUsed?.output || 0);
         totalTokens += tokens;
 
+        // Audit trail — AI call recorded per detection type
+        auditLog({
+          eventType: AuditEventType.AI_CALL_MADE,
+          resourceType: 'ai_call',
+          action: 'completed',
+          payload: {
+            detectionType,
+            provider: provider.type,
+            tokensInput: tokensUsed?.input ?? 0,
+            tokensOutput: tokensUsed?.output ?? 0,
+            anomalyCount: anomalies.length,
+            durationMs: Date.now() - detectionStart,
+          },
+        });
+
+        // Audit trail — emit one summary event per detection batch
+        if (anomalies.length > 0) {
+          auditLog({
+            eventType: AuditEventType.ANOMALY_DETECTED,
+            resourceType: 'anomaly',
+            action: 'detected',
+            payload: {
+              detectionType,
+              count: anomalies.length,
+              severities: anomalies.reduce<Record<string, number>>((acc, a) => {
+                acc[a.severity] = (acc[a.severity] ?? 0) + 1;
+                return acc;
+              }, {}),
+            },
+          });
+        }
+
         // Créer le résultat
         const result: AIDetectionResult = {
           type: detectionType,
@@ -153,11 +203,17 @@ export class AIDetectionOrchestrator {
         const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
         errors.push({ type: detectionType, error: errorMessage });
         console.error(`Erreur détection ${detectionType}:`, error);
+        auditLog({
+          eventType: AuditEventType.AI_CALL_FAILED,
+          resourceType: 'ai_call',
+          action: 'failed',
+          payload: { detectionType, error: errorMessage },
+        });
       }
     }
 
     // Progression finale
-    if (options?.onProgress) {
+    if (options?.onProgress && typesToRun.length > 0) {
       options.onProgress({
         currentType: typesToRun[typesToRun.length - 1],
         currentIndex: totalTypes,
@@ -167,8 +223,8 @@ export class AIDetectionOrchestrator {
       });
     }
 
-    return {
-      success: errors.length === 0,
+    const finalResult: OrchestrationResult = {
+      success: results.length > 0 && errors.length < typesToRun.length,
       results,
       allAnomalies,
       summary: this.createSummary(allAnomalies, results),
@@ -176,6 +232,24 @@ export class AIDetectionOrchestrator {
       processingTime: Date.now() - startTime,
       errors,
     };
+
+    // Audit trail — completion
+    auditLog({
+      eventType: errors.length === 0
+        ? AuditEventType.ANALYSIS_COMPLETED
+        : AuditEventType.ANALYSIS_FAILED,
+      resourceType: 'analysis',
+      action: errors.length === 0 ? 'completed' : 'failed',
+      payload: {
+        totalAnomalies: allAnomalies.length,
+        totalAmount: finalResult.summary.totalAmount,
+        tokensUsed: totalTokens,
+        durationMs: finalResult.processingTime,
+        errorCount: errors.length,
+      },
+    });
+
+    return finalResult;
   }
 
   /**

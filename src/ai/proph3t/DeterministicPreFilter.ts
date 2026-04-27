@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Deterministic Pre-Filter (Bank Label Dictionary)
+// ATLASBANX - Deterministic Pre-Filter (Bank Label Dictionary)
 // Filtre deterministe regex pour categorisation sans IA
 // Couvre 60-80% des transactions bancaires CEMAC/UEMOA typiques
 // ============================================================================

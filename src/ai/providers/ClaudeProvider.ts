@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Claude Provider
+// ATLASBANX - Claude Provider
 // Implémentation du provider pour Anthropic Claude
 // ============================================================================
 

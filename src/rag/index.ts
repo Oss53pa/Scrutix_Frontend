@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - RAG Module
+// ATLASBANX - RAG Module
 // Retrieval Augmented Generation pour le contexte reglementaire
 // ============================================================================
 

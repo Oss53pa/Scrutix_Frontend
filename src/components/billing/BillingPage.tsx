@@ -330,7 +330,7 @@ export function BillingPage() {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.text('Merci pour votre confiance.', pageWidth / 2, 280, { align: 'center' });
-    doc.text('Scrutix - Solution d\'audit bancaire - Developpe par Atlas Studio', pageWidth / 2, 286, { align: 'center' });
+    doc.text('AtlasBanx - Solution d\'audit bancaire - Developpe par Atlas Studio', pageWidth / 2, 286, { align: 'center' });
 
     doc.save(`Facture_${invoice.numero}.pdf`);
   };

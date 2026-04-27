@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Supabase Client
+// ATLASBANX - Supabase Client
 // Client singleton pour l'integration Supabase
 // ============================================================================
 
@@ -41,6 +41,8 @@ export function getSupabaseClient(): SupabaseClient<Database> | null {
         persistSession: true,
         detectSessionInUrl: true,
       },
+      // Default schema stays `public`; use `supabase.schema('atlasbanx')`
+      // when querying app-specific tables.
     });
   }
 

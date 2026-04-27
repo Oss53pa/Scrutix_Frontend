@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Gateway Settings
+// ATLASBANX - Gateway Settings
 // Configuration du Premium AI Gateway
 // ============================================================================
 

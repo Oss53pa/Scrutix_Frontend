@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileSearch, Trash2, Building2, Plus, Landmark } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardBody, CardFooter, Button, Alert, ConfirmDialog, Select, Input, Badge } from '../ui';
@@ -6,22 +6,37 @@ import { FileUploader } from './FileUploader';
 import { useTransactionStore } from '../../store';
 import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
+import { useAccountType } from '../../hooks/useAccountType';
 import { Transaction, AFRICAN_COUNTRIES } from '../../types';
 import { formatCurrency, formatDate } from '../../utils';
 
 export function ImportPage() {
   const navigate = useNavigate();
+  const { isEnterprise } = useAccountType();
   const { transactions, addTransactions, clearTransactions, getTransactionCount } = useTransactionStore();
   const { clients, addAccount, addStatement } = useClientStore();
   const { banks } = useBankStore();
 
+  // Enterprise mode: the implicit self client is the only client
+  const selfClient = useMemo(
+    () => (isEnterprise ? clients[0] : undefined),
+    [isEnterprise, clients],
+  );
+
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [selectedClientId, setSelectedClientId] = useState<string>(() => (isEnterprise ? selfClient?.id ?? '' : ''));
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedBankCode, setSelectedBankCode] = useState<string>('');
   const [showNewAccount, setShowNewAccount] = useState(false);
   const [newAccountNumber, setNewAccountNumber] = useState('');
   const [useAdvancedOcr, setUseAdvancedOcr] = useState(false);
+
+  // Enterprise mode: keep selectedClientId pinned to the self client
+  useEffect(() => {
+    if (isEnterprise && selfClient && selectedClientId !== selfClient.id) {
+      setSelectedClientId(selfClient.id);
+    }
+  }, [isEnterprise, selfClient, selectedClientId]);
 
   // Get selected client
   const selectedClient = useMemo(() =>
@@ -106,7 +121,8 @@ export function ImportPage() {
         </p>
       </div>
 
-      {/* Step 1: Client Selection */}
+      {/* Step 1: Client Selection — hidden in enterprise mode (implicit self client) */}
+      {!isEnterprise && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -174,13 +190,16 @@ export function ImportPage() {
           </div>
         </CardBody>
       </Card>
+      )}
 
       {/* Step 2: Account Selection */}
       {selectedClient && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-primary-900 text-white text-sm flex items-center justify-center">2</span>
+              <span className="w-6 h-6 rounded-full bg-primary-900 text-white text-sm flex items-center justify-center">
+                {isEnterprise ? '1' : '2'}
+              </span>
               Sélectionner le compte bancaire
             </CardTitle>
             <CardDescription>
@@ -312,19 +331,33 @@ export function ImportPage() {
           <CardTitle className="flex items-center gap-2">
             <span className={`w-6 h-6 rounded-full text-sm flex items-center justify-center ${
               canImport ? 'bg-primary-900 text-white' : 'bg-primary-300 text-white'
-            }`}>3</span>
+            }`}>{isEnterprise ? '2' : '3'}</span>
             Téléverser les fichiers
           </CardTitle>
           <CardDescription>
             {canImport ? (
-              <>
-                Import pour <strong>{selectedClient?.name}</strong>
-                {selectedAccount && (
-                  <> - Compte <strong className="font-mono">{selectedAccount.accountNumber}</strong> ({selectedAccount.bankName})</>
-                )}
-              </>
+              isEnterprise ? (
+                <>
+                  {selectedAccount ? (
+                    <>
+                      Compte <strong className="font-mono">{selectedAccount.accountNumber}</strong> ({selectedAccount.bankName})
+                    </>
+                  ) : (
+                    <>Nouveau compte</>
+                  )}
+                </>
+              ) : (
+                <>
+                  Import pour <strong>{selectedClient?.name}</strong>
+                  {selectedAccount && (
+                    <> - Compte <strong className="font-mono">{selectedAccount.accountNumber}</strong> ({selectedAccount.bankName})</>
+                  )}
+                </>
+              )
             ) : (
-              'Sélectionnez d\'abord un client et un compte bancaire'
+              isEnterprise
+                ? 'Sélectionnez d\'abord un compte bancaire'
+                : 'Sélectionnez d\'abord un client et un compte bancaire'
             )}
           </CardDescription>
         </CardHeader>
@@ -399,7 +432,7 @@ export function ImportPage() {
           </CardBody>
           <CardFooter>
             <div className="flex justify-end">
-              <Button variant="primary" onClick={() => navigate('/analysis')}>
+              <Button variant="primary" onClick={() => navigate('/analyses')}>
                 <FileSearch className="w-4 h-4" />
                 Lancer l'analyse
               </Button>

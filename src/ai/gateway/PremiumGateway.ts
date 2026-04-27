@@ -1,5 +1,5 @@
 // ============================================================================
-// SCRUTIX - Premium Gateway
+// ATLASBANX - Premium Gateway
 // Routage intelligent des taches IA vers PROPH3T ou providers premium
 // ============================================================================
 
