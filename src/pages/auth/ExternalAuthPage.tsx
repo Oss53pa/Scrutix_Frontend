@@ -63,7 +63,7 @@ export default function ExternalAuthPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' }}>
       <div style={{ maxWidth: 400, width: '100%', padding: 24, textAlign: 'center' }}>
         <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, border: '1px solid rgba(255,255,255,0.05)' }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#818cf8', marginBottom: 8 }}>AtlasBanx</h1>
+          <h1 style={{ fontFamily: '"Grand Hotel", cursive', fontSize: 36, fontWeight: 400, color: '#dec078', marginBottom: 8, letterSpacing: '-0.02em' }}>AtlasBanx</h1>
           <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>Audit Bancaire Intelligent</p>
 
           {status === 'loading' && (

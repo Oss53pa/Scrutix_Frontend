@@ -84,7 +84,7 @@ export default {
         info: '#2563eb',
       },
       fontFamily: {
-        sans: ['Exo 2', 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Dosis', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         display: ['Grand Hotel', 'cursive'],
         serif: ['Cormorant Garamond', 'Playfair Display', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
