@@ -17,33 +17,33 @@ interface StatCardProps {
 const variantStyles = {
   default: {
     card: 'bg-white',
-    icon: 'bg-primary-100 text-primary-700',
-    value: 'text-primary-900',
-    label: 'text-primary-500',
+    icon: 'bg-canvas-100 text-ink-700 border border-primary-200/60',
+    value: 'text-ink-900',
+    label: 'text-ink-500',
   },
   primary: {
-    card: 'bg-primary-900 text-white',
-    icon: 'bg-primary-800 text-white',
+    card: 'bg-gradient-to-br from-ink-800 via-ink-900 to-ink-950 text-white border-ink-700',
+    icon: 'bg-white/10 backdrop-blur text-accent-200 border border-white/10',
     value: 'text-white',
-    label: 'text-primary-200',
+    label: 'text-accent-300',
   },
   success: {
-    card: 'bg-primary-50',
-    icon: 'bg-primary-100 text-primary-700',
-    value: 'text-primary-900',
-    label: 'text-primary-600',
+    card: 'bg-white',
+    icon: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
+    value: 'text-emerald-700',
+    label: 'text-ink-500',
   },
   warning: {
-    card: 'bg-primary-50',
-    icon: 'bg-primary-100 text-primary-700',
-    value: 'text-primary-900',
-    label: 'text-primary-600',
+    card: 'bg-white',
+    icon: 'bg-amber-50 text-amber-700 border border-amber-200/60',
+    value: 'text-amber-700',
+    label: 'text-ink-500',
   },
   danger: {
-    card: 'bg-primary-50',
-    icon: 'bg-primary-100 text-primary-700',
-    value: 'text-primary-900',
-    label: 'text-primary-600',
+    card: 'bg-white',
+    icon: 'bg-red-50 text-red-700 border border-red-200/60',
+    value: 'text-red-700',
+    label: 'text-ink-500',
   },
 };
 
@@ -59,28 +59,31 @@ export function StatCard({
   const styles = variantStyles[variant];
 
   return (
-    <Card className={`${styles.card} ${className}`}>
-      <div className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className={`text-sm font-medium ${styles.label}`}>{label}</p>
-            <p className={`text-2xl font-bold mt-1 ${styles.value}`}>
+    <Card className={`relative overflow-hidden ${styles.card} ${className}`}>
+      {variant === 'primary' && (
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-400/60 to-transparent" />
+      )}
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <p className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${styles.label}`}>{label}</p>
+            <p className={`text-3xl font-bold mt-2 tracking-tight tabular-nums truncate ${styles.value}`}>
               {typeof value === 'number' ? value.toLocaleString('fr-FR') : value}
             </p>
             {subtitle && (
               <p className={`text-xs mt-1 ${styles.label}`}>{subtitle}</p>
             )}
             {trend && (
-              <div className={`flex items-center gap-1 mt-2 text-sm ${
-                trend.isPositive !== false ? 'text-green-600' : 'text-red-600'
+              <div className={`inline-flex items-center gap-1 mt-2 text-xs font-semibold ${
+                trend.isPositive !== false ? 'text-emerald-600' : 'text-red-600'
               }`}>
-                <span>{trend.isPositive !== false ? '+' : ''}{trend.value}%</span>
+                <span>{trend.isPositive !== false ? '↑' : '↓'} {trend.isPositive !== false ? '+' : ''}{trend.value}%</span>
               </div>
             )}
           </div>
           {Icon && (
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${styles.icon}`}>
-              <Icon className="w-6 h-6" />
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${styles.icon}`}>
+              <Icon className="w-5 h-5" />
             </div>
           )}
         </div>

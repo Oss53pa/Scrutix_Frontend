@@ -33,9 +33,12 @@ const NotFoundPage = lazy(() => import('./components/notfound').then(m => ({ def
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-[400px]">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-3 border-primary-200 border-t-primary-900 rounded-full animate-spin" />
-        <span className="text-sm text-primary-500">Chargement...</span>
+      <div className="flex flex-col items-center gap-3 animate-fade-in">
+        <div className="relative w-10 h-10">
+          <div className="absolute inset-0 rounded-full border-2 border-primary-200" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent-500 border-r-accent-500 animate-spin" />
+        </div>
+        <span className="text-xs uppercase tracking-[0.18em] text-ink-500 font-semibold">Chargement</span>
       </div>
     </div>
   );
@@ -44,22 +47,32 @@ function PageLoader() {
 // Supabase not configured screen
 function SupabaseRequiredScreen() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-ink-950">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-ink-900 via-ink-950 to-black" />
+        <div className="absolute -top-40 -left-40 h-[600px] w-[600px] rounded-full bg-accent-700/10 blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 h-[600px] w-[600px] rounded-full bg-ink-700/30 blur-3xl" />
+      </div>
+      <div className="relative w-full max-w-md animate-fade-in-up">
         <div className="text-center mb-8">
-          <h1 className="font-display text-4xl text-white">AtlasBanx</h1>
-          <p className="font-display text-xl text-primary-200 mt-2">Audit Bancaire Intelligent</p>
+          <h1 className="font-display text-5xl text-white tracking-tight">
+            Atlas<span className="text-gradient-gold">Banx</span>
+          </h1>
+          <p className="font-serif italic text-lg text-white/60 mt-2">Audit Bancaire Intelligent</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle className="w-7 h-7 text-red-500" />
+        <div className="relative rounded-2xl bg-white/95 backdrop-blur-xl shadow-2xl border border-white/10 overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-400 to-transparent" />
+          <div className="p-8">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-50 to-red-100 border border-red-200 flex items-center justify-center shadow-card">
+                <AlertCircle className="w-7 h-7 text-red-600" />
+              </div>
+              <h2 className="text-xl font-bold text-ink-900 tracking-tight">Configuration requise</h2>
+              <p className="text-ink-500 text-sm">
+                Les variables d'environnement Supabase ne sont pas configurées.
+                Contactez votre administrateur pour configurer <code className="bg-canvas-100 border border-primary-200/60 px-1.5 py-0.5 rounded text-xs font-mono text-ink-700">VITE_SUPABASE_URL</code> et <code className="bg-canvas-100 border border-primary-200/60 px-1.5 py-0.5 rounded text-xs font-mono text-ink-700">VITE_SUPABASE_ANON_KEY</code>.
+              </p>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">Configuration requise</h2>
-            <p className="text-gray-500 text-sm">
-              Les variables d'environnement Supabase ne sont pas configurées.
-              Contactez votre administrateur pour configurer <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">VITE_SUPABASE_URL</code> et <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">VITE_SUPABASE_ANON_KEY</code>.
-            </p>
           </div>
         </div>
       </div>
@@ -157,10 +170,21 @@ function App() {
   // Show loading while auth initializes
   if (!authReady || !isInitialized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-primary-900 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-3 border-white/20 border-t-white rounded-full animate-spin" />
-          <span className="text-white/70 text-sm">Chargement de AtlasBanx...</span>
+      <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-ink-950">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-ink-900 via-ink-950 to-black" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-accent-500/10 blur-3xl animate-breathe" />
+        </div>
+        <div className="relative flex flex-col items-center gap-6 animate-fade-in-up">
+          <h1 className="font-display text-4xl text-white tracking-tight">
+            Atlas<span className="text-gradient-gold">Banx</span>
+          </h1>
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-accent-400 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-accent-400/60 animate-pulse" style={{ animationDelay: '150ms' }} />
+            <div className="w-2 h-2 rounded-full bg-accent-400/30 animate-pulse" style={{ animationDelay: '300ms' }} />
+          </div>
+          <span className="text-white/50 text-xs uppercase tracking-[0.2em]">Chargement</span>
         </div>
       </div>
     );

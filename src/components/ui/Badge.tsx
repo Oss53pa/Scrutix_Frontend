@@ -1,7 +1,7 @@
 import { HTMLAttributes, ReactNode } from 'react';
 import { Severity, AnomalyType, SEVERITY_LABELS, ANOMALY_TYPE_LABELS } from '../../types';
 
-type BadgeVariant = 'default' | 'secondary' | 'low' | 'medium' | 'high' | 'critical' | 'success' | 'info' | 'warning' | 'error';
+type BadgeVariant = 'default' | 'secondary' | 'low' | 'medium' | 'high' | 'critical' | 'success' | 'info' | 'warning' | 'error' | 'accent';
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -10,35 +10,37 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: 'bg-primary-100 text-primary-700',
-  secondary: 'bg-primary-100 text-primary-600',
-  low: 'bg-primary-100 text-primary-700',
-  medium: 'bg-primary-200 text-primary-800',
-  high: 'bg-primary-300 text-primary-900',
-  critical: 'bg-primary-900 text-white',
-  success: 'bg-primary-100 text-primary-800',
-  info: 'bg-primary-100 text-primary-800',
-  warning: 'bg-primary-200 text-primary-800',
-  error: 'bg-primary-300 text-primary-900',
+  default: 'bg-canvas-100 text-ink-700 border border-primary-200/70',
+  secondary: 'bg-canvas-200/60 text-ink-600 border border-primary-200/60',
+  low: 'bg-canvas-100 text-ink-600 border border-primary-200/70',
+  medium: 'bg-amber-50 text-amber-800 border border-amber-200/80',
+  high: 'bg-red-50 text-red-800 border border-red-200/80',
+  critical: 'bg-gradient-to-b from-red-700 to-red-900 text-white border border-red-900',
+  success: 'bg-emerald-50 text-emerald-800 border border-emerald-200/80',
+  info: 'bg-blue-50 text-blue-800 border border-blue-200/80',
+  warning: 'bg-amber-50 text-amber-800 border border-amber-200/80',
+  error: 'bg-red-50 text-red-800 border border-red-200/80',
+  accent: 'bg-accent-50 text-accent-800 border border-accent-200/80',
 };
 
 const dotColors: Record<BadgeVariant, string> = {
-  default: 'bg-primary-500',
-  secondary: 'bg-primary-400',
-  low: 'bg-primary-500',
-  medium: 'bg-primary-600',
-  high: 'bg-primary-700',
-  critical: 'bg-primary-100',
-  success: 'bg-primary-500',
-  info: 'bg-primary-500',
-  warning: 'bg-primary-600',
-  error: 'bg-primary-700',
+  default: 'bg-ink-400',
+  secondary: 'bg-ink-300',
+  low: 'bg-ink-400',
+  medium: 'bg-amber-500',
+  high: 'bg-red-500',
+  critical: 'bg-white',
+  success: 'bg-emerald-500',
+  info: 'bg-blue-500',
+  warning: 'bg-amber-500',
+  error: 'bg-red-500',
+  accent: 'bg-accent-500',
 };
 
 export function Badge({ variant = 'default', children, dot = false, className = '', ...props }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-pill text-xs font-medium tracking-tight ${variantClasses[variant]} ${className}`}
       {...props}
     >
       {dot && <span className={`w-1.5 h-1.5 rounded-full ${dotColors[variant]}`} />}

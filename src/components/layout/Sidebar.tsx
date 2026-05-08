@@ -47,7 +47,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-primary-950/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-ink-950/60 backdrop-blur-sm z-40 lg:hidden animate-fade-in"
           onClick={onClose}
         />
       )}
@@ -55,18 +55,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-primary-200
-          transform transition-transform duration-200 ease-in-out
+          fixed inset-y-0 left-0 z-50 w-64
+          bg-canvas-50/80 dark:bg-ink-950/80 backdrop-blur-xl
+          border-r border-primary-200/60 dark:border-ink-700/60
+          transform transition-transform duration-300 ease-premium
           lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between h-16 px-6 border-b border-primary-200">
-            <NavLink to="/" className="flex items-center">
-              <span className="font-display text-3xl font-bold text-primary-900 tracking-tight">
+        <div className="flex flex-col h-full relative">
+          {/* Vertical gold hairline accent */}
+          <div
+            aria-hidden="true"
+            className="absolute right-0 top-12 bottom-12 w-px bg-gradient-to-b from-transparent via-accent-300/30 to-transparent"
+          />
+
+          {/* Brand */}
+          <div className="flex items-center justify-between h-20 px-6 border-b border-primary-200/50 dark:border-ink-700/50">
+            <NavLink to="/" className="flex items-center group">
+              <span className="font-display text-3xl font-bold text-ink-900 dark:text-ink-50 tracking-tight transition-colors group-hover:text-accent-700 dark:group-hover:text-accent-300">
                 AtlasBanx
               </span>
+              <span className="ml-1 mt-2 inline-block h-1.5 w-1.5 rounded-full bg-accent-500" />
             </NavLink>
             <Button
               variant="ghost"
@@ -80,34 +90,62 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 py-6 space-y-0.5 overflow-y-auto">
+            <p className="px-3 mb-3 text-[10px] font-semibold text-ink-400 dark:text-ink-500 uppercase tracking-[0.14em]">
+              Navigation
+            </p>
             {visibleNavigation.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.href}
                 onClick={() => onClose()}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                  `group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                   transition-all duration-200 ease-premium
                   ${
                     isActive
-                      ? 'bg-primary-900 text-white'
-                      : 'text-primary-600 hover:bg-primary-100 hover:text-primary-900'
+                      ? 'bg-gradient-to-r from-ink-900 to-ink-800 text-white shadow-[0_4px_16px_-4px_rgb(7_11_31/0.35)]'
+                      : 'text-ink-600 dark:text-ink-300 hover:bg-canvas-200/70 dark:hover:bg-ink-700/50 hover:text-ink-900 dark:hover:text-ink-50'
                   }`
                 }
               >
-                <item.icon className="w-5 h-5" />
-                {item.name}
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r-full bg-accent-400"
+                      />
+                    )}
+                    <item.icon
+                      className={`w-[18px] h-[18px] transition-transform duration-200 ${
+                        isActive ? 'scale-105' : 'group-hover:scale-105'
+                      }`}
+                    />
+                    <span className="tracking-tight">{item.name}</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-primary-200">
-            <div className="px-3 py-2 rounded-lg bg-primary-50">
-              <p className="text-xs text-primary-500">Plateforme d'Audit</p>
-              <p className="text-sm font-medium text-primary-900 truncate">
+          {/* Footer card */}
+          <div className="p-3">
+            <div className="relative overflow-hidden rounded-xl border border-primary-200/60 dark:border-ink-700/60 bg-gradient-to-br from-canvas-50 to-canvas-200/60 dark:from-ink-800 dark:to-ink-900 px-4 py-3">
+              <div
+                aria-hidden="true"
+                className="absolute -right-6 -top-6 h-16 w-16 rounded-full bg-accent-300/30 blur-2xl"
+              />
+              <p className="text-[10px] font-semibold text-accent-700 dark:text-accent-300 uppercase tracking-[0.14em]">
+                Plateforme d'audit
+              </p>
+              <p className="mt-1 text-sm font-semibold text-ink-900 dark:text-ink-50">
                 CEMAC / UEMOA
               </p>
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[11px] text-ink-500 dark:text-ink-400">Système opérationnel</p>
+              </div>
             </div>
           </div>
         </div>

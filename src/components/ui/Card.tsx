@@ -6,8 +6,9 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export function Card({ children, hover = false, className = '', ...props }: CardProps) {
-  const baseClasses = 'bg-white rounded-card shadow-card border border-primary-100 transition-shadow duration-200';
-  const hoverClasses = hover ? 'hover:shadow-card-hover' : '';
+  const baseClasses =
+    'bg-white dark:bg-ink-800 rounded-card shadow-card border border-primary-100/70 dark:border-ink-700/70 transition-all duration-300 ease-premium';
+  const hoverClasses = hover ? 'hover:shadow-card-hover hover:border-primary-200 hover:-translate-y-0.5' : '';
 
   return (
     <div className={`${baseClasses} ${hoverClasses} ${className}`} {...props}>
@@ -24,7 +25,7 @@ interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
 export function CardHeader({ children, action, className = '', ...props }: CardHeaderProps) {
   return (
     <div
-      className={`px-6 py-4 border-b border-primary-100 flex items-center justify-between ${className}`}
+      className={`px-6 py-4 border-b border-primary-100/70 dark:border-ink-700/70 flex items-center justify-between ${className}`}
       {...props}
     >
       <div>{children}</div>
@@ -39,7 +40,7 @@ interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
 
 export function CardTitle({ children, className = '', ...props }: CardTitleProps) {
   return (
-    <h3 className={`text-lg font-semibold text-primary-900 ${className}`} {...props}>
+    <h3 className={`text-lg font-semibold text-ink-900 dark:text-ink-50 tracking-tight ${className}`} {...props}>
       {children}
     </h3>
   );
@@ -51,7 +52,7 @@ interface CardDescriptionProps extends HTMLAttributes<HTMLParagraphElement> {
 
 export function CardDescription({ children, className = '', ...props }: CardDescriptionProps) {
   return (
-    <p className={`text-sm text-primary-500 mt-1 ${className}`} {...props}>
+    <p className={`text-sm text-ink-500 dark:text-ink-400 mt-1 ${className}`} {...props}>
       {children}
     </p>
   );
@@ -76,7 +77,7 @@ interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {
 export function CardFooter({ children, className = '', ...props }: CardFooterProps) {
   return (
     <div
-      className={`px-6 py-4 border-t border-primary-100 bg-primary-50 rounded-b-card ${className}`}
+      className={`px-6 py-4 border-t border-primary-100/70 dark:border-ink-700/70 bg-canvas-50/50 dark:bg-ink-900/40 rounded-b-card ${className}`}
       {...props}
     >
       {children}

@@ -35,7 +35,6 @@ export function Modal({
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Handle escape key
   useEffect(() => {
     if (!closeOnEscape) return;
 
@@ -49,7 +48,6 @@ export function Modal({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose, closeOnEscape]);
 
-  // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -61,7 +59,6 @@ export function Modal({
     };
   }, [isOpen]);
 
-  // Focus trap
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
 
@@ -96,10 +93,10 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Overlay */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Premium backdrop with mesh */}
       <div
-        className="absolute inset-0 bg-primary-950/50 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-ink-950/60 backdrop-blur-md animate-fade-in"
         onClick={closeOnOverlayClick ? onClose : undefined}
         aria-hidden="true"
       />
@@ -111,20 +108,26 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={title ? 'modal-title' : undefined}
         aria-describedby={description ? 'modal-description' : undefined}
-        className={`relative w-full ${sizeClasses[size]} mx-4 bg-white rounded-card shadow-dropdown animate-slide-up max-h-[90vh] flex flex-col`}
+        className={`relative w-full ${sizeClasses[size]} bg-white rounded-card shadow-dropdown border border-primary-100/60 animate-slide-up max-h-[90vh] flex flex-col overflow-hidden`}
       >
+        {/* Top gold rule */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-400/60 to-transparent"
+        />
+
         {/* Header */}
         {(title || description) && (
-          <div className="px-6 py-4 border-b border-primary-100 flex-shrink-0">
+          <div className="px-6 py-5 border-b border-primary-100/70 flex-shrink-0">
             <div className="flex items-start justify-between gap-4">
               <div>
                 {title && (
-                  <h2 id="modal-title" className="text-lg font-semibold text-primary-900">
+                  <h2 id="modal-title" className="text-lg font-bold text-ink-900 tracking-tight">
                     {title}
                   </h2>
                 )}
                 {description && (
-                  <p id="modal-description" className="text-sm text-primary-500 mt-1">
+                  <p id="modal-description" className="text-sm text-ink-500 mt-1">
                     {description}
                   </p>
                 )}
@@ -141,7 +144,7 @@ export function Modal({
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-primary-100 bg-primary-50 rounded-b-card flex-shrink-0">
+          <div className="px-6 py-4 border-t border-primary-100/70 bg-canvas-50/60 rounded-b-card flex-shrink-0">
             {footer}
           </div>
         )}
@@ -191,7 +194,7 @@ export function ConfirmDialog({
         </div>
       }
     >
-      <p className="text-primary-600">{message}</p>
+      <p className="text-ink-700">{message}</p>
     </Modal>
   );
 }

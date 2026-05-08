@@ -31,59 +31,87 @@ export function HomePage() {
   const savings = getTotalPotentialSavings();
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fafafa]">
+    <div className="relative min-h-screen flex flex-col bg-canvas-100 overflow-hidden">
+      {/* Ambient background — premium banking ambience */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-32 -left-24 h-[520px] w-[520px] rounded-full bg-accent-200/40 blur-3xl" />
+        <div className="absolute top-1/3 -right-32 h-[480px] w-[480px] rounded-full bg-ink-200/40 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 h-[420px] w-[420px] rounded-full bg-accent-100/50 blur-3xl" />
+      </div>
+
       {/* Top Bar */}
-      <header className="flex items-center justify-between gap-3 px-4 sm:px-8 py-4">
-        <p className="text-xs sm:text-sm text-primary-400 truncate">
-          {isEnterprise ? 'Votre entreprise' : "Cabinet d'expertise comptable"} — <span className="text-primary-500">AtlasBanx Pro</span>
-        </p>
+      <header className="flex items-center justify-between gap-3 px-6 sm:px-10 lg:px-14 pt-6">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent-500 shrink-0" />
+          <p className="text-[11px] sm:text-xs text-ink-500 uppercase tracking-[0.18em] truncate">
+            {isEnterprise ? 'Votre entreprise' : "Cabinet d'expertise comptable"}
+            <span className="mx-2 text-ink-300">•</span>
+            <span className="text-ink-700 font-semibold">AtlasBanx Pro</span>
+          </p>
+        </div>
         <button
           onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-1.5 text-xs sm:text-sm text-primary-600 hover:text-primary-900 transition-colors cursor-pointer shrink-0"
+          className="group flex items-center gap-2 px-4 py-2 rounded-pill bg-white/70 backdrop-blur border border-primary-200/60 hover:border-accent-400/60 hover:bg-white transition-all duration-300 ease-premium shadow-card hover:shadow-card-hover shrink-0"
         >
-          <span className="hidden sm:inline">Tableau de bord</span>
-          <span className="sm:hidden">Dashboard</span>
-          <ArrowRight className="w-4 h-4" />
+          <span className="hidden sm:inline text-xs font-medium text-ink-700 group-hover:text-ink-900">
+            Tableau de bord
+          </span>
+          <span className="sm:hidden text-xs font-medium text-ink-700">Dashboard</span>
+          <ArrowRight className="w-3.5 h-3.5 text-ink-500 group-hover:text-accent-600 group-hover:translate-x-0.5 transition-all" />
         </button>
       </header>
 
       {/* Main Content - Centered */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6">
         {/* Hero Title */}
-        <div className="text-center mb-8 sm:mb-12">
-          <h1 className="font-display text-5xl sm:text-6xl md:text-7xl text-primary-900 mb-3">
-            AtlasBanx
+        <div className="text-center mb-12 sm:mb-16 animate-fade-in-up">
+          <p className="page-eyebrow mb-5 sm:mb-6">Audit bancaire intelligent</p>
+          <h1 className="font-display text-6xl sm:text-7xl md:text-[7.5rem] text-ink-900 mb-4 sm:mb-5 leading-[0.95] tracking-tight">
+            <span className="text-gradient-ink">Atlas</span><span className="text-gradient-gold">Banx</span>
           </h1>
-          <p className="text-base sm:text-lg text-primary-400 italic px-4">
-            {isEnterprise
-              ? 'Audit bancaire intelligent pour votre entreprise'
-              : "Audit bancaire intelligent pour cabinets d'expertise comptable"}
+          <div className="flex items-center justify-center gap-4 mb-5">
+            <span className="h-px w-10 sm:w-16 bg-gradient-to-r from-transparent to-accent-400/60" />
+            <p className="font-serif italic text-base sm:text-lg text-ink-600 px-2 tracking-tight">
+              {isEnterprise
+                ? 'L\'excellence au service de votre trésorerie'
+                : "L'excellence au service de l'expertise comptable"}
+            </p>
+            <span className="h-px w-10 sm:w-16 bg-gradient-to-l from-transparent to-accent-400/60" />
+          </div>
+          <p className="text-xs sm:text-sm text-ink-400 tracking-wide">
+            CEMAC <span className="mx-2">·</span> UEMOA <span className="mx-2">·</span> XAF
           </p>
         </div>
 
-        {/* Stats Row - Grid on mobile, divided row on desktop */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:items-center lg:justify-center gap-6 lg:gap-0 mb-12 sm:mb-16 w-full max-w-4xl">
-          {isEnterprise ? (
-            <StatItem value={totalAccounts} label="Comptes bancaires" />
-          ) : (
-            <StatItem value={clients.length} label="Clients" />
-          )}
-          <div className="hidden lg:block w-px h-12 bg-primary-200 mx-6 xl:mx-8"></div>
-          <StatItem value={transactions.length} label="Transactions" />
-          <div className="hidden lg:block w-px h-12 bg-primary-200 mx-6 xl:mx-8"></div>
-          <StatItem value={anomalies.length} label="Anomalies" />
-          <div className="hidden lg:block w-px h-12 bg-primary-200 mx-6 xl:mx-8"></div>
-          <StatItem value={`${completionRate}%`} label="Taux de détection" />
-          <div className="hidden lg:block w-px h-12 bg-primary-200 mx-6 xl:mx-8"></div>
-          <StatItem
-            value={savings > 0 ? `${(savings / 1000).toFixed(0)}K` : '0'}
-            label="Économies (FCFA)"
-          />
+        {/* Stats Row — premium glass card */}
+        <div
+          className="w-full max-w-5xl rounded-2xl border border-primary-200/60 bg-white/60 backdrop-blur-xl shadow-elevated px-6 sm:px-10 py-6 sm:py-8 mb-12 sm:mb-16 animate-fade-in-up"
+          style={{ animationDelay: '120ms', animationFillMode: 'backwards' }}
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 lg:gap-0 lg:flex lg:items-center lg:justify-between">
+            {isEnterprise ? (
+              <StatItem value={totalAccounts} label="Comptes bancaires" />
+            ) : (
+              <StatItem value={clients.length} label="Clients" />
+            )}
+            <Divider />
+            <StatItem value={transactions.length} label="Transactions" />
+            <Divider />
+            <StatItem value={anomalies.length} label="Anomalies" highlight={anomalies.length > 0} />
+            <Divider />
+            <StatItem value={`${completionRate}%`} label="Taux de détection" />
+            <Divider />
+            <StatItem
+              value={savings > 0 ? `${(savings / 1000).toFixed(0)}K` : '0'}
+              label="Économies (FCFA)"
+              accent
+            />
+          </div>
         </div>
       </div>
 
       {/* Bottom Navigation */}
-      <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-4 px-4 sm:px-6 pb-6">
+      <div className="flex items-center justify-center flex-wrap gap-2 sm:gap-3 px-4 sm:px-6 pb-8">
         <NavButton
           icon={<LayoutDashboard className="w-4 h-4" />}
           label="Tableau de bord"
@@ -112,24 +140,52 @@ export function HomePage() {
       </div>
 
       {/* Footer */}
-      <footer className="text-center pb-4">
-        <p className="text-xs text-primary-300">Developed by Atlas Studio</p>
+      <footer className="text-center pb-5">
+        <div className="gold-rule max-w-[120px] mx-auto mb-3" />
+        <p className="text-[10px] text-ink-400 uppercase tracking-[0.2em]">
+          Developed by <span className="text-ink-600 font-semibold">Atlas Studio</span>
+        </p>
       </footer>
     </div>
   );
 }
 
-// Stat Item - Large number + small label
-function StatItem({ value, label }: { value: number | string; label: string }) {
+function Divider() {
+  return (
+    <div
+      aria-hidden="true"
+      className="hidden lg:block w-px h-12 bg-gradient-to-b from-transparent via-primary-300/60 to-transparent"
+    />
+  );
+}
+
+function StatItem({
+  value,
+  label,
+  accent = false,
+  highlight = false,
+}: {
+  value: number | string;
+  label: string;
+  accent?: boolean;
+  highlight?: boolean;
+}) {
   return (
     <div className="text-center">
-      <p className="text-3xl font-bold text-primary-900 tabular-nums">{value}</p>
-      <p className="text-xs text-primary-400 mt-1">{label}</p>
+      <p
+        className={`text-3xl sm:text-4xl font-bold tabular-nums tracking-tight ${
+          accent ? 'text-gradient-gold' : highlight ? 'text-ink-900' : 'text-ink-900'
+        }`}
+      >
+        {value}
+      </p>
+      <p className="mt-2 text-[10px] sm:text-[11px] font-semibold text-ink-500 uppercase tracking-[0.14em]">
+        {label}
+      </p>
     </div>
   );
 }
 
-// Bottom Nav Button - Pill style with icon
 function NavButton({
   icon,
   label,
@@ -142,10 +198,10 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-primary-100 hover:bg-primary-200 rounded-full text-xs sm:text-sm text-primary-700 transition-colors cursor-pointer"
+      className="group flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/60 hover:bg-white backdrop-blur border border-primary-200/60 hover:border-accent-400/50 rounded-pill text-xs sm:text-sm text-ink-700 hover:text-ink-900 transition-all duration-300 ease-premium shadow-[0_1px_2px_rgb(15_14_10/0.04)] hover:shadow-card cursor-pointer"
     >
-      {icon}
-      <span>{label}</span>
+      <span className="text-ink-500 group-hover:text-accent-600 transition-colors">{icon}</span>
+      <span className="font-medium tracking-tight">{label}</span>
     </button>
   );
 }

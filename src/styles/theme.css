@@ -1,33 +1,107 @@
 /* ============================================================================
-   ATLASBANX - Thème clair / sombre via CSS custom properties
+   AtlasBanx — Ultra-Premium Theme System (Light & Dark)
+   Palette: Ink Navy + Champagne Gold + Warm Ivory
    ============================================================================ */
 
 :root {
-  --bg-app: 250 250 250;
+  /* Surface — warm ivory canvas */
+  --bg-app: 251 249 243;        /* canvas-100 */
   --bg-card: 255 255 255;
-  --bg-sidebar: 255 255 255;
+  --bg-sidebar: 254 253 250;    /* canvas-50 */
   --bg-header: 255 255 255;
   --bg-input: 255 255 255;
-  --bg-hover: 245 245 245;
-  --bg-muted: 250 250 250;
-  --border-default: 229 229 229;
-  --border-muted: 245 245 245;
-  --text-primary: 23 23 23;
-  --text-secondary: 115 115 115;
-  --text-muted: 163 163 163;
+  --bg-hover: 245 242 232;      /* canvas-200 */
+  --bg-muted: 248 247 244;      /* primary-50 */
+
+  /* Borders — refined warm grey */
+  --border-default: 218 214 200;  /* primary-200 */
+  --border-muted: 238 236 228;    /* primary-100 */
+  --border-strong: 184 177 160;   /* primary-300 */
+
+  /* Text hierarchy — ink-based for premium depth */
+  --text-primary: 7 11 31;        /* ink-900 */
+  --text-secondary: 71 80 102;    /* ink-500 */
+  --text-muted: 155 163 180;      /* ink-300 */
+  --text-emphasis: 3 5 15;        /* ink-950 */
+
+  /* Brand */
+  --brand-ink: 16 24 48;          /* ink-800 */
+  --brand-gold: 201 149 74;       /* accent-500 */
+  --brand-gold-soft: 222 192 120; /* accent-300 */
+
+  /* Focus ring */
+  --ring: 201 149 74;             /* accent-500 */
 }
 
 .dark {
-  --bg-app: 10 10 10;
-  --bg-card: 23 23 23;
-  --bg-sidebar: 15 15 15;
-  --bg-header: 23 23 23;
-  --bg-input: 38 38 38;
-  --bg-hover: 38 38 38;
-  --bg-muted: 23 23 23;
-  --border-default: 64 64 64;
-  --border-muted: 38 38 38;
-  --text-primary: 250 250 250;
-  --text-secondary: 163 163 163;
-  --text-muted: 115 115 115;
+  --bg-app: 7 11 31;              /* ink-900 */
+  --bg-card: 16 24 48;            /* ink-800 */
+  --bg-sidebar: 3 5 15;           /* ink-950 */
+  --bg-header: 16 24 48;
+  --bg-input: 30 38 64;           /* ink-700 */
+  --bg-hover: 30 38 64;
+  --bg-muted: 16 24 48;
+
+  --border-default: 47 56 82;     /* ink-600 */
+  --border-muted: 30 38 64;       /* ink-700 */
+  --border-strong: 71 80 102;     /* ink-500 */
+
+  --text-primary: 245 246 248;    /* ink-50 */
+  --text-secondary: 155 163 180;  /* ink-300 */
+  --text-muted: 106 115 136;      /* ink-400 */
+  --text-emphasis: 255 255 255;
+
+  --brand-ink: 245 246 248;
+  --brand-gold: 222 192 120;
+  --brand-gold-soft: 234 216 165;
+
+  --ring: 222 192 120;
+}
+
+/* ============================================================================
+   Premium scrollbars — refined, almost invisible until hover
+   ============================================================================ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(184 177 160 / 0.4);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 200ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(184 177 160 / 0.7);
+  background-clip: padding-box;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgb(71 80 102 / 0.5);
+  background-clip: padding-box;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgb(106 115 136 / 0.8);
+  background-clip: padding-box;
+}
+
+/* ============================================================================
+   Selection — gold accent
+   ============================================================================ */
+::selection {
+  background: rgb(201 149 74 / 0.25);
+  color: rgb(7 11 31);
+}
+
+.dark ::selection {
+  background: rgb(222 192 120 / 0.3);
+  color: rgb(245 246 248);
 }

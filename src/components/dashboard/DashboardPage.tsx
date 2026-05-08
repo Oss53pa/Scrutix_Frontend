@@ -165,7 +165,7 @@ export function DashboardPage() {
     };
   }, [clients, statements, currentAnalysis, analysisHistory, transactions]);
 
-  // Bank distribution for pie chart
+  // Bank distribution for pie chart — premium palette
   const bankDistribution = useMemo(() => {
     const distribution: Record<string, number> = {};
     transactions.forEach((t) => {
@@ -177,7 +177,7 @@ export function DashboardPage() {
       .map(([name, value], i) => ({
         name,
         value,
-        color: ['#171717', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#737373'][i % 6],
+        color: ['#0f0e0a', '#c9954a', '#1e2640', '#dec078', '#475066', '#8e8675'][i % 6],
       }))
       .slice(0, 6);
   }, [transactions, banks]);
@@ -209,165 +209,129 @@ export function DashboardPage() {
     : 0;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-6">
+      {/* Header — premium editorial */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-xl font-bold text-primary-900">Tableau de bord</h1>
-          <p className="text-sm text-primary-500">Vue d'ensemble de l'activité du cabinet</p>
+          <p className="page-eyebrow mb-2">Vue d'ensemble</p>
+          <h1 className="text-3xl font-bold text-ink-900 tracking-tight">Tableau de bord</h1>
+          <p className="text-sm text-ink-500 mt-1">Activité, anomalies et performance du cabinet</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => navigate('/analyses')}>
-            <Search className="w-4 h-4 mr-1" />
+            <Search className="w-4 h-4" />
             Nouvelle analyse
           </Button>
           <Button size="sm" onClick={() => navigate('/import')}>
-            <Plus className="w-4 h-4 mr-1" />
+            <Plus className="w-4 h-4" />
             Importer
           </Button>
         </div>
       </div>
 
-      {/* Primary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-3 bg-gradient-to-br from-primary-900 to-primary-800 text-white">
-          <div className="flex items-center justify-between">
+      {/* Primary KPI Cards — premium */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Featured: clients (ink card) */}
+        <div className="relative overflow-hidden rounded-card bg-gradient-to-br from-ink-800 via-ink-900 to-ink-950 text-white p-5 shadow-elevated sheen">
+          <div
+            aria-hidden="true"
+            className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-accent-500/15 blur-2xl"
+          />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-400/60 to-transparent" />
+          <div className="relative flex items-start justify-between">
             <div>
-              <p className="text-xs text-primary-300">Clients actifs</p>
-              <p className="text-2xl font-bold">{stats.clients}</p>
-              <p className="text-xs text-primary-400">{stats.statements} relevés</p>
+              <p className="text-[10px] font-semibold text-accent-300 uppercase tracking-[0.14em]">Clients actifs</p>
+              <p className="mt-2 text-4xl font-bold tracking-tight tabular-nums">{stats.clients}</p>
+              <p className="mt-1 text-xs text-white/60">{stats.statements} relevés</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-              <Users className="w-5 h-5" />
+            <div className="w-11 h-11 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center border border-white/10">
+              <Users className="w-5 h-5 text-accent-200" />
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-primary-500">Anomalies ce mois</p>
-              <p className="text-2xl font-bold text-primary-900">{stats.anomaliesThisMonth}</p>
-              <div className="flex items-center gap-1">
+        <PremiumKpi
+          label="Anomalies ce mois"
+          value={stats.anomaliesThisMonth}
+          icon={AlertTriangle}
+          trend={
+            anomalyGrowth !== 0 ? (
+              <span
+                className={`inline-flex items-center gap-0.5 text-xs font-semibold ${
+                  anomalyGrowth > 0 ? 'text-red-600' : 'text-emerald-600'
+                }`}
+              >
                 {anomalyGrowth > 0 ? (
-                  <ArrowUpRight className="w-3 h-3 text-primary-500" />
-                ) : anomalyGrowth < 0 ? (
-                  <ArrowDownRight className="w-3 h-3 text-primary-500" />
-                ) : null}
-                <span className={`text-xs ${anomalyGrowth > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                  {anomalyGrowth > 0 ? '+' : ''}{anomalyGrowth}%
-                </span>
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-primary-600" />
-            </div>
-          </div>
-        </Card>
+                  <ArrowUpRight className="w-3 h-3" />
+                ) : (
+                  <ArrowDownRight className="w-3 h-3" />
+                )}
+                {anomalyGrowth > 0 ? '+' : ''}{anomalyGrowth}%
+              </span>
+            ) : null
+          }
+        />
 
-        <Card className="p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-primary-500">Economies realisees</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(stats.totalSavings, 'XAF')}</p>
-              <p className="text-xs text-primary-400">+{formatCurrency(stats.potentialSavings, 'XAF')}</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
-              <PiggyBank className="w-5 h-5 text-primary-600" />
-            </div>
-          </div>
-        </Card>
+        <PremiumKpi
+          label="Économies réalisées"
+          value={formatCurrency(stats.totalSavings, 'XAF')}
+          accent
+          icon={PiggyBank}
+          subtitle={`+${formatCurrency(stats.potentialSavings, 'XAF')} potentielles`}
+        />
 
-        <Card className="p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-primary-500">Taux de confirmation</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.confirmedRate}%</p>
-              <p className="text-xs text-primary-400">{stats.allAnomalies.filter((a) => a.status === 'confirmed').length}/{stats.allAnomalies.length}</p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
-              <Target className="w-5 h-5 text-primary-600" />
-            </div>
-          </div>
-        </Card>
+        <PremiumKpi
+          label="Taux de confirmation"
+          value={`${stats.confirmedRate}%`}
+          icon={Target}
+          subtitle={`${stats.allAnomalies.filter((a) => a.status === 'confirmed').length}/${stats.allAnomalies.length}`}
+          progress={stats.confirmedRate}
+        />
       </div>
 
-      {/* Critical Alerts Banner */}
+      {/* Critical Alerts Banner — premium */}
       {stats.criticalCount > 0 && (
-        <Card className="p-3 bg-red-50 border-red-200">
+        <div className="relative overflow-hidden rounded-card border border-red-200/70 bg-gradient-to-r from-red-50 via-red-50/70 to-amber-50/50 p-4 shadow-card animate-fade-in">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/70 to-transparent" />
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
-                <ShieldAlert className="w-4 h-4 text-primary-600" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-card">
+                <ShieldAlert className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-red-800">
-                  {stats.criticalCount} anomalie{stats.criticalCount > 1 ? 's' : ''} critique{stats.criticalCount > 1 ? 's' : ''}
+                <p className="text-sm font-semibold text-red-900 tracking-tight">
+                  {stats.criticalCount} anomalie{stats.criticalCount > 1 ? 's' : ''} critique{stats.criticalCount > 1 ? 's' : ''} détectée{stats.criticalCount > 1 ? 's' : ''}
                 </p>
-                <p className="text-xs text-red-600">Action immediate requise</p>
+                <p className="text-xs text-red-700">Action immédiate requise</p>
               </div>
             </div>
-            <Button variant="primary" size="sm" className="bg-red-600 hover:bg-red-700" onClick={() => navigate('/analyses')}>
+            <Button variant="danger" size="sm" onClick={() => navigate('/analyses')}>
               Voir
+              <ArrowRight className="w-3 h-3" />
             </Button>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Secondary Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-primary-600" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-red-600">{stats.criticalCount}</p>
-              <p className="text-xs text-primary-500">Critiques</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4 text-primary-600" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-orange-600">{stats.highCount}</p>
-              <p className="text-xs text-primary-500">Hautes</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
-              <Activity className="w-4 h-4 text-primary-600" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-yellow-600">{stats.mediumCount}</p>
-              <p className="text-xs text-primary-500">Moyennes</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-2.5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4 text-primary-600" />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-green-600">{stats.lowCount}</p>
-              <p className="text-xs text-primary-500">Basses</p>
-            </div>
-          </div>
-        </Card>
-      </div>
+      {/* Severity strip — single elegant row */}
+      <Card className="p-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-primary-100/70">
+          <SeverityCell icon={Zap} label="Critiques" value={stats.criticalCount} tone="red" />
+          <SeverityCell icon={AlertTriangle} label="Hautes" value={stats.highCount} tone="orange" />
+          <SeverityCell icon={Activity} label="Moyennes" value={stats.mediumCount} tone="amber" />
+          <SeverityCell icon={CheckCircle2} label="Basses" value={stats.lowCount} tone="emerald" />
+        </div>
+      </Card>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Evolution Chart */}
         <Card>
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm">Evolution mensuelle</CardTitle>
+          <CardHeader className="py-3">
+            <div>
+              <p className="page-eyebrow text-[10px]">Tendance</p>
+              <CardTitle className="text-sm mt-0.5">Évolution mensuelle</CardTitle>
+            </div>
           </CardHeader>
           <CardBody className="pt-0">
             <div style={{ width: '100%', height: 192 }}>
@@ -375,20 +339,20 @@ export function DashboardPage() {
                 <AreaChart data={stats.monthlyTrend}>
                   <defs>
                     <linearGradient id="colorAnomalies" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#171717" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#171717" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#0f0e0a" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#0f0e0a" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorSavings" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#059669" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                  <XAxis dataKey="month" stroke="#737373" fontSize={12} />
-                  <YAxis yAxisId="left" stroke="#737373" fontSize={12} />
-                  <YAxis yAxisId="right" orientation="right" stroke="#22c55e" fontSize={12} tickFormatter={(v) => `${v / 1000}k`} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(218 214 200 / 0.5)" />
+                  <XAxis dataKey="month" stroke="#475066" fontSize={11} tickLine={false} axisLine={{ stroke: 'rgb(218 214 200 / 0.5)' }} />
+                  <YAxis yAxisId="left" stroke="#475066" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#059669" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '8px' }}
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid rgb(218 214 200)', borderRadius: '12px', boxShadow: '0 12px 32px -8px rgb(15 14 10 / 0.12)', fontSize: 12 }}
                     formatter={(value: number, name: string) => [
                       name === 'savings' ? formatCurrency(value, 'XAF') : value,
                       name === 'savings' ? 'Economies' : name === 'anomalies' ? 'Anomalies' : 'Critiques'
@@ -399,7 +363,8 @@ export function DashboardPage() {
                     yAxisId="left"
                     type="monotone"
                     dataKey="anomalies"
-                    stroke="#171717"
+                    stroke="#0f0e0a"
+                    strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorAnomalies)"
                     name="Anomalies"
@@ -408,19 +373,20 @@ export function DashboardPage() {
                     yAxisId="left"
                     type="monotone"
                     dataKey="critical"
-                    stroke="#ef4444"
+                    stroke="#dc2626"
                     strokeWidth={2}
-                    dot={{ fill: '#ef4444' }}
+                    dot={{ fill: '#dc2626', r: 3 }}
                     name="Critiques"
                   />
                   <Area
                     yAxisId="right"
                     type="monotone"
                     dataKey="savings"
-                    stroke="#22c55e"
+                    stroke="#059669"
+                    strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorSavings)"
-                    name="Economies"
+                    name="Économies"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -430,23 +396,28 @@ export function DashboardPage() {
 
         {/* Anomaly Types Distribution */}
         <Card>
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm">Types d'anomalies</CardTitle>
+          <CardHeader className="py-3">
+            <div>
+              <p className="page-eyebrow text-[10px]">Distribution</p>
+              <CardTitle className="text-sm mt-0.5">Types d'anomalies</CardTitle>
+            </div>
           </CardHeader>
           <CardBody className="pt-0">
-            <div className="space-y-2">
+            <div className="space-y-3">
               {topAnomalyTypes.length > 0 ? (
                 topAnomalyTypes.map((item, idx) => (
-                  <div key={item.type} className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-primary-400 w-5">#{idx + 1}</span>
+                  <div key={item.type} className="flex items-center gap-3 group">
+                    <span className="text-[10px] font-bold text-accent-600 w-6 tabular-nums">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
                     <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-primary-900">{item.label}</span>
-                        <span className="text-xs font-bold text-primary-900">{item.count}</span>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-ink-900 tracking-tight">{item.label}</span>
+                        <span className="text-xs font-bold text-ink-900 tabular-nums">{item.count}</span>
                       </div>
-                      <div className="h-1.5 bg-primary-100 rounded-full overflow-hidden mt-0.5">
+                      <div className="h-1.5 bg-canvas-200 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary-900 rounded-full"
+                          className="h-full bg-gradient-to-r from-ink-700 to-ink-900 rounded-full transition-all duration-700 ease-premium group-hover:from-accent-500 group-hover:to-accent-700"
                           style={{ width: `${(item.count / Math.max(...topAnomalyTypes.map((t) => t.count))) * 100}%` }}
                         />
                       </div>
@@ -454,7 +425,7 @@ export function DashboardPage() {
                   </div>
                 ))
               ) : (
-                <div className="text-center py-4 text-primary-500 text-sm">Aucune anomalie</div>
+                <div className="text-center py-6 text-ink-400 text-sm">Aucune anomalie</div>
               )}
             </div>
           </CardBody>
@@ -491,32 +462,42 @@ export function DashboardPage() {
 
         {/* Top Clients by Savings */}
         <Card className="lg:col-span-2">
-          <CardHeader className="py-2" action={<Button variant="ghost" size="sm" onClick={() => navigate('/clients')}>Voir <ArrowRight className="w-3 h-3 ml-1" /></Button>}>
-            <CardTitle className="text-sm">Top clients</CardTitle>
+          <CardHeader className="py-3" action={<Button variant="ghost" size="sm" onClick={() => navigate('/clients')}>Voir tous <ArrowRight className="w-3 h-3 ml-1" /></Button>}>
+            <div>
+              <p className="page-eyebrow text-[10px]">Performance</p>
+              <CardTitle className="text-sm mt-0.5">Top clients</CardTitle>
+            </div>
           </CardHeader>
           <CardBody className="p-0">
-            <div className="divide-y divide-primary-100">
+            <div className="divide-y divide-primary-100/60">
               {stats.clientRiskScores
                 .sort((a, b) => b.savings - a.savings)
                 .slice(0, 4)
                 .map((client, idx) => (
-                  <div key={client.id} className="px-4 py-2 flex items-center gap-3 hover:bg-primary-50 cursor-pointer" onClick={() => navigate(`/clients/${client.id}`)}>
-                    <div className="w-6 h-6 rounded bg-primary-900 flex items-center justify-center text-white font-bold text-xs">{idx + 1}</div>
+                  <div
+                    key={client.id}
+                    className="group px-5 py-3 flex items-center gap-3 hover:bg-canvas-50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/clients/${client.id}`)}
+                  >
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[11px] tabular-nums ${
+                      idx === 0 ? 'bg-gradient-to-br from-accent-400 to-accent-600 shadow-glow' :
+                      'bg-gradient-to-br from-ink-700 to-ink-900'
+                    }`}>{idx + 1}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-primary-900 truncate">{client.name}</p>
-                      <p className="text-xs text-primary-500">{client.anomalyCount} anomalies</p>
+                      <p className="text-sm font-semibold text-ink-900 tracking-tight truncate group-hover:text-accent-700 transition-colors">{client.name}</p>
+                      <p className="text-xs text-ink-500">{client.anomalyCount} anomalies détectées</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-green-600">{formatCurrency(client.savings, 'XAF')}</p>
-                      <div className="flex items-center gap-1 justify-end">
-                        <div className={`w-1.5 h-1.5 rounded-full ${client.riskScore > 60 ? 'bg-red-500' : client.riskScore > 30 ? 'bg-yellow-500' : 'bg-green-500'}`} />
-                        <span className="text-xs text-primary-500">{client.riskScore}%</span>
+                      <p className="text-sm font-bold text-emerald-700 tabular-nums">{formatCurrency(client.savings, 'XAF')}</p>
+                      <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${client.riskScore > 60 ? 'bg-red-500' : client.riskScore > 30 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                        <span className="text-[11px] text-ink-500 tabular-nums">{client.riskScore}%</span>
                       </div>
                     </div>
                   </div>
                 ))}
               {stats.clientRiskScores.length === 0 && (
-                <div className="px-4 py-4 text-center text-primary-500 text-sm">Aucun client</div>
+                <div className="px-4 py-6 text-center text-ink-400 text-sm">Aucun client</div>
               )}
             </div>
           </CardBody>
@@ -525,76 +506,167 @@ export function DashboardPage() {
 
       {/* Pending Analysis Banner */}
       {stats.pendingStatements > 0 && (
-        <Card className="p-3 bg-blue-50 border-blue-200">
+        <div className="relative overflow-hidden rounded-card border border-blue-200/60 bg-gradient-to-r from-blue-50 via-blue-50/60 to-canvas-50 p-4 shadow-card">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-400/60 to-transparent" />
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
-                <FileSearch className="w-4 h-4 text-primary-600" />
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-card">
+                <FileSearch className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-blue-800">{stats.pendingStatements} releve{stats.pendingStatements > 1 ? 's' : ''} en attente</p>
-                <p className="text-xs text-blue-600">Lancer l'analyse</p>
+                <p className="text-sm font-semibold text-blue-900 tracking-tight">
+                  {stats.pendingStatements} relevé{stats.pendingStatements > 1 ? 's' : ''} en attente
+                </p>
+                <p className="text-xs text-blue-700">Lancer l'analyse pour découvrir les anomalies</p>
               </div>
             </div>
-            <Button variant="primary" size="sm" onClick={() => navigate('/analyses')}>Analyser</Button>
+            <Button variant="primary" size="sm" onClick={() => navigate('/analyses')}>
+              Analyser
+              <ArrowRight className="w-3 h-3" />
+            </Button>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Quick Actions & Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Quick Actions */}
         <Card>
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm">Actions rapides</CardTitle>
+          <CardHeader className="py-3">
+            <div>
+              <p className="page-eyebrow text-[10px]">Raccourcis</p>
+              <CardTitle className="text-sm mt-0.5">Actions rapides</CardTitle>
+            </div>
           </CardHeader>
           <CardBody className="space-y-2 pt-0">
             <Button variant="primary" size="sm" className="w-full justify-start" onClick={() => navigate('/import')}>
-              <Plus className="w-4 h-4 mr-1" />Nouvel Audit
+              <Plus className="w-4 h-4" />Nouvel Audit
             </Button>
             <Button variant="secondary" size="sm" className="w-full justify-start" onClick={() => navigate('/reports')}>
-              <FileText className="w-4 h-4 mr-1" />Rapport
+              <FileText className="w-4 h-4" />Rapport
             </Button>
             <Button variant="secondary" size="sm" className="w-full justify-start" onClick={() => navigate('/clients')}>
-              <Users className="w-4 h-4 mr-1" />Client
+              <Users className="w-4 h-4" />Client
             </Button>
             <Button variant="secondary" size="sm" className="w-full justify-start" onClick={() => navigate('/banks')}>
-              <Landmark className="w-4 h-4 mr-1" />Banques
+              <Landmark className="w-4 h-4" />Banques
             </Button>
           </CardBody>
         </Card>
 
         {/* Volume Stats */}
         <Card className="lg:col-span-2">
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm">Volume d'activite</CardTitle>
+          <CardHeader className="py-3">
+            <div>
+              <p className="page-eyebrow text-[10px]">Mesures</p>
+              <CardTitle className="text-sm mt-0.5">Volume d'activité</CardTitle>
+            </div>
           </CardHeader>
           <CardBody className="pt-0">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="text-center p-2 bg-primary-50 rounded-lg">
-                <BarChart3 className="w-4 h-4 text-primary-600 mx-auto mb-1" />
-                <p className="text-lg font-bold text-primary-900">{transactions.length}</p>
-                <p className="text-xs text-primary-500">Transactions</p>
-              </div>
-              <div className="text-center p-2 bg-primary-50 rounded-lg">
-                <FileText className="w-4 h-4 text-primary-600 mx-auto mb-1" />
-                <p className="text-lg font-bold text-primary-900">{stats.analyzedStatements}</p>
-                <p className="text-xs text-primary-500">Analyses</p>
-              </div>
-              <div className="text-center p-2 bg-primary-50 rounded-lg">
-                <TrendingUp className="w-4 h-4 text-primary-600 mx-auto mb-1" />
-                <p className="text-sm font-bold text-primary-900">{formatCurrency(stats.totalTransactionVolume, 'XAF')}</p>
-                <p className="text-xs text-primary-500">Volume</p>
-              </div>
-              <div className="text-center p-2 bg-primary-50 rounded-lg">
-                <Calendar className="w-4 h-4 text-primary-600 mx-auto mb-1" />
-                <p className="text-lg font-bold text-primary-900">{invoices.length}</p>
-                <p className="text-xs text-primary-500">Factures</p>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <VolumeCell icon={BarChart3} value={transactions.length} label="Transactions" />
+              <VolumeCell icon={FileText} value={stats.analyzedStatements} label="Analyses" />
+              <VolumeCell icon={TrendingUp} value={formatCurrency(stats.totalTransactionVolume, 'XAF')} label="Volume" small />
+              <VolumeCell icon={Calendar} value={invoices.length} label="Factures" />
             </div>
           </CardBody>
         </Card>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================================
+   Premium helper components — Dashboard
+   ============================================================================ */
+
+interface PremiumKpiProps {
+  label: string;
+  value: string | number;
+  icon: typeof Users;
+  subtitle?: string;
+  trend?: React.ReactNode;
+  accent?: boolean;
+  progress?: number;
+}
+
+function PremiumKpi({ label, value, icon: Icon, subtitle, trend, accent, progress }: PremiumKpiProps) {
+  return (
+    <div className="relative overflow-hidden rounded-card bg-white border border-primary-100/70 p-5 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 ease-premium">
+      {accent && (
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-400/70 to-transparent" />
+      )}
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold text-ink-500 uppercase tracking-[0.14em]">{label}</p>
+          <p className={`mt-2 text-3xl font-bold tracking-tight tabular-nums truncate ${
+            accent ? 'text-emerald-700' : 'text-ink-900'
+          }`}>{value}</p>
+          {subtitle && <p className="mt-1 text-xs text-ink-400 truncate">{subtitle}</p>}
+          {trend && <div className="mt-1.5">{trend}</div>}
+        </div>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
+          accent
+            ? 'bg-gradient-to-br from-accent-50 to-accent-100 border-accent-200/60 text-accent-700'
+            : 'bg-canvas-100 border-primary-200/60 text-ink-700'
+        }`}>
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+      {typeof progress === 'number' && (
+        <div className="mt-4 h-1 bg-canvas-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-ink-700 to-accent-500 transition-all duration-700 ease-premium"
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface SeverityCellProps {
+  icon: typeof Users;
+  label: string;
+  value: number;
+  tone: 'red' | 'orange' | 'amber' | 'emerald';
+}
+
+function SeverityCell({ icon: Icon, label, value, tone }: SeverityCellProps) {
+  const tones: Record<SeverityCellProps['tone'], { dot: string; text: string; bg: string }> = {
+    red: { dot: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50' },
+    orange: { dot: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50' },
+    amber: { dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' },
+    emerald: { dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+  };
+  const t = tones[tone];
+  return (
+    <div className="flex items-center gap-3 px-5 py-4">
+      <div className={`relative w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center`}>
+        <Icon className={`w-5 h-5 ${t.text}`} />
+        <span className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${t.dot} ring-2 ring-white`} />
+      </div>
+      <div>
+        <p className={`text-2xl font-bold tabular-nums tracking-tight ${t.text}`}>{value}</p>
+        <p className="text-[11px] font-medium text-ink-500 uppercase tracking-wider">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+interface VolumeCellProps {
+  icon: typeof Users;
+  value: number | string;
+  label: string;
+  small?: boolean;
+}
+
+function VolumeCell({ icon: Icon, value, label, small }: VolumeCellProps) {
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-canvas-50 border border-primary-100/60 p-3 group hover:border-accent-300/40 hover:bg-white transition-all duration-200 ease-premium">
+      <Icon className="w-4 h-4 text-ink-500 mb-1.5 group-hover:text-accent-600 transition-colors" />
+      <p className={`font-bold text-ink-900 tabular-nums tracking-tight ${small ? 'text-sm' : 'text-xl'}`}>{value}</p>
+      <p className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider mt-0.5">{label}</p>
     </div>
   );
 }
