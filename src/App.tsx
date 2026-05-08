@@ -16,6 +16,9 @@ import { AlertCircle } from 'lucide-react';
 
 const ExternalAuthPage = lazy(() => import('./pages/auth/ExternalAuthPage'));
 
+// Public landing page (marketing) — no auth required
+const LandingPage = lazy(() => import('./components/landing').then(m => ({ default: m.LandingPage })));
+
 // Lazy load all pages for code splitting
 const HomePage = lazy(() => import('./components/home').then(m => ({ default: m.HomePage })));
 const DashboardPage = lazy(() => import('./components/dashboard').then(m => ({ default: m.DashboardPage })));
@@ -211,6 +214,15 @@ function AppRoutes() {
     return (
       <Suspense fallback={<PageLoader />}>
         <ExternalAuthPage />
+      </Suspense>
+    );
+  }
+
+  // Public landing page — accessible without auth
+  if (location.pathname === '/landing') {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <LandingPage />
       </Suspense>
     );
   }
