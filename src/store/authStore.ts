@@ -186,6 +186,17 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
     set({ isLoading: true, error: null });
 
+    // Purge stale session-timeout flags from any previous session.
+    // useSessionTimeout reads `atlasbanx_last_activity` on mount; if a stale
+    // value (> 30min old) leaks across logins it triggers an immediate
+    // signOut+reload loop right after a successful login.
+    try {
+      sessionStorage.removeItem('atlasbanx_last_activity');
+      sessionStorage.removeItem('atlasbanx_session_expired');
+    } catch {
+      /* ignore — sessionStorage may be unavailable in some contexts */
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
