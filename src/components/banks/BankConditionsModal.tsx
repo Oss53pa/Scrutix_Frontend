@@ -34,7 +34,9 @@ import {
 import { Button, Badge } from '../ui';
 import type { Bank, BankConditions, ArchivedDocument } from '../../types';
 import { AFRICAN_COUNTRIES, ZONE_CURRENCIES } from '../../types';
-import { pdfExtractionService, type ExtractionResult } from '../../services/PdfExtractionService';
+import { getDocumentEngine, type ExtractionReport } from '../../extraction';
+import { setByPath } from '../../extraction/normalize';
+import { ExtractionReportPanel } from './ExtractionReportPanel';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types pour les frais personnalisés
@@ -415,7 +417,8 @@ export function BankConditionsModal({
   const [activeTab, setActiveTab] = useState<TabId>('compte');
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
+  const [extractionReport, setExtractionReport] = useState<ExtractionReport | null>(null);
+  const [extractionProgress, setExtractionProgress] = useState<{ stage: string; pct: number; message: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -541,19 +544,25 @@ export function BankConditionsModal({
     setHasChanges(false);
   };
 
-  // Upload PDF
+  // Upload document — supports PDF (native + scanned), Excel, image
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.includes('pdf')) return;
+    if (!file) return;
 
     setIsUploading(true);
-    setExtractionResult(null);
+    setExtractionReport(null);
+    setExtractionProgress(null);
 
     try {
       const base64 = await fileToBase64(file);
       setIsExtracting(true);
-      const result = await pdfExtractionService.extractFromFile(file);
-      setExtractionResult(result);
+
+      const engine = getDocumentEngine();
+      const report = await engine.extract(file, {
+        bankCode: bank?.code,
+        onProgress: (p) => setExtractionProgress(p),
+      });
+      setExtractionReport(report);
 
       const document: ArchivedDocument = {
         id: `doc-${Date.now()}`,
@@ -563,7 +572,7 @@ export function BankConditionsModal({
         effectiveDate: new Date(),
         fileData: base64,
         fileSize: file.size,
-        extractedAt: result.success ? new Date() : undefined,
+        extractedAt: report.success && report.stats.extracted > 0 ? new Date() : undefined,
         isActive: true,
       };
 
@@ -575,15 +584,29 @@ export function BankConditionsModal({
 
     } catch (error) {
       console.error('Erreur upload:', error);
-      setExtractionResult({
-        success: false,
-        error: error instanceof Error ? error.message : 'Erreur inconnue',
-        confidence: 0,
-      });
     } finally {
       setIsUploading(false);
       setIsExtracting(false);
+      setExtractionProgress(null);
     }
+  };
+
+  /**
+   * Write the extracted values into the conditions form. Only fields with
+   * a non-default strategy get applied — defaults are skipped to preserve
+   * any manual edits the user has made.
+   */
+  const handleApplyExtraction = (values: Record<string, number | string | boolean | null>) => {
+    setConditions(prev => {
+      // Deep clone — we use setByPath which mutates
+      const next = JSON.parse(JSON.stringify(prev)) as Record<string, unknown>;
+      for (const [key, value] of Object.entries(values)) {
+        if (value === null || value === undefined) continue;
+        setByPath(next, key, value);
+      }
+      return next as typeof prev;
+    });
+    setHasChanges(true);
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -1694,47 +1717,51 @@ export function BankConditionsModal({
                   <>
                     <Upload className="w-12 h-12 text-primary-400 mx-auto mb-4" />
                     <p className="text-lg font-medium text-primary-900">
-                      Importer un PDF de conditions bancaires
+                      Importer un document de conditions tarifaires
                     </p>
                     <p className="text-sm text-primary-500 mt-2">
-                      Cliquez ou glissez-déposez un fichier PDF
+                      PDF · Excel · Image — extraction automatique multi-format
                     </p>
                   </>
                 )}
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.tiff,.bmp,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
               </div>
 
-              {/* Résultat extraction */}
-              {extractionResult && (
-                <div className={`rounded-lg p-4 ${
-                  extractionResult.success
-                    ? 'bg-green-50 border border-green-200'
-                    : 'bg-red-50 border border-red-200'
-                }`}>
-                  <div className="flex items-center gap-3">
-                    {extractionResult.success ? (
-                      <Sparkles className="w-5 h-5 text-primary-600" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-primary-600" />
-                    )}
-                    <div>
-                      <p className={`font-medium ${extractionResult.success ? 'text-green-800' : 'text-red-800'}`}>
-                        {extractionResult.success ? 'Extraction réussie' : 'Erreur d\'extraction'}
+              {/* Progress en cours d'extraction */}
+              {isExtracting && extractionProgress && (
+                <div className="rounded-lg p-4 bg-canvas-50 border border-primary-200/60 flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 text-accent-600 animate-spin shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-sm font-medium text-ink-900 truncate">
+                        {extractionProgress.message}
                       </p>
-                      {extractionResult.success && (
-                        <p className="text-sm text-green-700">
-                          Confiance: {extractionResult.confidence}%
-                        </p>
-                      )}
+                      <p className="text-xs text-ink-500 tabular-nums shrink-0 ml-2">
+                        {Math.round(extractionProgress.pct * 100)}%
+                      </p>
+                    </div>
+                    <div className="h-1.5 bg-canvas-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-ink-700 to-accent-500 transition-all duration-300 ease-premium"
+                        style={{ width: `${Math.round(extractionProgress.pct * 100)}%` }}
+                      />
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Rapport d'extraction premium */}
+              {extractionReport && !isExtracting && (
+                <ExtractionReportPanel
+                  report={extractionReport}
+                  onApply={handleApplyExtraction}
+                />
               )}
 
               {/* Liste des documents */}
