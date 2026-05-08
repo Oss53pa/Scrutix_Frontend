@@ -1,6 +1,32 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Anomaly } from '../types';
+import { reportsRepo } from '../lib/repositories';
+import type { ReportDraft as RepoReportDraft, GeneratedReport as RepoGeneratedReport } from '../lib/repositories';
+import { useAuthStore } from './authStore';
+
+function currentUserId(): string | null {
+  return useAuthStore.getState().user?.id ?? null;
+}
+
+function isDemoMode(): boolean {
+  return useAuthStore.getState().isDemoMode;
+}
+
+// Debounced draft persistence — coalesces rapid mutations into one upsert
+let draftSyncTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleDraftSync(getDraft: () => ReportDraft | null) {
+  if (isDemoMode()) return;
+  const userId = currentUserId();
+  if (!userId) return;
+  if (draftSyncTimer) clearTimeout(draftSyncTimer);
+  draftSyncTimer = setTimeout(() => {
+    const draft = getDraft();
+    reportsRepo
+      .upsertDraft(userId, draft as unknown as RepoReportDraft | null)
+      .catch((err) => console.error('[reportStore] draft sync failed:', err));
+  }, 400);
+}
 
 interface ReportDraft {
   id: string;
@@ -45,6 +71,12 @@ interface ReportStore {
   // Generated reports history
   generatedReports: GeneratedReport[];
 
+  // Hydration
+  isHydrating: boolean;
+  hydratedForUserId: string | null;
+  hydrateFromSupabase: () => Promise<void>;
+  resetState: () => void;
+
   // Actions
   createDraft: (clientId: string, clientName: string) => void;
   updateDraft: (updates: Partial<ReportDraft>) => void;
@@ -77,6 +109,39 @@ export const useReportStore = create<ReportStore>()(
     (set, get) => ({
       currentDraft: null,
       generatedReports: [],
+      isHydrating: false,
+      hydratedForUserId: null,
+
+      hydrateFromSupabase: async () => {
+        const userId = currentUserId();
+        if (!userId) return;
+        if (get().hydratedForUserId === userId) return;
+        set({ isHydrating: true });
+        try {
+          const [draft, generated] = await Promise.all([
+            reportsRepo.fetchDraft(userId),
+            reportsRepo.fetchGenerated(userId),
+          ]);
+          set({
+            currentDraft: draft as unknown as ReportDraft | null,
+            generatedReports: generated as unknown as GeneratedReport[],
+            isHydrating: false,
+            hydratedForUserId: userId,
+          });
+        } catch (err) {
+          console.error('[reportStore] hydrate failed:', err);
+          set({ isHydrating: false });
+        }
+      },
+
+      resetState: () => {
+        set({
+          currentDraft: null,
+          generatedReports: [],
+          isHydrating: false,
+          hydratedForUserId: null,
+        });
+      },
 
       createDraft: (clientId, clientName) => {
         const now = new Date();
@@ -285,15 +350,33 @@ export const useReportStore = create<ReportStore>()(
           };
         }),
 
-      addGeneratedReport: (report) =>
+      addGeneratedReport: (report) => {
         set((state) => ({
           generatedReports: [report, ...state.generatedReports],
-        })),
+        }));
+        if (!isDemoMode()) {
+          const userId = currentUserId();
+          if (userId) {
+            reportsRepo
+              .addGenerated(userId, report as unknown as RepoGeneratedReport)
+              .catch((err) => console.error('[reportStore] addGeneratedReport failed:', err));
+          }
+        }
+      },
 
-      deleteGeneratedReport: (reportId) =>
+      deleteGeneratedReport: (reportId) => {
         set((state) => ({
           generatedReports: state.generatedReports.filter(r => r.id !== reportId),
-        })),
+        }));
+        if (!isDemoMode()) {
+          const userId = currentUserId();
+          if (userId) {
+            reportsRepo
+              .removeGenerated(userId, reportId)
+              .catch((err) => console.error('[reportStore] deleteGeneratedReport failed:', err));
+          }
+        }
+      },
 
       getSelectedAnomaliesCount: () => {
         const draft = get().currentDraft;

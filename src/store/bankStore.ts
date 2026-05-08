@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import type { Bank, BankConditions, FeeSchedule, InterestRate, ArchivedDocument, ConditionGrid } from '../types';
+import { banksRepo } from '../lib/repositories';
+import { useAuthStore } from './authStore';
 
 // Types pour les zones monétaires
 export type MonetaryZone = 'CEMAC' | 'UEMOA';
@@ -117,6 +119,16 @@ interface BankState {
   banks: Bank[];
   selectedBankId: string | null;
 
+  // Hydration / sync (Supabase-backed)
+  isHydrating: boolean;
+  hydratedForUserId: string | null;
+  error: string | null;
+
+  hydrateFromSupabase: () => Promise<void>;
+  resetState: () => void;
+  /** Force-push all current banks to Supabase (used after migrations / first-time defaults) */
+  syncAllToSupabase: () => Promise<void>;
+
   // Bank CRUD
   addBank: (bank: Omit<Bank, 'id' | 'createdAt' | 'updatedAt'>) => Bank;
   updateBank: (id: string, updates: Partial<Bank>) => void;
@@ -156,11 +168,109 @@ interface BankState {
   initializeDefaults: () => void;
 }
 
+function currentUserId(): string | null {
+  return useAuthStore.getState().user?.id ?? null;
+}
+
+function isDemoMode(): boolean {
+  return useAuthStore.getState().isDemoMode;
+}
+
+/**
+ * Push a single bank to Supabase. Fire-and-forget — errors are logged
+ * but never thrown; the local state stays optimistic.
+ */
+function persistBank(bank: Bank | undefined): void {
+  if (!bank) return;
+  if (isDemoMode()) return;
+  const userId = currentUserId();
+  if (!userId) return;
+  banksRepo.upsert(userId, bank).catch((err) => {
+    console.error('[bankStore] persistBank failed:', err);
+  });
+}
+
+function deleteBankRemote(bankId: string): void {
+  if (isDemoMode()) return;
+  const userId = currentUserId();
+  if (!userId) return;
+  banksRepo.remove(userId, bankId).catch((err) => {
+    console.error('[bankStore] deleteBankRemote failed:', err);
+  });
+}
+
 export const useBankStore = create<BankState>()(
   persist(
     (set, get) => ({
       banks: [],
       selectedBankId: null,
+      isHydrating: false,
+      hydratedForUserId: null,
+      error: null,
+
+      hydrateFromSupabase: async () => {
+        const userId = currentUserId();
+        if (!userId) return;
+        if (get().hydratedForUserId === userId) return;
+
+        set({ isHydrating: true, error: null });
+        try {
+          const banks = await banksRepo.fetchAll(userId);
+          if (banks.length === 0) {
+            // First-time user — seed defaults locally and push to Supabase
+            const now = new Date();
+            const defaultBanks: Bank[] = DEFAULT_BANKS.map((b) => ({
+              ...b,
+              id: uuidv4(),
+              createdAt: now,
+              updatedAt: now,
+            }));
+            set({
+              banks: defaultBanks,
+              isHydrating: false,
+              hydratedForUserId: userId,
+            });
+            // Push defaults in background
+            banksRepo.upsertMany(userId, defaultBanks).catch((err) => {
+              console.error('[bankStore] seed defaults failed:', err);
+            });
+          } else {
+            set({
+              banks,
+              isHydrating: false,
+              hydratedForUserId: userId,
+            });
+          }
+        } catch (err) {
+          console.error('[bankStore] hydrate failed:', err);
+          set({
+            isHydrating: false,
+            error: err instanceof Error ? err.message : 'Erreur chargement banques',
+          });
+        }
+      },
+
+      resetState: () => {
+        set({
+          banks: [],
+          selectedBankId: null,
+          isHydrating: false,
+          hydratedForUserId: null,
+          error: null,
+        });
+      },
+
+      syncAllToSupabase: async () => {
+        const userId = currentUserId();
+        if (!userId || isDemoMode()) return;
+        const { banks } = get();
+        if (banks.length === 0) return;
+        try {
+          await banksRepo.upsertMany(userId, banks);
+        } catch (err) {
+          console.error('[bankStore] syncAllToSupabase failed:', err);
+        }
+      },
 
       addBank: (bankData) => {
         const now = new Date();
@@ -189,6 +299,7 @@ export const useBankStore = create<BankState>()(
           banks: state.banks.filter((b) => b.id !== id),
           selectedBankId: state.selectedBankId === id ? null : state.selectedBankId,
         }));
+        deleteBankRemote(id);
       },
 
       getBank: (id) => {
@@ -595,7 +706,11 @@ export const useBankStore = create<BankState>()(
       },
 
       initializeDefaults: () => {
+        // No-op when authenticated — defaults are seeded by hydrateFromSupabase
+        // on first login. Kept here for demo mode (no auth).
         const { banks } = get();
+        const userId = currentUserId();
+        if (userId) return; // Supabase path handles seeding
         if (banks.length === 0) {
           const now = new Date();
           const defaultBanks = DEFAULT_BANKS.map((b) => ({

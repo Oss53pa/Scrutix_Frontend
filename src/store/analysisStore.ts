@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Anomaly, AnalysisResult, AnalysisStatus, AnomalyType, Severity, FilterState, SortState } from '../types';
+import { analysesRepo } from '../lib/repositories';
+import { useAuthStore } from './authStore';
+
+function currentUserId(): string | null {
+  return useAuthStore.getState().user?.id ?? null;
+}
+
+function isDemoMode(): boolean {
+  return useAuthStore.getState().isDemoMode;
+}
 
 interface AnalysisStore {
   // State
@@ -9,6 +19,12 @@ interface AnalysisStore {
   isAnalyzing: boolean;
   progress: number;
   currentStep: string;
+
+  // Hydration
+  isHydrating: boolean;
+  hydratedForUserId: string | null;
+  hydrateFromSupabase: () => Promise<void>;
+  resetState: () => void;
 
   // Filters and sorting
   filters: FilterState;
@@ -64,8 +80,41 @@ export const useAnalysisStore = create<AnalysisStore>()(
       isAnalyzing: false,
       progress: 0,
       currentStep: '',
+      isHydrating: false,
+      hydratedForUserId: null,
       filters: defaultFilters,
       sort: defaultSort,
+
+      hydrateFromSupabase: async () => {
+        const userId = currentUserId();
+        if (!userId) return;
+        if (get().hydratedForUserId === userId) return;
+        set({ isHydrating: true });
+        try {
+          const { current, history } = await analysesRepo.fetchAll(userId);
+          set({
+            currentAnalysis: current,
+            analysisHistory: history,
+            isHydrating: false,
+            hydratedForUserId: userId,
+          });
+        } catch (err) {
+          console.error('[analysisStore] hydrate failed:', err);
+          set({ isHydrating: false });
+        }
+      },
+
+      resetState: () => {
+        set({
+          currentAnalysis: null,
+          analysisHistory: [],
+          isAnalyzing: false,
+          progress: 0,
+          currentStep: '',
+          isHydrating: false,
+          hydratedForUserId: null,
+        });
+      },
 
       // Actions
       startAnalysis: (config) =>
@@ -109,21 +158,35 @@ export const useAnalysisStore = create<AnalysisStore>()(
             : null,
         })),
 
-      completeAnalysis: (result) =>
+      completeAnalysis: (result) => {
+        const completedAt = new Date();
+        const completed: AnalysisResult = {
+          ...result,
+          status: AnalysisStatus.COMPLETED,
+          completedAt,
+        };
         set((state) => ({
-          currentAnalysis: {
-            ...result,
-            status: AnalysisStatus.COMPLETED,
-            completedAt: new Date(),
-          },
+          currentAnalysis: completed,
           analysisHistory: [
-            { ...result, status: AnalysisStatus.COMPLETED, completedAt: new Date() },
+            completed,
             ...state.analysisHistory.slice(0, 9), // Keep last 10 analyses
           ],
           isAnalyzing: false,
           progress: 100,
           currentStep: 'Analyse terminée',
-        })),
+        }));
+        // Persist to Supabase (fire-and-forget)
+        if (!isDemoMode()) {
+          const userId = currentUserId();
+          if (userId) {
+            analysesRepo
+              .create(userId, completed, { isCurrent: true })
+              .catch((err) => {
+                console.error('[analysisStore] persist completed analysis failed:', err);
+              });
+          }
+        }
+      },
 
       failAnalysis: (error) =>
         set((state) => ({
@@ -148,10 +211,10 @@ export const useAnalysisStore = create<AnalysisStore>()(
         }),
 
       // Anomaly actions
-      updateAnomalyStatus: (id, status, notes) =>
+      updateAnomalyStatus: (id, status, notes) => {
+        const reviewedAt = new Date();
         set((state) => {
           if (!state.currentAnalysis) return state;
-
           return {
             currentAnalysis: {
               ...state.currentAnalysis,
@@ -161,13 +224,25 @@ export const useAnalysisStore = create<AnalysisStore>()(
                       ...a,
                       status,
                       notes: notes || a.notes,
-                      reviewedAt: new Date(),
+                      reviewedAt,
                     }
                   : a
               ),
             },
           };
-        }),
+        });
+        // Persist anomaly decision (fire-and-forget)
+        if (!isDemoMode()) {
+          const userId = currentUserId();
+          if (userId) {
+            analysesRepo
+              .updateAnomaly(userId, id, { status, notes, decidedAt: reviewedAt })
+              .catch((err) => {
+                console.error('[analysisStore] updateAnomalyStatus persist failed:', err);
+              });
+          }
+        }
+      },
 
       dismissAnomaly: (id) => get().updateAnomalyStatus(id, 'dismissed'),
       confirmAnomaly: (id) => get().updateAnomalyStatus(id, 'confirmed'),

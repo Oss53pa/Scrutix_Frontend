@@ -5,6 +5,10 @@ import { ErrorBoundary } from './components/ui';
 import { useBankStore } from './store/bankStore';
 import { useClientStore } from './store/clientStore';
 import { useTransactionStore } from './store/transactionStore';
+import { useAnalysisStore } from './store/analysisStore';
+import { useReportStore } from './store/reportStore';
+import { banksRepo } from './lib/repositories';
+import type { Bank } from './types';
 import { LoginScreen } from './components/auth';
 import { SessionTimeoutModal } from './components/auth/SessionTimeoutModal';
 import { useAuthStore } from './store/authStore';
@@ -108,7 +112,13 @@ function SessionTimeoutGuard({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const { initializeDefaults } = useBankStore();
+  const initializeDefaults = useBankStore((s) => s.initializeDefaults);
+  const hydrateBanks = useBankStore((s) => s.hydrateFromSupabase);
+  const resetBanks = useBankStore((s) => s.resetState);
+  const hydrateAnalyses = useAnalysisStore((s) => s.hydrateFromSupabase);
+  const resetAnalyses = useAnalysisStore((s) => s.resetState);
+  const hydrateReports = useReportStore((s) => s.hydrateFromSupabase);
+  const resetReports = useReportStore((s) => s.resetState);
   const { isInitialized, isAuthenticated, isDemoMode, initialize, profile, user } = useAuthStore();
   const ensureSelfClient = useClientStore((s) => s.ensureSelfClient);
   const hydrateClients = useClientStore((s) => s.hydrateFromSupabase);
@@ -135,6 +145,9 @@ function App() {
       // Signed out or demo — clear local store state
       resetClients();
       resetTransactions();
+      resetBanks();
+      resetAnalyses();
+      resetReports();
       return;
     }
 
@@ -146,7 +159,13 @@ function App() {
         console.error('[App] migrateLocalToSupabase failed:', err);
       }
       if (cancelled) return;
-      await Promise.all([hydrateClients(), hydrateTransactions()]);
+      await Promise.all([
+        hydrateClients(),
+        hydrateTransactions(),
+        hydrateBanks(),
+        hydrateAnalyses(),
+        hydrateReports(),
+      ]);
     })();
 
     return () => {
@@ -158,9 +177,73 @@ function App() {
     user?.id,
     hydrateClients,
     hydrateTransactions,
+    hydrateBanks,
+    hydrateAnalyses,
+    hydrateReports,
     resetClients,
     resetTransactions,
+    resetBanks,
+    resetAnalyses,
+    resetReports,
   ]);
+
+  // ─── Bank store observer — diff & sync changes to Supabase ────────────────
+  // Bank mutations are scattered across many actions (addFee, addGrid, etc.).
+  // Rather than touching each, we subscribe to the store and push diffs.
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || isDemoMode) return;
+    let prev = useBankStore.getState().banks;
+    const unsubscribe = useBankStore.subscribe((state) => {
+      const next = state.banks;
+      if (next === prev) return;
+      const prevById = new Map(prev.map((b: Bank) => [b.id, b]));
+      const changed: Bank[] = [];
+      for (const b of next) {
+        const old = prevById.get(b.id);
+        if (!old) {
+          changed.push(b);
+        } else if (
+          old.updatedAt !== b.updatedAt ||
+          old.conditions !== b.conditions ||
+          old.conditionGrids !== b.conditionGrids ||
+          old.isActive !== b.isActive
+        ) {
+          changed.push(b);
+        }
+      }
+      if (changed.length > 0) {
+        banksRepo
+          .upsertMany(user.id, changed)
+          .catch((err) => console.error('[App] bank sync failed:', err));
+      }
+      prev = next;
+    });
+    return () => unsubscribe();
+  }, [isAuthenticated, isDemoMode, user?.id]);
+
+  // ─── Report draft observer — debounced sync of currentDraft ───────────────
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || isDemoMode) return;
+    let prevDraft = useReportStore.getState().currentDraft;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribe = useReportStore.subscribe((state) => {
+      if (state.currentDraft === prevDraft) return;
+      prevDraft = state.currentDraft;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        // Lazy import to avoid circular deps in build
+        import('./lib/repositories').then(({ reportsRepo }) => {
+          reportsRepo
+            .upsertDraft(user.id, prevDraft as Parameters<typeof reportsRepo.upsertDraft>[1])
+            .catch((err) => console.error('[App] draft sync failed:', err));
+        });
+      }, 500);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [isAuthenticated, isDemoMode, user?.id]);
 
   // Enterprise mode: ensure an implicit "self" client exists and is selected.
   // Runs once profile is loaded after auth. No-op for cabinet accounts.

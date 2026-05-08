@@ -267,6 +267,211 @@ export interface Database {
         };
         Update: Partial<Database['atlasbanx']['Tables']['transactions']['Insert']>;
       };
+      user_banks: {
+        Row: {
+          id: string;
+          user_id: string;
+          bank_id: string;
+          code: string;
+          name: string;
+          country: string;
+          is_active: boolean;
+          conditions: Record<string, unknown> | null;
+          condition_grids: Record<string, unknown>[];
+          documents: Record<string, unknown>[];
+          metadata: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          bank_id: string;
+          code: string;
+          name: string;
+          country: string;
+          is_active?: boolean;
+          conditions?: Record<string, unknown> | null;
+          condition_grids?: Record<string, unknown>[];
+          documents?: Record<string, unknown>[];
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['atlasbanx']['Tables']['user_banks']['Insert']>;
+      };
+      analyses: {
+        Row: {
+          id: string;
+          user_id: string;
+          client_id: string | null;
+          external_id: string | null;
+          status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+          config: Record<string, unknown>;
+          summary: Record<string, unknown>;
+          total_savings: number;
+          anomaly_count: number;
+          is_current: boolean;
+          started_at: string | null;
+          completed_at: string | null;
+          error: string | null;
+          metadata: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          client_id?: string | null;
+          external_id?: string | null;
+          status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+          config?: Record<string, unknown>;
+          summary?: Record<string, unknown>;
+          total_savings?: number;
+          anomaly_count?: number;
+          is_current?: boolean;
+          started_at?: string | null;
+          completed_at?: string | null;
+          error?: string | null;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['atlasbanx']['Tables']['analyses']['Insert']>;
+      };
+      anomalies: {
+        Row: {
+          id: string;
+          user_id: string;
+          analysis_id: string;
+          client_id: string | null;
+          external_id: string | null;
+          type: string;
+          severity: 'low' | 'medium' | 'high' | 'critical';
+          status: 'pending' | 'confirmed' | 'dismissed' | 'contested';
+          amount: number;
+          currency: string;
+          confidence: number;
+          description: string | null;
+          notes: string | null;
+          detected_at: string;
+          decided_at: string | null;
+          transactions: Record<string, unknown>[];
+          reasoning: Record<string, unknown>;
+          metadata: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          analysis_id: string;
+          client_id?: string | null;
+          external_id?: string | null;
+          type: string;
+          severity: 'low' | 'medium' | 'high' | 'critical';
+          status?: 'pending' | 'confirmed' | 'dismissed' | 'contested';
+          amount?: number;
+          currency?: string;
+          confidence?: number;
+          description?: string | null;
+          notes?: string | null;
+          detected_at?: string;
+          decided_at?: string | null;
+          transactions?: Record<string, unknown>[];
+          reasoning?: Record<string, unknown>;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['atlasbanx']['Tables']['anomalies']['Insert']>;
+      };
+      report_drafts: {
+        Row: {
+          id: string;
+          user_id: string;
+          client_id: string | null;
+          client_name: string;
+          title: string;
+          type: 'audit' | 'summary' | 'detailed' | 'recovery';
+          period_start: string | null;
+          period_end: string | null;
+          selected_anomalies: Record<string, unknown>[];
+          confirmed_anomalies: Record<string, unknown>[];
+          dismissed_anomalies: Record<string, unknown>[];
+          contested_anomalies: Record<string, unknown>[];
+          notes: string;
+          include_ai_analysis: boolean;
+          include_recommendations: boolean;
+          include_transaction_details: boolean;
+          metadata: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          client_id?: string | null;
+          client_name: string;
+          title: string;
+          type: 'audit' | 'summary' | 'detailed' | 'recovery';
+          period_start?: string | null;
+          period_end?: string | null;
+          selected_anomalies?: Record<string, unknown>[];
+          confirmed_anomalies?: Record<string, unknown>[];
+          dismissed_anomalies?: Record<string, unknown>[];
+          contested_anomalies?: Record<string, unknown>[];
+          notes?: string;
+          include_ai_analysis?: boolean;
+          include_recommendations?: boolean;
+          include_transaction_details?: boolean;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['atlasbanx']['Tables']['report_drafts']['Insert']>;
+      };
+      generated_reports: {
+        Row: {
+          id: string;
+          user_id: string;
+          client_id: string | null;
+          draft_id: string | null;
+          external_id: string | null;
+          title: string;
+          client_name: string;
+          type: 'audit' | 'summary' | 'detailed' | 'recovery';
+          format: 'pdf' | 'excel';
+          anomaly_count: number;
+          total_amount: number;
+          download_url: string | null;
+          storage_path: string | null;
+          integrity_hash: string | null;
+          metadata: Record<string, unknown>;
+          generated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          client_id?: string | null;
+          draft_id?: string | null;
+          external_id?: string | null;
+          title: string;
+          client_name: string;
+          type: 'audit' | 'summary' | 'detailed' | 'recovery';
+          format: 'pdf' | 'excel';
+          anomaly_count?: number;
+          total_amount?: number;
+          download_url?: string | null;
+          storage_path?: string | null;
+          integrity_hash?: string | null;
+          metadata?: Record<string, unknown>;
+          generated_at?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['atlasbanx']['Tables']['generated_reports']['Insert']>;
+      };
       audit_trail: {
         Row: {
           id: string;
@@ -350,3 +555,18 @@ export type DbBankStatementInsert = Database['atlasbanx']['Tables']['bank_statem
 
 export type DbTransaction = Database['atlasbanx']['Tables']['transactions']['Row'];
 export type DbTransactionInsert = Database['atlasbanx']['Tables']['transactions']['Insert'];
+
+export type DbUserBank = Database['atlasbanx']['Tables']['user_banks']['Row'];
+export type DbUserBankInsert = Database['atlasbanx']['Tables']['user_banks']['Insert'];
+
+export type DbAnalysis = Database['atlasbanx']['Tables']['analyses']['Row'];
+export type DbAnalysisInsert = Database['atlasbanx']['Tables']['analyses']['Insert'];
+
+export type DbAnomaly = Database['atlasbanx']['Tables']['anomalies']['Row'];
+export type DbAnomalyInsert = Database['atlasbanx']['Tables']['anomalies']['Insert'];
+
+export type DbReportDraft = Database['atlasbanx']['Tables']['report_drafts']['Row'];
+export type DbReportDraftInsert = Database['atlasbanx']['Tables']['report_drafts']['Insert'];
+
+export type DbGeneratedReport = Database['atlasbanx']['Tables']['generated_reports']['Row'];
+export type DbGeneratedReportInsert = Database['atlasbanx']['Tables']['generated_reports']['Insert'];

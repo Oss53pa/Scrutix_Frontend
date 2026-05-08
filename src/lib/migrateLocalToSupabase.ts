@@ -5,8 +5,9 @@
 // A per-user flag in localStorage prevents re-migration.
 // ============================================================================
 
-import { clientsRepo, transactionsRepo } from './repositories';
-import type { Client, BankStatement, Transaction, BankAccount } from '../types';
+import { clientsRepo, transactionsRepo, banksRepo, analysesRepo, reportsRepo } from './repositories';
+import type { Client, BankStatement, Transaction, BankAccount, Bank, AnalysisResult } from '../types';
+import type { ReportDraft as RepoReportDraft, GeneratedReport as RepoGeneratedReport } from './repositories';
 
 const FLAG_PREFIX = 'atlasbanx-migrated-to-supabase-';
 
@@ -148,6 +149,66 @@ export async function migrateLocalToSupabase(userId: string): Promise<{
       } catch (err) {
         console.error('[migrate] bulkInsert transactions failed:', err);
       }
+    }
+
+    // 6. Migrate banks (with grids, conditions, documents)
+    try {
+      const legacyBanks = readLegacy<{ banks?: Bank[] }>('atlasbanx-banks');
+      const banks = legacyBanks?.banks ?? [];
+      if (banks.length > 0) {
+        const remoteBanks = await banksRepo.fetchAll(userId);
+        if (remoteBanks.length === 0) {
+          await banksRepo.upsertMany(userId, banks);
+        }
+      }
+    } catch (err) {
+      console.error('[migrate] banks failed:', err);
+    }
+
+    // 7. Migrate analyses (current + history) and their anomalies
+    try {
+      const legacyAnalysis = readLegacy<{
+        currentAnalysis?: AnalysisResult | null;
+        analysisHistory?: AnalysisResult[];
+      }>('atlasbanx-analysis');
+      const current = legacyAnalysis?.currentAnalysis ?? null;
+      const history = legacyAnalysis?.analysisHistory ?? [];
+      const remote = await analysesRepo.fetchAll(userId);
+      if (remote.history.length === 0 && !remote.current) {
+        if (current) {
+          await analysesRepo.create(userId, current, { isCurrent: true });
+        }
+        for (const h of history) {
+          if (current && h.id === current.id) continue;
+          await analysesRepo.create(userId, h, { isCurrent: false });
+        }
+      }
+    } catch (err) {
+      console.error('[migrate] analyses failed:', err);
+    }
+
+    // 8. Migrate report drafts + generated reports
+    try {
+      const legacyReports = readLegacy<{
+        currentDraft?: RepoReportDraft | null;
+        generatedReports?: RepoGeneratedReport[];
+      }>('atlasbanx-reports');
+      const remoteDraft = await reportsRepo.fetchDraft(userId);
+      if (!remoteDraft && legacyReports?.currentDraft) {
+        await reportsRepo.upsertDraft(userId, legacyReports.currentDraft);
+      }
+      const remoteGenerated = await reportsRepo.fetchGenerated(userId);
+      if (remoteGenerated.length === 0 && legacyReports?.generatedReports) {
+        for (const r of legacyReports.generatedReports) {
+          try {
+            await reportsRepo.addGenerated(userId, r);
+          } catch (err) {
+            console.error('[migrate] addGenerated failed:', err);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[migrate] reports failed:', err);
     }
 
     localStorage.setItem(flagKey, 'true');
