@@ -1,4 +1,5 @@
-import * as pdfjsLib from 'pdfjs-dist';
+// Side-effect import: configures pdfjs worker once, locally bundled by Vite
+import { pdfjsLib } from './pdfjsWorker';
 import type {
   BankConditions,
   AccountFees,
@@ -9,9 +10,6 @@ import type {
   MiscFees,
   PenaltyFees,
 } from '../types';
-
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export interface ExtractionResult {
   success: boolean;

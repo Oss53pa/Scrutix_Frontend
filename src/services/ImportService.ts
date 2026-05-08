@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
-import * as pdfjsLib from 'pdfjs-dist';
+// Side-effect import: configures pdfjs worker once, locally bundled by Vite
+import { pdfjsLib } from './pdfjsWorker';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Transaction,
@@ -15,9 +16,6 @@ import { OcrService } from './OcrService';
 import { OcrPipeline } from './ocr/OcrPipeline';
 import type { OcrPipelineOptions, OcrStructuredOutput } from './ocr/OcrPipelineTypes';
 import { auditLog, AuditEventType } from './auditTrail';
-
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 // Limite de taille de fichier (50 MB)
 const MAX_FILE_SIZE = 50 * 1024 * 1024;

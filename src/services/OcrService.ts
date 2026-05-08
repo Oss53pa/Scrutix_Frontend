@@ -1,8 +1,6 @@
 import { createWorker, Worker } from 'tesseract.js';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Side-effect import: configures pdfjs worker once, locally bundled by Vite
+import { pdfjsLib } from './pdfjsWorker';
 
 export interface OcrResult {
   success: boolean;
@@ -153,7 +151,10 @@ export class OcrService {
         canvas.width = viewport.width;
         canvas.height = viewport.height;
 
+        // pdfjs-dist v5 requires `canvas` (was `canvasContext` in v4).
+        // Both kept here for forward-compat; v5 reads `canvas` first.
         await page.render({
+          canvas,
           canvasContext: context,
           viewport,
         }).promise;
