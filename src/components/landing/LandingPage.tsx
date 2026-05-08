@@ -860,71 +860,62 @@ function Testimonials() {
 function Pricing({ onCta }: { onCta: () => void }) {
   const plans = [
     {
-      name: 'Découverte',
-      price: '0',
-      period: 'gratuit',
-      desc: 'Pour évaluer le produit en conditions réelles.',
+      name: 'Entreprise',
+      audience: 'Direction financière',
+      price: '89 000',
+      period: '/mois',
+      desc: 'Pour les directions financières qui veulent maîtriser leurs frais bancaires.',
       features: [
-        '1 client',
-        '500 transactions / mois',
-        '4 détecteurs ML',
-        'Rapports PDF basiques',
-        'Support email',
+        'Une société · comptes bancaires illimités',
+        'Jusqu\'à 25 000 transactions / mois',
+        '18 détecteurs statistiques + IA',
+        'Rapports SYSCOHADA prêts à signer',
+        'Multi-utilisateurs (5 membres)',
+        'MFA + Allowlist IP',
+        'Audit trail SHA-256 immuable',
+        'Support email sous 24h',
       ],
-      cta: 'Commencer gratuitement',
+      cta: 'Démarrer 14 jours gratuit',
       highlighted: false,
     },
     {
       name: 'Cabinet',
-      price: '149K',
+      audience: 'Expert-comptable',
+      price: '249 000',
       period: '/mois',
-      desc: 'Pour les cabinets en croissance qui industrialisent l\'audit.',
+      desc: 'Pour les cabinets qui industrialisent l\'audit bancaire de leurs clients.',
       features: [
-        'Clients illimités',
-        '50 000 transactions / mois',
-        '18 détecteurs + IA Claude',
+        'Clients illimités · facturation incluse',
+        'Jusqu\'à 200 000 transactions / mois',
+        '18 détecteurs + IA Claude/Ollama',
         'Rapports SYSCOHADA premium',
-        'Branding cabinet complet',
-        'Audit trail + signatures',
-        'Support prioritaire',
+        'Branding cabinet complet (logo, couleurs)',
+        'Multi-utilisateurs illimités',
+        'Module facturation OHADA intégré',
+        'Account Manager dédié',
+        'Support prioritaire sous 4h',
       ],
       cta: 'Démarrer 14 jours gratuit',
       highlighted: true,
-    },
-    {
-      name: 'Enterprise',
-      price: 'Sur mesure',
-      period: '',
-      desc: 'Direction financière, multi-entités, déploiement on-premise.',
-      features: [
-        'Volumes illimités',
-        'Multi-entités / multi-pays',
-        'IA on-premise (Ollama)',
-        'SSO + Allowlist IP',
-        'SLA 99.9% + DRP',
-        'Account Manager dédié',
-        'Formation sur site',
-      ],
-      cta: 'Parler à un expert',
-      highlighted: false,
     },
   ];
 
   return (
     <section id="pricing" className="py-24 sm:py-32 px-6 lg:px-10">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <SectionHead
           eyebrow="Tarifs"
-          title="Une grille simple. Aucune surprise."
-          subtitle="Sans frais cachés. Sans engagement long. Annulation à tout moment."
+          title="Deux formules. Aucune surprise."
+          subtitle="Sans frais cachés. Sans engagement. 14 jours d'essai gratuit. Annulation à tout moment."
         />
-        <div className="mt-14 grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-6">
           {plans.map((p) => (
             <PricingCard key={p.name} plan={p} onCta={onCta} />
           ))}
         </div>
         <p className="mt-8 text-center text-xs text-ink-500">
-          Tous les prix sont en FCFA, hors taxes. Facturation mensuelle ou annuelle (-15%).
+          Tarifs en FCFA, hors taxes. Engagement annuel : <span className="font-semibold text-ink-700">−15%</span>.
+          {' '}Volumes au-delà : nous contacter.
         </p>
       </div>
     </section>
@@ -937,6 +928,7 @@ function PricingCard({
 }: {
   plan: {
     name: string;
+    audience: string;
     price: string;
     period: string;
     desc: string;
@@ -948,48 +940,73 @@ function PricingCard({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl p-8 transition-all duration-300 ease-premium ${
+      className={`relative overflow-hidden rounded-2xl p-8 sm:p-10 transition-all duration-300 ease-premium ${
         plan.highlighted
-          ? 'bg-gradient-to-br from-ink-800 via-ink-900 to-ink-950 text-white shadow-elevated lg:scale-[1.03] border border-ink-700'
-          : 'bg-white border border-primary-200/60 shadow-card hover:shadow-elevated'
+          ? 'bg-gradient-to-br from-ink-800 via-ink-900 to-ink-950 text-white shadow-elevated md:scale-[1.02] border border-ink-700'
+          : 'bg-white border border-primary-200/60 shadow-card hover:shadow-elevated hover:-translate-y-0.5'
       }`}
     >
       {plan.highlighted && (
         <>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-400 to-transparent" />
-          <div aria-hidden="true" className="absolute -top-20 -right-20 h-48 w-48 rounded-full bg-accent-500/15 blur-3xl" />
-          <span className="absolute top-5 right-5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-pill bg-gradient-to-b from-accent-300 to-accent-500 text-ink-950 text-[10px] font-bold uppercase tracking-wider">
-            <Sparkles className="w-3 h-3" /> Recommandé
+          <div aria-hidden="true" className="absolute -top-24 -right-24 h-56 w-56 rounded-full bg-accent-500/15 blur-3xl" />
+          <span className="absolute top-6 right-6 inline-flex items-center gap-1 px-2.5 py-1 rounded-pill bg-gradient-to-b from-accent-300 to-accent-500 text-ink-950 text-[10px] font-bold uppercase tracking-[0.14em] shadow-glow">
+            <Sparkles className="w-3 h-3" /> Le plus choisi
           </span>
         </>
       )}
       <div className="relative">
-        <h3 className={`text-xl font-bold tracking-tight ${plan.highlighted ? 'text-white' : 'text-ink-900'}`}>
+        {/* Audience eyebrow */}
+        <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${
+          plan.highlighted ? 'text-accent-300' : 'text-accent-700'
+        }`}>
+          {plan.audience}
+        </p>
+
+        <h3 className={`mt-2 text-3xl font-bold tracking-tight ${plan.highlighted ? 'text-white' : 'text-ink-900'}`}>
           {plan.name}
         </h3>
-        <p className={`mt-2 text-sm leading-relaxed ${plan.highlighted ? 'text-white/70' : 'text-ink-500'}`}>
+        <p className={`mt-3 text-sm leading-relaxed max-w-sm ${plan.highlighted ? 'text-white/70' : 'text-ink-500'}`}>
           {plan.desc}
         </p>
-        <div className="mt-6 flex items-baseline gap-1">
-          <span className={`text-5xl font-bold tabular-nums tracking-tight ${
+
+        {/* Price */}
+        <div className="mt-7 flex items-baseline gap-1.5">
+          <span className={`text-6xl font-bold tabular-nums tracking-tight leading-none ${
             plan.highlighted ? 'text-white' : 'text-ink-900'
           }`}>
             {plan.price}
           </span>
-          {plan.period && (
-            <span className={`text-sm ${plan.highlighted ? 'text-white/60' : 'text-ink-500'}`}>
-              {plan.price !== 'Sur mesure' && 'F'}{plan.period}
+          <div className="flex flex-col">
+            <span className={`text-sm font-bold ${plan.highlighted ? 'text-accent-300' : 'text-accent-700'}`}>
+              FCFA
             </span>
-          )}
+            <span className={`text-xs -mt-0.5 ${plan.highlighted ? 'text-white/50' : 'text-ink-500'}`}>
+              {plan.period}
+            </span>
+          </div>
         </div>
+        <p className={`mt-2 text-[11px] ${plan.highlighted ? 'text-white/40' : 'text-ink-400'}`}>
+          ≈ {plan.price === '249 000' ? '380' : '135'} € / mois · sans engagement
+        </p>
+
+        {/* CTA */}
         <button
           onClick={onCta}
-          className={`mt-6 w-full ${plan.highlighted ? 'btn btn-accent' : 'btn btn-secondary'} btn-md`}
+          className={`mt-7 w-full ${plan.highlighted ? 'btn btn-accent' : 'btn btn-primary'} btn-md group`}
         >
           {plan.cta}
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
         </button>
-        <ul className="mt-7 space-y-3">
+
+        {/* Divider */}
+        <div className={`mt-8 h-px ${plan.highlighted ? 'bg-white/10' : 'bg-primary-100'}`} />
+        <p className={`mt-5 mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+          plan.highlighted ? 'text-accent-300' : 'text-ink-500'
+        }`}>
+          Ce qui est inclus
+        </p>
+        <ul className="space-y-3">
           {plan.features.map((f) => (
             <li key={f} className={`flex items-start gap-2.5 text-sm ${
               plan.highlighted ? 'text-white/90' : 'text-ink-700'
