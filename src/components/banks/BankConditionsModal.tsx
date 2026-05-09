@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   X,
   Landmark,
@@ -479,7 +479,13 @@ export function BankConditionsModal({
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionReport, setExtractionReport] = useState<ExtractionReport | null>(null);
   const [extractionProgress, setExtractionProgress] = useState<{ stage: string; pct: number; message: string } | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
+  // ⚠ hasChanges N'EST PLUS un useState — c'est un *computed value* dérivé
+  // du diff conditions ↔ baseline. Aucun setState concurrent ne peut plus
+  // l'écraser : la valeur est recalculée à chaque render. Le seul moyen
+  // de "saver" (= rendre le bouton désactivé) est de mettre à jour
+  // `baseline` (le state ci-dessous) — ce qui ne se produit qu'au mount
+  // pour une nouvelle banque, ou explicitement après un Save.
+  const [baseline, setBaseline] = useState<string>('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   // Verification modal — opens after extraction so the user can review the
@@ -493,37 +499,17 @@ export function BankConditionsModal({
   // État local pour les conditions éditables
   const [conditions, setConditions] = useState<FullBankConditions>(getDefaultFullConditions());
 
-  // ⚠ Bug-fix structurel — gestion du flag « modifications non sauvegardées »
-  //
-  // CONTEXTE DU BUG :
-  // Le useEffect d'initialisation se redéclenchait sur chaque ré-affectation
-  // de la prop `bank` (mutations Zustand non liées) et remettait
-  // `hasChanges = false` après chaque commit de la modal de vérification.
-  // Plusieurs tentatives de patch n'ont pas réglé le problème car la racine
-  // est la fragilité de l'approche impérative : tout setState concurrent
-  // peut écraser le flag.
-  //
-  // SOLUTION ROBUSTE :
-  // On dérive `hasChanges` automatiquement par DIFF SÉMANTIQUE entre les
-  // conditions actuelles et un snapshot de la baseline (prise au mount du
-  // modal pour cette banque). Plus aucun risque qu'un setState concurrent
-  // efface le flag : si les données diffèrent, le bouton est actif. Point.
-  //
-  // Le flag impératif `hasChanges` reste pour les cas où on veut le forcer
-  // (ex. après save → on remet la baseline, hasChanges devient false).
-  const baselineRef = useRef<string>(''); // JSON snapshot of initial conditions
+  // ⚠ Approche définitive : la baseline est un state, le dirty flag est
+  // computed à chaque render via useMemo. Aucun useEffect, aucun
+  // setState n'intervient sur le dirty flag — il EST le diff,
+  // littéralement.
   const lastInitBankIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !bank) {
-      if (!isOpen) {
-        lastInitBankIdRef.current = null;
-        baselineRef.current = '';
-      }
+      if (!isOpen) lastInitBankIdRef.current = null;
       return;
     }
-
-    // Only re-initialize when the bank identity changes
     if (lastInitBankIdRef.current === bank.id) return;
     lastInitBankIdRef.current = bank.id;
 
@@ -538,23 +524,44 @@ export function BankConditionsModal({
       initial = getDefaultFullConditions();
     }
     setConditions(initial);
-    // Take baseline snapshot — this is what hasChanges compares against.
-    baselineRef.current = serializeForDiff(initial);
-    setHasChanges(false);
+    setBaseline(serializeForDiff(initial));
   }, [bank, isOpen]);
 
-  // ─── DERIVED DIRTY FLAG ─────────────────────────────────────────────
-  // Re-evaluate hasChanges every time conditions change. The diff is
-  // computed against the baseline snapshot — any real difference flips
-  // the flag to true. This bypasses every imperative race condition.
+  // hasChanges est COMPUTED, pas un state. Rien ne peut l'écraser.
+  const hasChanges = useMemo(() => {
+    if (!isOpen || !bank) return false;
+    if (!baseline) return false;
+    return serializeForDiff(conditions) !== baseline;
+  }, [conditions, baseline, isOpen, bank]);
+
+  // Diagnostic — expose state to window for debugging.
+  // Open the console and inspect `window.__atlasbanx_modal` to see why
+  // the Save button is in its current state.
   useEffect(() => {
-    if (!isOpen || !bank) return;
-    if (!baselineRef.current) return; // baseline not yet captured
-    const current = serializeForDiff(conditions);
-    if (current !== baselineRef.current) {
-      setHasChanges(true);
+    if (typeof window !== 'undefined') {
+      const current = serializeForDiff(conditions);
+      (window as unknown as Record<string, unknown>).__atlasbanx_modal = {
+        bankId: bank?.id ?? null,
+        bankName: bank?.name ?? null,
+        isOpen,
+        baselineLength: baseline.length,
+        currentLength: current.length,
+        baselineSample: baseline.slice(0, 200),
+        currentSample: current.slice(0, 200),
+        match: current === baseline,
+        hasChanges,
+        conditionsDocCount: conditions.documents.length,
+      };
     }
-  }, [conditions, isOpen, bank]);
+  }, [conditions, baseline, hasChanges, isOpen, bank]);
+
+  // No-op stub for code paths that still call setHasChanges — retained
+  // for ergonomic compatibility. The dirty flag derives from the data;
+  // these calls are now informational hints (not authoritative).
+  const setHasChanges = (_v: boolean): void => {
+    // Intentional no-op. The diff drives the UI, not imperative flags.
+  };
+  void setHasChanges; // keep referenced for legacy call sites
 
   if (!isOpen || !bank) return null;
 
@@ -656,9 +663,8 @@ export function BankConditionsModal({
   // Sauvegarder les conditions
   const handleSave = () => {
     onSaveConditions(bank.id, conditions as any);
-    // Re-baseline so the diff watcher sees no pending changes.
-    baselineRef.current = serializeForDiff(conditions);
-    setHasChanges(false);
+    // Re-baseline → diff devient 0 → hasChanges devient false → bouton désactivé.
+    setBaseline(serializeForDiff(conditions));
   };
 
   // Upload document — PDF goes through the verification modal so the user
