@@ -1,0 +1,234 @@
+# ============================================================================
+# ATLASBANX — Event Bus Contract (V3 architecture)
+# ============================================================================
+# Source of truth for events emitted by AtlasBanx and consumed by sister
+# Atlas products (Atlas Finance, CashPilot, DueDeck) and external systems
+# (ADVIST signature, banking portals).
+#
+# Transport
+#   - Internal subscribers (Atlas suite): Supabase Realtime channel
+#     `atlasbanx_events`. Each event row is also persisted in
+#     atlasbanx.audit_trail for evidentiary value (10-year retention).
+#   - External subscribers (ADVIST, banks): HTTPS webhooks with HMAC-SHA256
+#     signature in `X-AtlasBanx-Signature` header. Retried with exponential
+#     backoff up to 24h on 5xx / network errors.
+#
+# Contract stability
+#   - Adding fields to `payload` is non-breaking.
+#   - Removing or renaming fields is breaking — bump event name (`.v2`).
+#   - Pattern `atlasbanx.<resource>.<verb>` enforced.
+# ============================================================================
+
+version: '1'
+schema: 'https://atlasbanx.com/events/v1.json'
+
+defaults:
+  envelope:
+    id:           uuid              # ULID-style sortable
+    name:         string            # event name (see below)
+    occurredAt:   timestamp(rfc3339)
+    workspaceId:  uuid              # tenant
+    actor:
+      userId:     uuid              # who triggered it
+      role:       enum(dg,senior,junior,consultation,system)
+    payload:      object            # event-specific (below)
+    integrity:
+      hash:           sha256        # SHA-256 of canonical payload
+      previousHash:   sha256|null   # chain link in audit_trail
+
+events:
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Statement lifecycle
+  # ─────────────────────────────────────────────────────────────────────
+
+  atlasbanx.statement.imported:
+    description: A bank statement file was imported and parsed.
+    consumers: [atlas-finance, cashpilot, duedeck]
+    payload:
+      statementId:   uuid
+      clientId:      uuid
+      accountId:     uuid
+      bankCode:      string
+      fileName:      string
+      periodStart:   date
+      periodEnd:     date
+      transactionCount: integer
+      sourceHash:    sha256
+      importedAt:    timestamp
+
+  atlasbanx.statement.analyzed:
+    description: An analysis run completed on a statement.
+    consumers: [atlas-finance, duedeck]
+    payload:
+      analysisId:        uuid
+      statementId:       uuid
+      clientId:          uuid
+      accountId:         uuid
+      anomaliesDetected: integer
+      potentialSavings:  number    # XAF
+      confidenceAvg:     number    # 0-1
+      durationMs:        integer
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Anomaly workflow (3-actor lifecycle)
+  # ─────────────────────────────────────────────────────────────────────
+
+  atlasbanx.anomaly.detected:
+    description: The detector engine produced a new anomaly candidate.
+    consumers: []  # internal only
+    payload:
+      anomalyId:    uuid
+      type:         string  # AnomalyType enum
+      severity:     enum(LOW,MEDIUM,HIGH,CRITICAL)
+      amount:       number  # XAF
+      confidence:   number  # 0-1
+
+  atlasbanx.anomaly.qualified:
+    description: A junior+ confirmed the anomaly is real.
+    consumers: [duedeck]
+    payload:
+      anomalyId:   uuid
+      severity:    string
+      qualifiedBy:
+        userId:    uuid
+        role:      string
+      at:          timestamp
+
+  atlasbanx.anomaly.validated:
+    description: A senior+ approved the anomaly for the audit report.
+    consumers: [duedeck, atlas-finance]
+    payload:
+      anomalyId:   uuid
+      validatedBy:
+        userId:    uuid
+        role:      string
+      at:          timestamp
+
+  atlasbanx.anomaly.signed:
+    description: DG signed the anomaly — locked for evidentiary value.
+    consumers: [advist, duedeck, atlas-finance]
+    payload:
+      anomalyId:    uuid
+      signedBy:
+        userId:     uuid
+        role:       string  # always 'dg'
+      at:           timestamp
+      integrityHash: sha256
+
+  atlasbanx.anomaly.dismissed:
+    description: Marked as false positive. Includes reason.
+    consumers: []
+    payload:
+      anomalyId:   uuid
+      dismissedBy:
+        userId:    uuid
+        role:      string
+      reason:      string
+      at:          timestamp
+
+  atlasbanx.anomaly.contested:
+    description: The bank disputed the anomaly post-réclamation.
+    consumers: [duedeck]
+    payload:
+      anomalyId:        uuid
+      bankResponse:     string   # short summary of the bank's position
+      at:               timestamp
+
+  atlasbanx.anomaly.resolved:
+    description: The bank refunded or re-booked the contested entry.
+    consumers: [atlas-finance, cashpilot, duedeck]
+    payload:
+      anomalyId:    uuid
+      recovered:    number  # XAF actually received back
+      at:           timestamp
+      resolvedBy:
+        userId:     uuid
+        role:       string
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Reports & complaints
+  # ─────────────────────────────────────────────────────────────────────
+
+  atlasbanx.report.signed:
+    description: An audit report was signed by the DG and sealed by ADVIST.
+    consumers: [advist, atlas-finance, duedeck]
+    payload:
+      reportId:        uuid
+      clientId:        uuid
+      accountId:       uuid
+      analysisId:      uuid
+      anomalyCount:    integer
+      potentialSavings: number   # XAF
+      pdfUrl:          string    # signed Supabase storage URL
+      integrityHash:   sha256
+      advistSignatureRef: string # opaque ID returned by ADVIST
+      signedBy:
+        userId:        uuid
+      at:              timestamp
+
+  atlasbanx.complaint.emitted:
+    description: A formal complaint letter was sent to a bank.
+    consumers: [duedeck, atlas-finance]
+    payload:
+      complaintId:   uuid
+      clientId:      uuid
+      accountId:     uuid
+      bankCode:      string
+      anomalyIds:    array<uuid>
+      pdfUrl:        string
+      channel:       enum(email,registered_mail,bank_portal,api)
+      sentAt:        timestamp
+      sentBy:
+        userId:      uuid
+        role:        string  # senior+
+
+  atlasbanx.complaint.responded:
+    description: The bank responded to a complaint.
+    consumers: [atlas-finance]
+    payload:
+      complaintId:   uuid
+      response:      enum(accepted,partially_accepted,rejected,under_review)
+      respondedAt:   timestamp
+      bankReference: string
+
+  # ─────────────────────────────────────────────────────────────────────
+  # SYSCOHADA reconciliation (account 521)
+  # ─────────────────────────────────────────────────────────────────────
+
+  atlasbanx.reconciliation.completed:
+    description: Bank-to-GL reconciliation against compte 521 completed.
+    consumers: [atlas-finance]
+    payload:
+      reconciliationId:  uuid
+      accountId:         uuid
+      glAccountCode:     string  # e.g. "521000"
+      periodStart:       date
+      periodEnd:         date
+      bankBalance:       number  # XAF, statement closing balance
+      glBalance:         number  # XAF, GL closing balance
+      gap:               number  # diff
+      matchedRate:       number  # 0-1
+      unmatchedCount:    integer
+
+# ============================================================================
+# AUTH — how subscribers identify themselves
+# ============================================================================
+auth:
+  internal:
+    method: SSO @atlas/auth
+    note: Internal Atlas products use the shared OIDC provider (atlas/auth).
+          No API keys. Token rotation handled by the SSO server.
+  external:
+    method: OAuth 2.0 client_credentials
+    note: ADVIST and banking portals authenticate via OAuth 2.0
+          client_credentials. Refresh tokens rotated weekly. No long-lived
+          static API keys allowed.
+
+# ============================================================================
+# RETENTION
+# ============================================================================
+retention:
+  audit_trail: 10 years     # OHADA compliance
+  realtime:    24 hours     # rolling buffer
+  webhooks_log: 90 days     # for retry diagnostics

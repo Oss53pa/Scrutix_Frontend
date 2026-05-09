@@ -8,6 +8,7 @@ import { useTransactionStore } from './store/transactionStore';
 import { useAnalysisStore } from './store/analysisStore';
 import { useReportStore } from './store/reportStore';
 import { useSettingsStore } from './store/settingsStore';
+import { useWorkspaceStore } from './workspace';
 import { settingsRepo } from './lib/repositories';
 import { banksRepo } from './lib/repositories';
 import type { Bank } from './types';
@@ -124,6 +125,8 @@ function App() {
   const hydrateReports = useReportStore((s) => s.hydrateFromSupabase);
   const resetReports = useReportStore((s) => s.resetState);
   const hydrateSettings = useSettingsStore((s) => s.hydrateFromSupabase);
+  const loadWorkspace = useWorkspaceStore((s) => s.load);
+  const resetWorkspace = useWorkspaceStore((s) => s.reset);
   const resetSettingsHydration = useSettingsStore((s) => s.resetHydration);
   const { isInitialized, isAuthenticated, isDemoMode, initialize, profile, user } = useAuthStore();
   const ensureSelfClient = useClientStore((s) => s.ensureSelfClient);
@@ -155,6 +158,7 @@ function App() {
       resetAnalyses();
       resetReports();
       resetSettingsHydration();
+      resetWorkspace();
       return;
     }
 
@@ -173,6 +177,8 @@ function App() {
         hydrateAnalyses(),
         hydrateReports(),
         hydrateSettings(),
+        // V3 architecture — load workspace + role from atlasbanx tables
+        loadWorkspace(user.id),
       ]);
     })();
 
