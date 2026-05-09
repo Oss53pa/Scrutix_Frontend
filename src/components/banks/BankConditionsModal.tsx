@@ -160,6 +160,54 @@ const REGISTRY_TO_FORM_PATH: Record<string, string> = {
   'miscFees.procurationCompte': 'divers.procuration',
   'miscFees.assuranceCompte':   'divers.assuranceCompte',
   'miscFees.droitTimbre':       'divers.droitTimbre',
+
+  // ─── COMPLÉTUDE 100% ───
+  // Account fees — variantes
+  'accountFees.tenueCompte.particulierEtranger': 'tenueCompte.particulierEtranger',
+  'accountFees.tenueCompte.association':         'tenueCompte.association',
+  'accountFees.tenueCompte.compteEpargne':       'tenueCompte.compteEpargne',
+  'accountFees.tenueCompte.compteDevises':       'tenueCompte.compteDevises',
+  'accountFees.fraisOuvertureEntreprise':        'ouvertureCompte.entreprise',
+  'accountFees.minimumDepot':                    'ouvertureCompte.minimumDepot',
+  'accountFees.fraisClotureEntreprise':          'clotureCompte.entreprise',
+  'accountFees.releveCompte.mensuelEmail':       'releves.mensuelEmail',
+  'accountFees.releveCompte.annuel':             'releves.releveAnnuel',
+  'accountFees.certificatNonEngagement':         'releves.certificatNonEngagement',
+  'accountFees.rib':                             'releves.rib',
+  // Cartes — variantes
+  'cardFees.paiementTpeAutre':       'fraisCartes.paiementTpeAutre',
+  'cardFees.renouvellementAnticipe': 'fraisCartes.renouvellementAnticipe',
+  'cardFees.carteCaptee':            'fraisCartes.carteCaptee',
+  // Virements — variantes
+  'transferFees.virementNationalMemeBank':              'virements.nationalMemeBank',
+  'transferFees.virementNationalAutreBanqueCommission': 'virements.nationalAutreBankCommission',
+  'transferFees.virementZoneMonetaire':                 'virements.zoneMonetaire',
+  'transferFees.virementInternationalFraisFixes':       'virements.international',
+  'transferFees.recuVirement':                          'virements.recuVirement',
+  // Chèques — variantes
+  'checkFees.carnet50':                       'cheques.carnet50',
+  'checkFees.carnet100':                      'cheques.carnet100',
+  'checkFees.chequeGuichet':                  'cheques.chequeGuichet',
+  'checkFees.chequeRetourne':                 'cheques.chequeRetourne',
+  'checkFees.encaissementDeplacement':        'cheques.encaissementDeplacement',
+  'checkFees.encaissementEtrangerCommission': 'cheques.encaissementEtrangerCommission',
+  // Crédits — variantes
+  'creditFees.creditPME':       'credits.creditPME',
+  'creditFees.penaliteRetard':  'credits.penaliteRetard',
+  // E-Banking — variantes
+  'eBankingFees.abonnementAnnuel':      'ebanking.abonnementAnnuel',
+  'eBankingFees.parOperation':          'ebanking.parOperation',
+  'eBankingFees.smsAlerteAbonnement':   'ebanking.smsAlerteAbonnement',
+  // Divers — variantes
+  'miscFees.coffreMoyen':           'divers.coffreMoyen',
+  'miscFees.coffreGrand':           'divers.coffreGrand',
+  'miscFees.garantieLocative':      'divers.garantieLocative',
+  'miscFees.cautionMarche':         'divers.cautionMarche',
+  'miscFees.saisieAttribution':     'divers.saisieAttribution',
+  'miscFees.mainLevee':             'divers.mainLevee',
+  'miscFees.successionCommission':  'divers.successionCommission',
+  'miscFees.avoirInactif':          'divers.avoirInactif',
+  'miscFees.tvaServices':           'divers.tvaServices',
 };
 
 type TabId = 'compte' | 'guichet' | 'cartes' | 'virements' | 'cheques' | 'credits' | 'ebanking' | 'divers' | 'documents';
