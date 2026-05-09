@@ -126,6 +126,31 @@ export const importDraftsRepo = {
     }
   },
 
+  /** Resurrect a previously committed/cancelled draft as 'draft' again,
+   *  optionally with a fresh payload. Used when the user re-imports the
+   *  same source file (same SHA-256 hash) — we reuse the existing row
+   *  instead of trying to insert a duplicate. */
+  async reopen(
+    draftId: string,
+    payload?: Record<string, unknown>,
+  ): Promise<void> {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    const update: Record<string, unknown> = {
+      status: 'draft',
+      committed_at: null,
+    };
+    if (payload) update.payload = payload;
+    const { error } = await supabase
+      .schema(SCHEMA)
+      .from('import_drafts')
+      .update(update)
+      .eq('id', draftId);
+    if (error) {
+      console.error('[importDraftsRepo] reopen failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
+    }
+  },
+
   /** Mark a draft as committed (final import done). */
   async commit(draftId: string): Promise<void> {
     const supabase = getSupabaseClient();

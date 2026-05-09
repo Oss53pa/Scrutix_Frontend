@@ -94,19 +94,33 @@ export function ImportVerificationModal({
       }
       try {
         const sourceHash = await hashFile(file);
+        // findByHash returns ANY status (draft, committed, cancelled).
+        // The (user, hash, mode) tuple is UNIQUE in the table, so re-uploading
+        // the same PDF must reuse the existing row — not create a duplicate.
         const existing: ImportDraftRow | null = await importDraftsRepo
           .findByHash(userId, sourceHash, initialPayload.mode)
           .catch(() => null);
 
-        if (existing && existing.status === 'draft') {
+        if (existing) {
           if (!cancelled) {
-            // Merge: keep server payload (preserves user edits) but if shapes
-            // mismatch (extractor changed), fall back to initial.
+            // Resume the existing row regardless of status:
+            //  - 'draft'     → continue editing where the user left off
+            //  - 'committed' → user re-imports the same file → resurrect as draft
+            //                  (status update happens lazily on first edit)
+            //  - 'cancelled' → user changed their mind → revive
             const serverPayload = existing.payload as unknown as VerificationPayload;
             setResolvedPayload(
               isCompatiblePayload(serverPayload, initialPayload) ? serverPayload : initialPayload,
             );
             setDraftId(existing.id);
+
+            // If the existing row was committed/cancelled, push it back to
+            // 'draft' so subsequent autosaves don't fail on status mismatch.
+            if (existing.status !== 'draft') {
+              importDraftsRepo
+                .reopen(existing.id, initialPayload as unknown as Record<string, unknown>)
+                .catch((err) => console.warn('[ImportVerificationModal] reopen failed:', err));
+            }
           }
         } else {
           const created = await importDraftsRepo.insert(userId, {
