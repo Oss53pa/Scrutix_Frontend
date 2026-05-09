@@ -232,7 +232,104 @@ export function ExtractionReportPanel({ report, onApply }: Props) {
           ))
         )}
       </div>
+
+      {/* Pairs detected in the document but not mapped to a known rubric */}
+      {report.unmatchedPairs && report.unmatchedPairs.length > 0 && (
+        <UnmatchedPairsSection pairs={report.unmatchedPairs} />
+      )}
     </Card>
+  );
+}
+
+// ============================================================================
+// Unmatched pairs — extracted from the doc but no rubric match
+// ============================================================================
+
+function UnmatchedPairsSection({
+  pairs,
+}: {
+  pairs: NonNullable<ExtractionReport['unmatchedPairs']>;
+}) {
+  const [open, setOpen] = useState(false);
+
+  // Group by section for readability
+  const grouped: Record<string, typeof pairs> = {};
+  for (const p of pairs) {
+    const k = p.section ?? '(sans section)';
+    if (!grouped[k]) grouped[k] = [];
+    grouped[k].push(p);
+  }
+  const groupKeys = Object.keys(grouped).sort();
+
+  return (
+    <div className="border-t border-primary-200/60 bg-canvas-50/40">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-6 py-3 hover:bg-canvas-100 transition-colors text-left"
+      >
+        <div className="flex items-center gap-2">
+          <Search className="w-4 h-4 text-amber-600" />
+          <span className="text-sm font-semibold text-ink-900 tracking-tight">
+            Conditions extraites non rattachées
+          </span>
+          <span className="text-xs text-ink-400">({pairs.length})</span>
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-ink-500 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && (
+        <div className="border-t border-primary-100/70">
+          <p className="px-6 py-3 text-xs text-ink-500 leading-relaxed border-b border-primary-100/50">
+            Ces lignes ont été détectées comme des paires « libellé → valeur »
+            mais ne correspondent à aucune rubrique du référentiel actuel.
+            Vous pouvez les utiliser comme repères ou demander leur ajout
+            au référentiel.
+          </p>
+          {groupKeys.map((sec) => (
+            <div key={sec}>
+              <div className="px-6 py-2 bg-canvas-100/40">
+                <span className="text-[10px] font-semibold text-accent-700 uppercase tracking-[0.14em]">
+                  {sec}
+                </span>
+              </div>
+              <ul className="divide-y divide-primary-100/40">
+                {grouped[sec].map((p, i) => (
+                  <li
+                    key={`${sec}-${i}`}
+                    className="px-6 py-2 flex items-center gap-3 text-sm hover:bg-canvas-50"
+                  >
+                    <span className="text-[10px] text-ink-400 w-10 tabular-nums">
+                      p.{p.page}
+                    </span>
+                    <span className="flex-1 min-w-0 text-ink-800 truncate">{p.label}</span>
+                    <span className="font-semibold text-ink-900 tabular-nums shrink-0">
+                      {p.qualitative ? (
+                        <span className="text-amber-700 italic">
+                          {p.qualitative === 'gratuit' && 'Gratuit'}
+                          {p.qualitative === 'consulter' && 'Nous consulter'}
+                          {p.qualitative === 'neant' && 'Néant'}
+                          {p.qualitative === 'franco' && 'Franco'}
+                          {p.qualitative === 'souscription' && 'À la souscription'}
+                          {p.qualitative === 'other' && 'Variable'}
+                        </span>
+                      ) : (
+                        <>
+                          {p.unit === '%' ? `${p.value} %` :
+                           p.unit ? `${p.value.toLocaleString('fr-FR')} ${p.unit === 'XAF' || p.unit === 'XOF' ? p.unit : p.unit === 'FCFA' ? 'FCFA' : p.unit}` :
+                           p.value.toLocaleString('fr-FR')}
+                        </>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

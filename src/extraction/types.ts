@@ -78,6 +78,20 @@ export interface DocumentAnalysis {
   textLength: number;
 }
 
+/** A label-value pair that was extracted from the document but couldn't
+ *  be matched to any registered rubric. Surfaced to the UI so the user
+ *  can map manually or request registry extension. */
+export interface UnmatchedPair {
+  label: string;
+  rawValue: string;
+  value: number;
+  unit?: '%' | 'FCFA' | 'XAF' | 'XOF' | 'EUR' | 'USD' | 'days';
+  /** Qualitative classifier (gratuit, etc.) — non-numeric values */
+  qualitative?: 'gratuit' | 'consulter' | 'neant' | 'franco' | 'souscription' | 'other';
+  page: number;
+  section?: string;
+}
+
 /** Final report produced by the engine */
 export interface ExtractionReport {
   success: boolean;
@@ -100,6 +114,11 @@ export interface ExtractionReport {
   rawText: string;
   /** Errors encountered — non-fatal */
   warnings: string[];
+  /** Pairs extracted from the document that didn't match any registry rubric.
+   *  Useful to either map them manually or extend the registry. */
+  unmatchedPairs?: UnmatchedPair[];
+  /** Section headers seen in the document (PDF-only) */
+  sections?: string[];
 }
 
 /** Options to control engine behavior */

@@ -19,10 +19,12 @@ export interface LabelValuePair {
   label: string;
   /** Raw amount string as seen in the document (eg "5 000 FCFA", "14,5%") */
   rawValue: string;
-  /** Parsed numeric value */
+  /** Parsed numeric value (0 for qualitative values) */
   value: number;
   /** Detected unit hint */
   unit?: 'FCFA' | 'XAF' | 'XOF' | 'EUR' | 'USD' | '%' | 'days';
+  /** Qualitative classifier — when set, value is 0 but the row IS a real condition */
+  qualitative?: 'gratuit' | 'consulter' | 'neant' | 'franco' | 'souscription' | 'other';
   /** Confidence in the parse (0-1) */
   confidence: number;
   /** Page number */
@@ -50,12 +52,17 @@ export interface ConditionsExtractionResult {
   matches: Record<string, RubricMatch>;
   /** Every label-value pair the parser saw, useful for diagnostics + UI */
   rawPairs: LabelValuePair[];
+  /** Pairs that were extracted but did NOT match any registered rubric.
+   *  The UI can surface these so the user can either map them manually or
+   *  request that we add the rubric to the registry. */
+  unmatchedPairs: LabelValuePair[];
   /** Section headers detected in the document */
   sections: string[];
   stats: {
     totalPages: number;
     pairsFound: number;
     rubricsMatched: number;
+    pairsUnmatched: number;
     averageConfidence: number;
     durationMs: number;
   };

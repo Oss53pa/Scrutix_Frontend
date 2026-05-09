@@ -164,6 +164,8 @@ export class DocumentIntelligenceEngine {
     // ANY bank format because it doesn't assume column orders.
     // -----------------------------------------------------------------------
     let positionMatches: Record<string, RubricMatch> = {};
+    let unmatchedPairs: import('./types').UnmatchedPair[] = [];
+    let sections: string[] = [];
     if ((format === 'pdf-native' || format === 'pdf-scan') && file) {
       try {
         const conditionsResult = await extractConditions(file, {
@@ -176,6 +178,16 @@ export class DocumentIntelligenceEngine {
             }),
         });
         positionMatches = conditionsResult.matches;
+        sections = conditionsResult.sections;
+        unmatchedPairs = conditionsResult.unmatchedPairs.map((p) => ({
+          label: p.label,
+          rawValue: p.rawValue,
+          value: p.value,
+          unit: p.unit,
+          qualitative: p.qualitative,
+          page: p.page,
+          section: p.section,
+        }));
         if (conditionsResult.warnings.length > 0) {
           warnings.push(...conditionsResult.warnings);
         }
@@ -255,6 +267,8 @@ export class DocumentIntelligenceEngine {
       stats: { total, extracted, defaulted, failed },
       processingTimeMs: Math.round(performance.now() - t0),
       rawText,
+      unmatchedPairs: unmatchedPairs.length > 0 ? unmatchedPairs : undefined,
+      sections: sections.length > 0 ? sections : undefined,
       warnings,
     };
   }

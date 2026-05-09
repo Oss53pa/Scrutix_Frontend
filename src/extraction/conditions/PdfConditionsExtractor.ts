@@ -142,20 +142,34 @@ export async function extractConditions(
       ? 0
       : matchedFields.reduce((s, k) => s + matches[k].confidence, 0) / matchedFields.length;
 
+  // Compute pairs that were extracted but didn't match any rubric in the
+  // registry. These are valuable signal: either real conditions we don't
+  // model yet, or noisy lines. The UI surfaces them so the user can map
+  // manually or request registry extension.
+  const matchedPairKeys = new Set<string>();
+  for (const m of Object.values(matches)) {
+    matchedPairKeys.add(`${m.pair.page}-${Math.round(m.pair.y)}-${m.pair.label}`);
+  }
+  const unmatchedPairs = pairs.filter(
+    (p) => !matchedPairKeys.has(`${p.page}-${Math.round(p.y)}-${p.label}`),
+  );
+
   options.onProgress?.({
     stage: 'done',
     pct: 1,
-    message: `${matchedFields.length} rubriques identifiées sur ${pairs.length} paires`,
+    message: `${matchedFields.length} rubriques identifiées sur ${pairs.length} paires (${unmatchedPairs.length} non rattachées)`,
   });
 
   return {
     matches,
     rawPairs: pairs,
+    unmatchedPairs,
     sections,
     stats: {
       totalPages: pdf.numPages,
       pairsFound: pairs.length,
       rubricsMatched: matchedFields.length,
+      pairsUnmatched: unmatchedPairs.length,
       averageConfidence: avgConf,
       durationMs: Math.round(performance.now() - start),
     },
