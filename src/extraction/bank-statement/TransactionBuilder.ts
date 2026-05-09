@@ -13,6 +13,7 @@
 // ============================================================================
 
 import type { ExtractedTransaction, MappedRow, TableStructure } from './types';
+import { computeBoundingBox } from './types';
 import { parseAmount } from './AmountParser';
 
 const DATE_REGEX = /\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b/;
@@ -126,5 +127,6 @@ export function buildTransaction(
     confidence: conf,
     warnings,
     source: row,
+    boundingBox: computeBoundingBox(row.items),
   };
 }

@@ -9,6 +9,14 @@ import { useBankStore } from '../../store/bankStore';
 import { useAccountType } from '../../hooks/useAccountType';
 import { Transaction, AFRICAN_COUNTRIES } from '../../types';
 import { formatCurrency, formatDate } from '../../utils';
+import {
+  ImportVerificationModal,
+  buildStatementPayload,
+  type CommitArgs,
+  type CommitResult,
+  type VerificationPayload,
+} from '../import-verification';
+import type { ExtractedTransaction } from '../../extraction/bank-statement';
 
 export function ImportPage() {
   const navigate = useNavigate();
@@ -30,6 +38,12 @@ export function ImportPage() {
   const [showNewAccount, setShowNewAccount] = useState(false);
   const [newAccountNumber, setNewAccountNumber] = useState('');
   const [useAdvancedOcr, setUseAdvancedOcr] = useState(false);
+
+  // Verification modal state — opened when a PDF is staged for review
+  const [verification, setVerification] = useState<{
+    file: File;
+    payload: VerificationPayload;
+  } | null>(null);
 
   // Enterprise mode: keep selectedClientId pinned to the self client
   useEffect(() => {
@@ -89,6 +103,75 @@ export function ImportPage() {
   const handleClearData = () => {
     clearTransactions();
     setShowClearConfirm(false);
+  };
+
+  // Staging handler: PDF uploaded → open verification modal instead of committing
+  const handlePdfStaged = ({
+    file,
+    fileName,
+    candidates,
+    pages,
+    bankCode: stagedBankCode,
+  }: {
+    file: File;
+    fileName: string;
+    candidates: ExtractedTransaction[];
+    pages: number;
+    bankCode?: string;
+  }) => {
+    const effectiveBankCode = stagedBankCode
+      ?? selectedAccount?.bankCode
+      ?? selectedBankCode
+      ?? undefined;
+    const payload = buildStatementPayload({
+      fileName,
+      bankCode: effectiveBankCode,
+      clientId: selectedClientId || undefined,
+      candidates,
+      pages,
+      defaultCurrency: 'XAF',
+    });
+    setVerification({ file, payload });
+  };
+
+  // Commit handler: user validated rows in the modal → push to stores
+  const handleVerifiedCommit = (_args: CommitArgs, result: CommitResult) => {
+    if (!result.transactions || result.transactions.length === 0) {
+      setVerification(null);
+      return;
+    }
+
+    // Stamp each tx with the resolved client / account / bank
+    const accountNumber = selectedAccount?.accountNumber || newAccountNumber;
+    const bankCode = selectedAccount?.bankCode || selectedBankCode;
+    const bank = banks.find((b) => b.code === bankCode);
+    const stamped = result.transactions.map((tx) => ({
+      ...tx,
+      clientId: selectedClientId,
+      accountNumber,
+      bankCode,
+      bankName: bank?.name,
+    }));
+
+    addTransactions(stamped);
+
+    const dates = stamped.map((t) => new Date(t.date));
+    const periodStart = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const periodEnd = new Date(Math.max(...dates.map((d) => d.getTime())));
+
+    addStatement(selectedClientId, {
+      accountId: selectedAccountId || 'new-account',
+      bankCode,
+      bankName: bank?.name || bankCode,
+      fileName: verification?.payload.fileName ?? 'import.pdf',
+      fileType: 'pdf',
+      periodStart,
+      periodEnd,
+      transactionCount: stamped.length,
+      status: 'imported',
+    });
+
+    setVerification(null);
   };
 
   const handleAddAccount = () => {
@@ -364,6 +447,7 @@ export function ImportPage() {
         <CardBody>
           <FileUploader
             onImportComplete={handleImportComplete}
+            onPdfStaged={handlePdfStaged}
             clientId={selectedClientId}
             bankCode={selectedAccount?.bankCode || selectedBankCode}
             accountNumber={selectedAccount?.accountNumber || newAccountNumber}
@@ -461,6 +545,17 @@ export function ImportPage() {
         confirmLabel="Effacer"
         variant="danger"
       />
+
+      {/* Verification modal — opens when a PDF is staged */}
+      {verification && (
+        <ImportVerificationModal
+          open
+          file={verification.file}
+          initialPayload={verification.payload}
+          onCommit={handleVerifiedCommit}
+          onCancel={() => setVerification(null)}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Card, Button, Progress, Alert } from '../ui';
 import { ImportService } from '../../services';
 import { ImportResult, Transaction } from '../../types';
 import { formatFileSize } from '../../utils';
+import { extractStatement, type ExtractedTransaction } from '../../extraction/bank-statement';
 
 // Limite de taille de fichier (50 MB)
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -16,8 +17,19 @@ interface ImportInfo {
   periodEnd: Date;
 }
 
+interface PdfStagedInfo {
+  file: File;
+  fileName: string;
+  candidates: ExtractedTransaction[];
+  pages: number;
+  bankCode?: string;
+}
+
 interface FileUploaderProps {
   onImportComplete: (info: ImportInfo) => void;
+  /** When set, PDFs are routed to the verification modal instead of auto-importing.
+   *  The component still extracts the candidates so the modal can render. */
+  onPdfStaged?: (info: PdfStagedInfo) => void;
   clientId?: string;
   bankCode?: string;
   accountNumber?: string;
@@ -33,7 +45,7 @@ interface UploadedFile {
   error?: string;
 }
 
-export function FileUploader({ onImportComplete, clientId = 'default', bankCode = 'UNKNOWN', accountNumber = '' }: FileUploaderProps) {
+export function FileUploader({ onImportComplete, onPdfStaged, clientId = 'default', bankCode = 'UNKNOWN', accountNumber = '' }: FileUploaderProps) {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -71,6 +83,59 @@ export function FileUploader({ onImportComplete, clientId = 'default', bankCode 
       );
 
       try {
+        // ── PDF interception: stage for verification modal ─────────────
+        const isPdf =
+          uploadedFile.file.type === 'application/pdf' ||
+          uploadedFile.file.name.toLowerCase().endsWith('.pdf');
+        if (isPdf && onPdfStaged) {
+          const extraction = await extractStatement(uploadedFile.file, {
+            defaultCurrency: bankCode === 'UNKNOWN' ? 'XOF' : 'XOF',
+          });
+          if (extraction.candidates.length === 0) {
+            setFiles((prev) =>
+              prev.map((f) =>
+                f.file === uploadedFile.file
+                  ? {
+                      ...f,
+                      status: 'error',
+                      progress: 100,
+                      error: extraction.diagnostic
+                        ?? 'Aucune transaction détectée dans le PDF.',
+                    }
+                  : f,
+              ),
+            );
+            continue;
+          }
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.file === uploadedFile.file
+                ? {
+                    ...f,
+                    status: 'success',
+                    progress: 100,
+                    result: {
+                      success: true,
+                      totalRows: extraction.candidates.length,
+                      importedRows: extraction.candidates.length,
+                      skippedRows: 0,
+                      errors: [],
+                      transactions: [],
+                    },
+                  }
+                : f,
+            ),
+          );
+          onPdfStaged({
+            file: uploadedFile.file,
+            fileName: uploadedFile.file.name,
+            candidates: extraction.candidates,
+            pages: extraction.stats.totalPages,
+            bankCode: bankCode === 'UNKNOWN' ? undefined : bankCode,
+          });
+          continue;
+        }
+
         const result = await ImportService.parseFile(uploadedFile.file, {
           clientId,
           bankCode,
@@ -128,7 +193,7 @@ export function FileUploader({ onImportComplete, clientId = 'default', bankCode 
         );
       }
     }
-  }, [clientId, bankCode, accountNumber, onImportComplete]);
+  }, [clientId, bankCode, accountNumber, onImportComplete, onPdfStaged]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {

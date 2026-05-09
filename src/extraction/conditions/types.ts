@@ -12,7 +12,7 @@
 // ============================================================================
 
 import type { FieldDefinition } from '../types';
-import type { PositionedItem, ReconstructedRow } from '../bank-statement/types';
+import type { PositionedItem, ReconstructedRow, BoundingBox } from '../bank-statement/types';
 
 /** A label-value pair extracted from a single row of the document */
 export interface LabelValuePair {
@@ -33,6 +33,8 @@ export interface LabelValuePair {
   y: number;
   /** Section header that this pair lives under (best effort) */
   section?: string;
+  /** Bounding box of the source items on the PDF page (for UI highlighting) */
+  boundingBox?: BoundingBox;
 }
 
 /** Candidate match between a LabelValuePair and a registered FieldDefinition */

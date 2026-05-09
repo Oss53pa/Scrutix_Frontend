@@ -4,5 +4,7 @@ export { banksRepo } from './banksRepo';
 export { analysesRepo } from './analysesRepo';
 export { reportsRepo } from './reportsRepo';
 export { settingsRepo } from './settingsRepo';
+export { importDraftsRepo, hashFile } from './importDraftsRepo';
 export type { ReportDraft, GeneratedReport } from './reportsRepo';
 export type { UserSettingsBlob } from './settingsRepo';
+export type { ImportDraftRow, ImportDraftInsert, ImportMode, ImportDraftStatus } from './importDraftsRepo';

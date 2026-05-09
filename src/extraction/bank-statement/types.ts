@@ -79,6 +79,18 @@ export interface MappedRow {
   items: PositionedItem[];
 }
 
+/** Bounding box of a row's source items on the original PDF page.
+ *  Used to highlight the source region in the verification UI. */
+export interface BoundingBox {
+  page: number;
+  /** Left edge in PDF user-space units */
+  xLeft: number;
+  /** Bottom edge (PDF coords have Y growing upward) */
+  yBottom: number;
+  xRight: number;
+  yTop: number;
+}
+
 /** A reconstructed transaction candidate (before final sanity checks) */
 export interface ExtractedTransaction {
   date?: Date;
@@ -97,6 +109,27 @@ export interface ExtractedTransaction {
   warnings: string[];
   /** The mapped row used to build this transaction (debug) */
   source?: MappedRow;
+  /** Bounding box of the source items on the PDF page (for UI highlighting) */
+  boundingBox?: BoundingBox;
+}
+
+/** Compute the union bounding box from a set of positioned items. */
+export function computeBoundingBox(items: PositionedItem[]): BoundingBox | undefined {
+  if (items.length === 0) return undefined;
+  const page = items[0].page;
+  let xLeft = Infinity;
+  let yBottom = Infinity;
+  let xRight = -Infinity;
+  let yTop = -Infinity;
+  for (const it of items) {
+    if (it.x < xLeft) xLeft = it.x;
+    if (it.y < yBottom) yBottom = it.y;
+    const right = it.x + (it.width ?? 0);
+    const top = it.y + (it.height ?? 0);
+    if (right > xRight) xRight = right;
+    if (top > yTop) yTop = top;
+  }
+  return { page, xLeft, yBottom, xRight, yTop };
 }
 
 export interface ExtractionStats {

@@ -13,6 +13,7 @@
 // ============================================================================
 
 import type { PositionedItem, ReconstructedRow } from '../bank-statement/types';
+import { computeBoundingBox } from '../bank-statement/types';
 import { findAmounts, parseAmount } from '../bank-statement/AmountParser';
 import type { LabelValuePair } from './types';
 import { clusterRows } from '../bank-statement/HeaderDetector';
@@ -196,6 +197,7 @@ export function extractLabelValuePairs(
         page: p,
         y: row.y,
         section: currentSection,
+        boundingBox: computeBoundingBox(row.items),
       });
     }
   }
