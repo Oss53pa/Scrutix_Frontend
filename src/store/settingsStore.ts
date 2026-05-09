@@ -254,6 +254,11 @@ interface SettingsStore {
   updateOrganization: (config: Partial<OrganizationSettings>) => void;
   resetOrganization: () => void;
 
+  // Supabase sync (Phase 2)
+  hydratedForUserId: string | null;
+  hydrateFromSupabase: () => Promise<void>;
+  resetHydration: () => void;
+
   // Selectors
   getBankConditionsByCode: (bankCode: string) => BankConditions | undefined;
   getActiveBankConditions: (bankCode: string, date: Date) => BankConditions | undefined;
@@ -909,6 +914,39 @@ export const useSettingsStore = create<SettingsStore>()(
         set((state) => ({
           gateway: { ...state.gateway, ...config },
         })),
+
+      // -------------------------------------------------------------------
+      // Supabase sync (preferences, organization, AI provider config, etc.)
+      // The blob lives in public.user_settings.settings (JSONB).
+      // Sensitive fields (API keys) are stripped before persist by settingsRepo.
+      // -------------------------------------------------------------------
+      hydratedForUserId: null,
+      hydrateFromSupabase: async () => {
+        // Lazy import to avoid circular deps and keep store bundle clean
+        const { useAuthStore } = await import('./authStore');
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) return;
+        if (get().hydratedForUserId === userId) return;
+
+        try {
+          const { settingsRepo } = await import('../lib/repositories');
+          const blob = await settingsRepo.load(userId);
+          if (blob) {
+            // Merge server blob into local state. We keep zustand defaults for
+            // anything missing on the server (typical for new users).
+            set((state) => ({
+              ...state,
+              ...(blob as Partial<typeof state>),
+              hydratedForUserId: userId,
+            }));
+          } else {
+            set({ hydratedForUserId: userId });
+          }
+        } catch (err) {
+          console.error('[settingsStore] hydrateFromSupabase failed:', err);
+        }
+      },
+      resetHydration: () => set({ hydratedForUserId: null }),
 
       // Organization actions
       updateOrganization: (config) =>

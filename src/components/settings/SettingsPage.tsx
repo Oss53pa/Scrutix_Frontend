@@ -1,114 +1,83 @@
 import { useState, useEffect } from 'react';
-import { Brain, Sliders, Cloud, FileText, Info, Briefcase, Settings2, HardDrive, Cpu, Shield, Code2, Sparkles, DollarSign, Router, BarChart3, ScrollText } from 'lucide-react';
+import {
+  Brain,
+  Sliders,
+  Info,
+  Briefcase,
+  Settings2,
+  Shield,
+  ScrollText,
+} from 'lucide-react';
 import { Alert } from '../ui';
 import { IASettings } from './IASettings';
 import { AIProviderSettings } from './AIProviderSettings';
 import { DetectionSettings } from './DetectionSettings';
-import { AlgorithmsInfo } from './AlgorithmsInfo';
 import { PreferencesSettings } from './PreferencesSettings';
-import { CloudBackupSettings } from './CloudBackupSettings';
-import { LocalBackupSettings } from './LocalBackupSettings';
-import { RegulatorySourcesSettings } from './RegulatorySourcesSettings';
 import { OrganizationSettings } from './OrganizationSettings';
 import { AboutSettings } from './AboutSettings';
 import { Proph3tSettingsPanel } from './Proph3tSettingsPanel';
-import { AICostDashboard } from './AICostDashboard';
-import { GatewaySettings } from './GatewaySettings';
-import { AIComparator } from './AIComparator';
+import { SecuritySettings } from './SecuritySettings';
 import { AuditTrailPanel } from './AuditTrailPanel';
-import { BackupService } from '../../services/BackupService';
 import { useSettingsStore } from '../../store/settingsStore';
 
-type SettingsTab = 'organization' | 'ai-providers' | 'proph3t' | 'gateway' | 'ai-costs' | 'ai-comparator' | 'ia' | 'detection-modules' | 'detection-thresholds' | 'detection-algorithms' | 'preferences' | 'local-backup' | 'cloud-backup' | 'regulatory' | 'audit-trail' | 'about';
+type SettingsTab =
+  | 'organization'
+  | 'ai'
+  | 'detection'
+  | 'preferences'
+  | 'security'
+  | 'audit-trail'
+  | 'about';
 
 interface TabConfig {
   id: SettingsTab;
   label: string;
   icon: React.ReactNode;
-  indent?: boolean;
+  description: string;
 }
 
-function useTabs(): TabConfig[] {
-  const { aiProviders } = useSettingsStore();
-  const isOllama = aiProviders.activeProvider === 'ollama';
-
-  const tabs: TabConfig[] = [
-    { id: 'organization', label: 'Organisation', icon: <Briefcase className="w-4 h-4" /> },
-    { id: 'ai-providers', label: 'Providers IA', icon: <Cpu className="w-4 h-4" /> },
-  ];
-
-  // Show PROPH3T tab when Ollama is active
-  if (isOllama) {
-    tabs.push({ id: 'proph3t', label: 'PROPH3T Engine', icon: <Sparkles className="w-4 h-4" />, indent: true });
-  }
-
-  tabs.push(
-    { id: 'gateway', label: 'Gateway Premium', icon: <Router className="w-4 h-4" /> },
-    { id: 'ai-costs', label: 'Couts IA', icon: <DollarSign className="w-4 h-4" />, indent: true },
-    { id: 'ai-comparator', label: 'Comparateur IA', icon: <BarChart3 className="w-4 h-4" />, indent: true },
-    { id: 'ia', label: 'Claude AI (avance)', icon: <Brain className="w-4 h-4" /> },
-    { id: 'detection-modules', label: 'Modules de detection', icon: <Shield className="w-4 h-4" /> },
-    { id: 'detection-thresholds', label: 'Seuils de detection', icon: <Sliders className="w-4 h-4" />, indent: true },
-    { id: 'detection-algorithms', label: 'Algorithmes', icon: <Code2 className="w-4 h-4" />, indent: true },
-    { id: 'preferences', label: 'Preferences', icon: <Settings2 className="w-4 h-4" /> },
-    { id: 'local-backup', label: 'Sauvegarde Locale', icon: <HardDrive className="w-4 h-4" /> },
-    { id: 'cloud-backup', label: 'Sauvegarde Cloud', icon: <Cloud className="w-4 h-4" /> },
-    { id: 'regulatory', label: 'Sources reglementaires', icon: <FileText className="w-4 h-4" /> },
-    { id: 'audit-trail', label: 'Journal d\'activite', icon: <ScrollText className="w-4 h-4" /> },
-    { id: 'about', label: 'A propos', icon: <Info className="w-4 h-4" /> },
-  );
-
-  return tabs;
-}
+const TABS: TabConfig[] = [
+  { id: 'organization', label: 'Organisation',       icon: <Briefcase className="w-4 h-4" />, description: 'Cabinet, logo, contact, SMTP' },
+  { id: 'ai',           label: 'Intelligence',       icon: <Brain      className="w-4 h-4" />, description: 'Provider, clé API, IA locale' },
+  { id: 'detection',    label: 'Détection',          icon: <Sliders    className="w-4 h-4" />, description: 'Modules, seuils, algorithmes' },
+  { id: 'preferences',  label: 'Préférences',        icon: <Settings2  className="w-4 h-4" />, description: 'Devise, format, affichage' },
+  { id: 'security',     label: 'Sécurité',           icon: <Shield     className="w-4 h-4" />, description: 'MFA, allowlist IP' },
+  { id: 'audit-trail',  label: "Journal d'activité", icon: <ScrollText className="w-4 h-4" />, description: 'Historique des actions' },
+  { id: 'about',        label: 'À propos',           icon: <Info       className="w-4 h-4" />, description: 'Version, licence, crédits' },
+];
 
 export function SettingsPage() {
-  const TABS = useTabs();
   const [activeTab, setActiveTab] = useState<SettingsTab>('organization');
   const [saved, setSaved] = useState(false);
-  const [migrationInfo, setMigrationInfo] = useState<{ migrated: boolean; fromVersion: string | null } | null>(null);
+  const aiProviders = useSettingsStore((s) => s.aiProviders);
+  const isOllama = aiProviders.activeProvider === 'ollama';
 
-  // Verifier et migrer les donnees au chargement
   useEffect(() => {
-    const result = BackupService.checkAndMigrate();
-    if (result.migrated) {
-      setMigrationInfo({ migrated: true, fromVersion: result.fromVersion });
-    }
-  }, []);
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), 3000);
+    return () => clearTimeout(t);
+  }, [saved]);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
+  const handleSave = () => setSaved(true);
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'organization':
         return <OrganizationSettings onSave={handleSave} />;
-      case 'ai-providers':
-        return <AIProviderSettings onSave={handleSave} />;
-      case 'proph3t':
-        return <Proph3tSettingsPanel onSave={handleSave} />;
-      case 'gateway':
-        return <GatewaySettings onSave={handleSave} />;
-      case 'ai-costs':
-        return <AICostDashboard />;
-      case 'ai-comparator':
-        return <AIComparator />;
-      case 'ia':
-        return <IASettings onSave={handleSave} />;
-      case 'detection-modules':
-      case 'detection-thresholds':
-        return <DetectionSettings onSave={handleSave} initialTab={activeTab === 'detection-modules' ? 'modules' : 'thresholds'} />;
-      case 'detection-algorithms':
-        return <AlgorithmsInfo />;
+      case 'ai':
+        return (
+          <div className="space-y-6">
+            <AIProviderSettings onSave={handleSave} />
+            {isOllama && <Proph3tSettingsPanel onSave={handleSave} />}
+            <IASettings onSave={handleSave} />
+          </div>
+        );
+      case 'detection':
+        return <DetectionSettings onSave={handleSave} initialTab="modules" />;
       case 'preferences':
         return <PreferencesSettings onSave={handleSave} />;
-      case 'local-backup':
-        return <LocalBackupSettings />;
-      case 'cloud-backup':
-        return <CloudBackupSettings />;
-      case 'regulatory':
-        return <RegulatorySourcesSettings />;
+      case 'security':
+        return <SecuritySettings />;
       case 'audit-trail':
         return <AuditTrailPanel />;
       case 'about':
@@ -122,50 +91,61 @@ export function SettingsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Parametres</h1>
+        <p className="page-eyebrow mb-2">Configuration</p>
+        <h1 className="page-title">Paramètres</h1>
         <p className="page-description">
-          Configurez les seuils de detection et les preferences
+          Configurez votre cabinet, l'intelligence artificielle et la détection des anomalies.
         </p>
       </div>
 
-      {migrationInfo?.migrated && (
-        <Alert variant="info" title="Donnees migrees">
-          Vos donnees ont ete migrees de la version {migrationInfo.fromVersion} vers la version actuelle.
-        </Alert>
-      )}
-
       {saved && (
-        <Alert variant="success" title="Parametres enregistres">
-          Vos modifications ont ete sauvegardees.
+        <Alert variant="success" title="Paramètres enregistrés">
+          Vos modifications ont été sauvegardées.
         </Alert>
       )}
 
       {/* Tabs Navigation */}
       <div className="flex gap-6">
-        {/* Sidebar Tabs */}
-        <div className="w-64 flex-shrink-0">
+        {/* Sidebar — premium */}
+        <div className="w-72 flex-shrink-0">
           <nav className="space-y-1 sticky top-4">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 py-3 rounded-lg text-left transition-colors ${
-                  tab.indent ? 'px-6' : 'px-4'
-                } ${
-                  activeTab === tab.id
-                    ? 'bg-primary-900 text-white'
-                    : 'text-primary-600 hover:bg-primary-100'
-                }`}
-              >
-                {tab.icon}
-                <span className={`text-sm font-medium ${tab.indent ? 'text-xs' : ''}`}>{tab.label}</span>
-              </button>
-            ))}
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`group relative w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ease-premium ${
+                    isActive
+                      ? 'bg-gradient-to-r from-ink-900 to-ink-800 text-white shadow-[0_4px_16px_-4px_rgb(7_11_31/0.35)]'
+                      : 'text-ink-600 hover:bg-canvas-200/70 hover:text-ink-900'
+                  }`}
+                >
+                  {isActive && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r-full bg-accent-400"
+                    />
+                  )}
+                  <span className={isActive ? 'text-accent-300' : 'text-ink-400'}>{tab.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold tracking-tight truncate">{tab.label}</p>
+                    <p
+                      className={`text-[11px] truncate ${
+                        isActive ? 'text-white/60' : 'text-ink-400'
+                      }`}
+                    >
+                      {tab.description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </nav>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1">{renderTabContent()}</div>
+        {/* Content */}
+        <div className="flex-1 min-w-0">{renderTabContent()}</div>
       </div>
     </div>
   );

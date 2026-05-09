@@ -7,6 +7,8 @@ import { useClientStore } from './store/clientStore';
 import { useTransactionStore } from './store/transactionStore';
 import { useAnalysisStore } from './store/analysisStore';
 import { useReportStore } from './store/reportStore';
+import { useSettingsStore } from './store/settingsStore';
+import { settingsRepo } from './lib/repositories';
 import { banksRepo } from './lib/repositories';
 import type { Bank } from './types';
 import { LoginScreen } from './components/auth';
@@ -119,6 +121,8 @@ function App() {
   const resetAnalyses = useAnalysisStore((s) => s.resetState);
   const hydrateReports = useReportStore((s) => s.hydrateFromSupabase);
   const resetReports = useReportStore((s) => s.resetState);
+  const hydrateSettings = useSettingsStore((s) => s.hydrateFromSupabase);
+  const resetSettingsHydration = useSettingsStore((s) => s.resetHydration);
   const { isInitialized, isAuthenticated, isDemoMode, initialize, profile, user } = useAuthStore();
   const ensureSelfClient = useClientStore((s) => s.ensureSelfClient);
   const hydrateClients = useClientStore((s) => s.hydrateFromSupabase);
@@ -148,6 +152,7 @@ function App() {
       resetBanks();
       resetAnalyses();
       resetReports();
+      resetSettingsHydration();
       return;
     }
 
@@ -165,6 +170,7 @@ function App() {
         hydrateBanks(),
         hydrateAnalyses(),
         hydrateReports(),
+        hydrateSettings(),
       ]);
     })();
 
@@ -180,12 +186,50 @@ function App() {
     hydrateBanks,
     hydrateAnalyses,
     hydrateReports,
+    hydrateSettings,
     resetClients,
     resetTransactions,
     resetBanks,
     resetAnalyses,
     resetReports,
+    resetSettingsHydration,
   ]);
+
+  // ─── Settings observer — debounced sync of preferences/org/AI config ────
+  // Persists user_settings.settings (JSONB) on every change. settingsRepo
+  // strips API keys / encryption IVs before persist (defense in depth).
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || isDemoMode) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let prevSnapshot = JSON.stringify(useSettingsStore.getState());
+
+    const unsubscribe = useSettingsStore.subscribe((state) => {
+      // Only persist AFTER hydration completed for this user, otherwise we'd
+      // overwrite the server with our defaults on every login.
+      if (state.hydratedForUserId !== user.id) return;
+      // Quick equality check (cheap for our flat-ish blob)
+      const next = JSON.stringify(state);
+      if (next === prevSnapshot) return;
+      prevSnapshot = next;
+
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        // Read latest snapshot (in case more updates landed during debounce)
+        const fresh = useSettingsStore.getState();
+        // Strip non-serializable / runtime-only fields if needed
+        const blob = JSON.parse(JSON.stringify(fresh));
+        delete blob.hydratedForUserId; // never persist the hydration marker
+        settingsRepo.save(user.id, blob).catch((err) => {
+          console.error('[App] settings persist failed:', err);
+        });
+      }, 800); // 800ms debounce — typical for typing in form fields
+    });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [isAuthenticated, isDemoMode, user?.id]);
 
   // ─── Bank store observer — diff & sync changes to Supabase ────────────────
   // Bank mutations are scattered across many actions (addFee, addGrid, etc.).
