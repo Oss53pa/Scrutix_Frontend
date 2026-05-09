@@ -297,6 +297,8 @@ export function ClientDetailPage() {
       {activeTab === 'statements' && (
         <StatementsTab
           clientStatements={clientStatements}
+          clientTransactions={clientTransactions}
+          banks={banks}
           navigate={navigate}
         />
       )}
