@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   CheckCircle2,
   ChevronRight,
@@ -14,6 +14,9 @@ import {
   FileWarning,
   TrendingUp,
   Cpu,
+  Search,
+  X as XIcon,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardBody, Button, Input, Select, Badge, SeverityBadge } from '../ui';
 import { useClientStore } from '../../store/clientStore';
@@ -24,7 +27,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useAccountType } from '../../hooks/useAccountType';
 import { formatCurrency, formatDate } from '../../utils';
 import { AnomalyType, Severity, ANOMALY_TYPE_LABELS, DetectionSource, DEFAULT_THRESHOLDS, Anomaly, Transaction } from '../../types';
-import { getAnalysisService, ClaudeService } from '../../services';
+import { getAnalysisService, ClaudeService, ReportService } from '../../services';
 
 type ViewMode = 'config' | 'viewer';
 
@@ -164,8 +167,54 @@ export function AnalysesPage() {
     }
   }, [isEnterprise, selfClient, selectedClient]);
   const [selectedBanks, setSelectedBanks] = useState<string[]>([]);
+  const [bankSearch, setBankSearch] = useState('');
+  const [bankPickerOpen, setBankPickerOpen] = useState(false);
+  const bankPickerRef = useRef<HTMLDivElement>(null);
   const [selectedAnomaly, setSelectedAnomaly] = useState<number | null>(null);
   const [zoom, setZoom] = useState(100);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  // Banks tied to the selected client (via the client's accounts).
+  // Falls back to all active banks when no client is selected.
+  const currentClient = useMemo(
+    () => clients.find((c) => c.id === selectedClient),
+    [clients, selectedClient],
+  );
+  const clientBankCodes = useMemo(() => {
+    if (!currentClient) return new Set<string>();
+    return new Set(currentClient.accounts.map((a) => a.bankCode));
+  }, [currentClient]);
+  const eligibleBanks = useMemo(() => {
+    const active = banks.filter((b) => b.isActive);
+    if (clientBankCodes.size === 0) return active;
+    return active.filter((b) => clientBankCodes.has(b.code));
+  }, [banks, clientBankCodes]);
+  const filteredBanks = useMemo(() => {
+    const query = bankSearch.trim().toLowerCase();
+    if (!query) return eligibleBanks;
+    return eligibleBanks.filter((b) => {
+      const haystack = `${b.name} ${b.code} ${b.country ?? ''}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [eligibleBanks, bankSearch]);
+
+  // When the client changes, drop bank selections that don't belong anymore
+  useEffect(() => {
+    if (clientBankCodes.size === 0) return;
+    setSelectedBanks((prev) => prev.filter((code) => clientBankCodes.has(code)));
+  }, [clientBankCodes]);
+
+  // Close the picker when clicking outside
+  useEffect(() => {
+    if (!bankPickerOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (bankPickerRef.current && !bankPickerRef.current.contains(e.target as Node)) {
+        setBankPickerOpen(false);
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [bankPickerOpen]);
 
   const isAIEnabled = claudeApi.isEnabled && claudeApi.apiKey;
 
@@ -225,10 +274,16 @@ export function AnalysesPage() {
   const criticalCount = anomalies.filter((a) => a.severity === Severity.CRITICAL).length;
   const highCount = anomalies.filter((a) => a.severity === Severity.HIGH).length;
 
-  // Get transactions for selected client
-  const clientTransactions = selectedClient
-    ? transactions.filter((t) => t.clientId === selectedClient)
-    : transactions;
+  // Get transactions for selected client (and selected banks, if any)
+  const clientTransactions = useMemo(() => {
+    let scope = selectedClient
+      ? transactions.filter((t) => t.clientId === selectedClient)
+      : transactions;
+    if (selectedBanks.length > 0) {
+      scope = scope.filter((t) => selectedBanks.includes(t.bankCode));
+    }
+    return scope;
+  }, [transactions, selectedClient, selectedBanks]);
 
   const handleLaunchAnalysis = async () => {
     if (transactions.length === 0) {
@@ -304,9 +359,75 @@ export function AnalysesPage() {
     }
   };
 
-  const handleGenerateReport = () => {
-    // Generate report logic
-    alert('Rapport généré avec succès!');
+  const handleGenerateReport = async () => {
+    if (anomalies.length === 0) {
+      alert('Aucune anomalie à reporter. Lance d\'abord une analyse.');
+      return;
+    }
+    if (isGeneratingReport) return;
+
+    setIsGeneratingReport(true);
+    try {
+      const stats = currentAnalysis?.statistics ?? {
+        totalTransactions: displayTransactions.length,
+        totalAmount: displayTransactions.reduce((s, t) => s + Math.abs(t.amount), 0),
+        totalAnomalies: anomalies.length,
+        totalAnomalyAmount: totalSavings,
+        anomaliesByType: anomalies.reduce((acc, a) => {
+          acc[a.type] = (acc[a.type] ?? 0) + 1;
+          return acc;
+        }, {} as Record<AnomalyType, number>),
+        anomaliesBySeverity: anomalies.reduce((acc, a) => {
+          acc[a.severity] = (acc[a.severity] ?? 0) + 1;
+          return acc;
+        }, {} as Record<Severity, number>),
+        anomalyRate: displayTransactions.length === 0
+          ? 0
+          : (anomalies.length / displayTransactions.length) * 100,
+        potentialSavings: totalSavings,
+      };
+
+      const summary = currentAnalysis?.summary ?? {
+        status: criticalCount > 0 ? 'CRITICAL' : highCount > 0 ? 'WARNING' : 'OK',
+        message: `${anomalies.length} anomalie${anomalies.length > 1 ? 's' : ''} détectée${anomalies.length > 1 ? 's' : ''} pour un montant total de ${formatCurrency(totalSavings, 'XAF')}.`,
+        keyFindings: anomalies.slice(0, 5).map((a) => a.description).filter(Boolean),
+        recommendations: anomalies.slice(0, 5).map((a) => a.recommendation).filter(Boolean),
+        estimatedRecovery: totalSavings,
+      } as const;
+
+      const dates = displayTransactions.length > 0
+        ? displayTransactions.map((t) => new Date(t.date).getTime())
+        : [Date.now()];
+      const period = {
+        start: dateRange.start ? new Date(dateRange.start) : new Date(Math.min(...dates)),
+        end: dateRange.end ? new Date(dateRange.end) : new Date(Math.max(...dates)),
+      };
+
+      const clientName = isDemoMode
+        ? 'Démonstration'
+        : currentClient?.name
+          ?? clients.find((c) => c.id === currentAnalysis?.config.clientId)?.name
+          ?? 'Client';
+
+      await ReportService.downloadPDF(
+        {
+          title: `Rapport d'audit bancaire — ${clientName}`,
+          clientName,
+          period,
+          anomalies,
+          statistics: stats,
+          summary,
+          includeAIAnalysis: analysisMode !== 'algorithm',
+        },
+        undefined,
+        currentAnalysis?.id,
+      );
+    } catch (err) {
+      console.error('[AnalysesPage] report generation failed:', err);
+      alert(`Erreur lors de la génération du rapport: ${err instanceof Error ? err.message : 'Erreur inconnue'}`);
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
   const currentMode = modeConfig[analysisMode];
@@ -415,22 +536,109 @@ export function AnalysesPage() {
                   className="h-9 text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-primary-600 mb-1">Banque</label>
-                <Select
-                  value=""
-                  onChange={(e) => {
-                    if (e.target.value && !selectedBanks.includes(e.target.value)) {
-                      setSelectedBanks([...selectedBanks, e.target.value]);
-                    }
-                  }}
-                  className="h-9 text-sm"
+              <div className="relative" ref={bankPickerRef}>
+                <label className="block text-xs font-medium text-primary-600 mb-1">
+                  Banque{selectedBanks.length > 0 && <span className="text-primary-400"> ({selectedBanks.length})</span>}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setBankPickerOpen((o) => !o)}
+                  disabled={!selectedClient && !isEnterprise}
+                  className="w-full h-9 px-3 rounded-md border border-primary-300 bg-white text-left flex items-center gap-2 text-sm text-primary-800 hover:border-primary-400 disabled:bg-primary-50 disabled:text-primary-400"
                 >
-                  <option value="">Toutes</option>
-                  {banks.filter((b) => b.isActive).map((bank) => (
-                    <option key={bank.id} value={bank.code}>{bank.name}</option>
-                  ))}
-                </Select>
+                  <Search className="w-3.5 h-3.5 text-primary-400 flex-shrink-0" />
+                  <span className="flex-1 truncate">
+                    {selectedBanks.length === 0
+                      ? eligibleBanks.length === 0
+                        ? 'Aucune banque pour ce client'
+                        : `Toutes (${eligibleBanks.length})`
+                      : selectedBanks.length === 1
+                        ? eligibleBanks.find((b) => b.code === selectedBanks[0])?.name ?? selectedBanks[0]
+                        : `${selectedBanks.length} banques`}
+                  </span>
+                  <ChevronRight className={`w-3.5 h-3.5 transition-transform ${bankPickerOpen ? 'rotate-90' : ''}`} />
+                </button>
+
+                {bankPickerOpen && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 rounded-md border border-primary-200 bg-white shadow-lg max-h-72 overflow-hidden flex flex-col">
+                    <div className="p-2 border-b border-primary-100">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-primary-400" />
+                        <input
+                          autoFocus
+                          type="text"
+                          value={bankSearch}
+                          onChange={(e) => setBankSearch(e.target.value)}
+                          placeholder="Rechercher (nom, code, pays)..."
+                          className="w-full h-8 pl-7 pr-7 text-xs border border-primary-200 rounded focus:outline-none focus:ring-1 focus:ring-primary-400"
+                        />
+                        {bankSearch && (
+                          <button
+                            onClick={() => setBankSearch('')}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-primary-400 hover:text-primary-700"
+                          >
+                            <XIcon className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      {selectedBanks.length > 0 && (
+                        <div className="flex items-center justify-between mt-1.5 px-1">
+                          <span className="text-[10px] text-primary-500">
+                            {selectedBanks.length} sélectionnée{selectedBanks.length > 1 ? 's' : ''}
+                          </span>
+                          <button
+                            onClick={() => setSelectedBanks([])}
+                            className="text-[10px] text-primary-500 hover:text-primary-900"
+                          >
+                            Tout désélectionner
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="overflow-y-auto flex-1">
+                      {filteredBanks.length === 0 ? (
+                        <p className="text-xs text-primary-500 px-3 py-4 text-center">
+                          {bankSearch
+                            ? 'Aucune banque ne correspond à la recherche'
+                            : 'Aucune banque éligible pour ce client'}
+                        </p>
+                      ) : (
+                        filteredBanks.map((bank) => {
+                          const isChecked = selectedBanks.includes(bank.code);
+                          return (
+                            <label
+                              key={bank.id}
+                              className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-primary-50 ${
+                                isChecked ? 'bg-primary-50' : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  setSelectedBanks((prev) =>
+                                    e.target.checked
+                                      ? [...prev, bank.code]
+                                      : prev.filter((c) => c !== bank.code),
+                                  );
+                                }}
+                                className="w-3 h-3 rounded border-primary-300 text-primary-900"
+                              />
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-xs text-primary-900 truncate">{bank.name}</span>
+                                <span className="block text-[10px] text-primary-500 font-mono truncate">
+                                  {bank.code}
+                                  {bank.country ? ` · ${bank.country}` : ''}
+                                </span>
+                              </span>
+                              {isChecked && <CheckCircle2 className="w-3.5 h-3.5 text-primary-700 flex-shrink-0" />}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -613,9 +821,22 @@ export function AnalysesPage() {
 
         {/* Generate Report Button */}
         <div className="p-4 border-t border-primary-200">
-          <Button className="w-full gap-2" onClick={handleGenerateReport}>
-            <FileText className="w-4 h-4" />
-            Générer le rapport
+          <Button
+            className="w-full gap-2"
+            onClick={handleGenerateReport}
+            disabled={isGeneratingReport || anomalies.length === 0}
+          >
+            {isGeneratingReport ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Génération du PDF…
+              </>
+            ) : (
+              <>
+                <FileText className="w-4 h-4" />
+                Télécharger le rapport PDF
+              </>
+            )}
           </Button>
         </div>
       </div>

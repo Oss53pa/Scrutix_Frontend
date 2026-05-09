@@ -21,6 +21,7 @@ import { Proph3tEngine } from './proph3t/Proph3tEngine';
 import type { Proph3tConfig } from './proph3t/types';
 import { PremiumGateway } from './gateway/PremiumGateway';
 import type { GatewayConfig, GatewayTaskType } from './gateway/GatewayTypes';
+import { setLlmEngine } from './proph3t/intelligence/llmEnricher';
 
 /**
  * Factory pour créer des instances de providers IA
@@ -45,7 +46,10 @@ class AIProviderFactoryClass {
       case 'ollama':
         // If PROPH3T config exists and is enabled, use Proph3tEngine
         if (config.proph3tConfig?.enabled) {
-          return new Proph3tEngine(config, config.proph3tConfig);
+          const engine = new Proph3tEngine(config, config.proph3tConfig);
+          // Wire engine into Intelligence Gateway for LLM enrichment
+          setLlmEngine(engine);
+          return engine;
         }
         return new OllamaProvider(config);
       case 'custom':
@@ -104,6 +108,8 @@ class AIProviderFactoryClass {
   reset(): void {
     this.currentProvider = null;
     this.currentConfig = null;
+    // Clear LLM engine reference when provider is reset
+    setLlmEngine(null);
   }
 
   /**

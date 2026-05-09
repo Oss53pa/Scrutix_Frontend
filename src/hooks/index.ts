@@ -27,3 +27,6 @@ export { useAccountType } from './useAccountType';
 
 // Audit trail (immutable event logging)
 export { useAuditTrail } from './useAuditTrail';
+
+// PROPH3T Intelligence (14 competences)
+export { useIntelligence } from './useIntelligence';
