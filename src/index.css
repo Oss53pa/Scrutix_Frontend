@@ -64,6 +64,15 @@
   :where(.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6) {
     @apply text-ink-50;
   }
+
+  /* Grand Hotel ships only one weight (regular). Browsers fake-bold it when
+     a heading defaults to bold, producing a heavy, smeared wordmark. Block
+     synthesis and force normal weight on every .font-display element. */
+  .font-display {
+    font-weight: 400 !important;
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+  }
 }
 
 @layer components {

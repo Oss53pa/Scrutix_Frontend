@@ -153,8 +153,12 @@ export function HomePage() {
         </div>
 
         <h1
-          className="font-display text-6xl sm:text-7xl md:text-[7.5rem] leading-[0.95] tracking-tight mb-3 animate-fade-in-up"
-          style={{ animationDelay: '60ms', animationFillMode: 'backwards' }}
+          className="font-display font-normal text-5xl sm:text-6xl md:text-[6rem] leading-[0.95] tracking-tight mb-3 animate-fade-in-up"
+          style={{
+            animationDelay: '60ms',
+            animationFillMode: 'backwards',
+            fontSynthesis: 'none', // Grand Hotel has no bold — block fake-bolding
+          }}
         >
           <span className="text-gradient-ink">Atlas</span>
           <span className="text-gradient-gold">Banx</span>
