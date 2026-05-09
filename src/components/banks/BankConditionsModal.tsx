@@ -706,22 +706,26 @@ export function BankConditionsModal({
     if (!verification) return;
     const { file } = verification;
 
-    if (!commit.conditions || Object.keys(commit.conditions).length === 0) {
-      alert('Aucune rubrique n\'a été mappée — sélectionne au moins une rubrique avant de valider.');
-      return;
-    }
-
-    // Apply each validated rubric into the conditions form via setByPath
+    // Apply each validated rubric into the conditions form via setByPath.
+    // We don't bail out when nothing is mapped — committing still archives
+    // the source document so the user can re-map manually inside the editor.
     const values: Record<string, number | string> = {};
-    for (const [rubricKey, val] of Object.entries(commit.conditions)) {
-      if (val.qualitative && val.value === 0) continue; // skip "Gratuit/Néant" for numeric form fields
-      values[rubricKey] = val.value;
+    if (commit.conditions) {
+      for (const [rubricKey, val] of Object.entries(commit.conditions)) {
+        if (val.qualitative && val.value === 0) continue; // skip "Gratuit/Néant" for numeric form fields
+        values[rubricKey] = val.value;
+      }
     }
-    if (Object.keys(values).length > 0) {
+    const mappedCount = Object.keys(values).length;
+    if (mappedCount > 0) {
       handleApplyExtraction(values);
     }
 
-    // Archive the source document so it's listed in the Documents tab
+    // Archive the source document so it's listed in the Documents tab.
+    // Even when nothing got mapped automatically, having the PDF stored
+    // means the user can re-open the verification modal later or keep it
+    // as a reference document.
+    let docArchived = false;
     try {
       const base64 = await fileToBase64(file);
       const document: ArchivedDocument = {
@@ -739,9 +743,25 @@ export function BankConditionsModal({
         ...prev,
         documents: [...prev.documents, document],
       }));
-      setHasChanges(true);
+      docArchived = true;
     } catch (err) {
       console.warn('[BankConditionsModal] failed to archive source document:', err);
+    }
+
+    // ALWAYS mark dirty when the user went through the import — that's the
+    // signal the editor uses to enable the "Enregistrer" button. Otherwise
+    // the user would be stuck with a disabled button after a partial import.
+    if (mappedCount > 0 || docArchived) {
+      setHasChanges(true);
+    }
+
+    // Soft warning when nothing got mapped — lets the user act on it without
+    // blocking the workflow (the doc is still archived for manual mapping).
+    if (mappedCount === 0) {
+      alert(
+        'Aucune rubrique n\'a été automatiquement mappée. Le document a été archivé — '
+        + 'tu peux saisir manuellement les valeurs dans les onglets ci-dessus.'
+      );
     }
 
     setVerification(null);

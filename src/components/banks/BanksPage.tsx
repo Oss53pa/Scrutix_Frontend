@@ -215,19 +215,19 @@ export function BanksPage() {
     }
     const { bankId, bank, file } = verification;
 
-    if (!commit.conditions || Object.keys(commit.conditions).length === 0) {
-      alert('Aucune rubrique n\'a été mappée — sélectionne au moins une rubrique avant de valider.');
-      return;
-    }
-
-    // Project validated rubrics into the nested BankConditions structure via dot notation
+    // Project validated rubrics into the nested BankConditions structure.
+    // We commit the grid even when nothing got auto-mapped — the document
+    // archive is still useful and the user can edit values manually.
     const structured: Record<string, unknown> = {};
-    for (const [rubricKey, val] of Object.entries(commit.conditions)) {
-      // Skip qualitative-only rows (no numeric value) for the structured mapping
-      const value = val.qualitative && val.value === 0 ? null : val.value;
-      if (value === null) continue;
-      setByPath(structured, rubricKey, value);
+    if (commit.conditions) {
+      for (const [rubricKey, val] of Object.entries(commit.conditions)) {
+        // Skip qualitative-only rows (no numeric value) for the structured mapping
+        const value = val.qualitative && val.value === 0 ? null : val.value;
+        if (value === null) continue;
+        setByPath(structured, rubricKey, value);
+      }
     }
+    const mappedCount = Object.keys(structured).length;
 
     const baseConditions: BankConditions = {
       id: uuidv4(),
@@ -281,6 +281,16 @@ export function BanksPage() {
     setVerification(null);
     setSelectedBank(bankId);
     setShowConditions(true); // open the legacy editor on the new grid for fine-tuning
+
+    if (mappedCount === 0) {
+      // Soft warning — grid is created and document archived; user can fill manually.
+      setTimeout(() => {
+        alert(
+          'Aucune rubrique n\'a été automatiquement mappée. La grille a été créée et le document archivé '
+          + '— tu peux maintenant saisir les valeurs manuellement dans les onglets.'
+        );
+      }, 200);
+    }
   };
 
   const handleSaveBank = (data: Partial<Bank>) => {
