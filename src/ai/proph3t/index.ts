@@ -32,3 +32,28 @@ export { DeterministicPreFilter } from './DeterministicPreFilter';
 
 // Categorization Cache (exported after Sprint 3)
 export { CategorizationCache } from './CategorizationCache';
+
+// Intelligence Gateway contracts (CDC PROPH3T v1.0)
+export {
+  CompetenceId,
+  COMPETENCE_ZONES,
+  COMPETENCE_LABELS,
+  COMPETENCE_VERSIONS,
+  DEFAULT_DOUBLE_PASS,
+} from './intelligence';
+
+export type {
+  IntelligenceRequest,
+  IntelligenceResponse,
+  IntelligenceTrace,
+  IntelligenceError,
+  InferenceRecord,
+  CompetenceIOMap,
+  BoundingBox,
+  ConditionUnit,
+  ConditionDimensions,
+  ConditionFormula,
+  ValidationZone,
+  IntelligenceModel,
+  DoublePassConfig,
+} from './intelligence';

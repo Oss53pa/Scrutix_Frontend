@@ -977,24 +977,46 @@ export const useSettingsStore = create<SettingsStore>()(
       // Persist everything EXCEPT credential fields. The Claude API key is
       // stored server-side (atlasbanx.user_ai_keys) and read by the
       // claude-proxy Edge Function — it must never appear in localStorage.
+      //
+      // Note: providers live under `aiProviders.providers` (nested), and
+      // the legacy `aiSettings.provider.apiKey` lives under aiSettings.
+      // We strip apiKey from every shape we know about; missing branches
+      // are guarded so the store doesn't crash if the schema evolves.
       partialize: (state) => {
-        const { claudeApi, providers, ...rest } = state;
+        const stripKey = <T extends { apiKey?: string }>(p: T | undefined): T | undefined =>
+          p ? { ...p, apiKey: '' } : p;
+
         return {
-          ...rest,
-          claudeApi: {
-            ...claudeApi,
-            apiKey: '',       // Never persist
-            apiKeyIv: '',     // Never persist
-          },
-          providers: {
-            ...providers,
-            claude: { ...providers.claude, apiKey: '' },
-            openai: { ...providers.openai, apiKey: '' },
-            mistral: { ...providers.mistral, apiKey: '' },
-            gemini: { ...providers.gemini, apiKey: '' },
-            ollama: providers.ollama,
-            custom: { ...providers.custom, apiKey: '' },
-          },
+          ...state,
+          claudeApi: state.claudeApi
+            ? { ...state.claudeApi, apiKey: '', apiKeyIv: '' }
+            : state.claudeApi,
+          aiProviders: state.aiProviders
+            ? {
+                ...state.aiProviders,
+                providers: state.aiProviders.providers
+                  ? {
+                      claude:  stripKey(state.aiProviders.providers.claude)  ?? state.aiProviders.providers.claude,
+                      openai:  stripKey(state.aiProviders.providers.openai)  ?? state.aiProviders.providers.openai,
+                      mistral: stripKey(state.aiProviders.providers.mistral) ?? state.aiProviders.providers.mistral,
+                      gemini:  stripKey(state.aiProviders.providers.gemini)  ?? state.aiProviders.providers.gemini,
+                      ollama:  state.aiProviders.providers.ollama, // Ollama runs locally — no key
+                      custom:  stripKey(state.aiProviders.providers.custom)  ?? state.aiProviders.providers.custom,
+                    }
+                  : state.aiProviders.providers,
+              }
+            : state.aiProviders,
+          // New AI Settings (multi-provider abstraction) also has a key field
+          aiSettings: state.aiSettings
+            ? {
+                ...state.aiSettings,
+                provider: state.aiSettings.provider
+                  ? { ...state.aiSettings.provider, apiKey: '' }
+                  : state.aiSettings.provider,
+              }
+            : state.aiSettings,
+          // cloudBackup type doesn't carry tokens — they're scoped to the
+          // GoogleDriveService runtime. Nothing to strip here.
         } as SettingsStore;
       },
     }
