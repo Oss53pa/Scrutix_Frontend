@@ -580,20 +580,24 @@ function drawRecommendations(ctx: DrawCtx): void {
   }
 
   ranked.forEach((a, idx) => {
-    if (y > ctx.pageHeight - 40) {
-      doc.addPage();
-      drawPageHeader(ctx, 'Recommandations prioritaires (suite)');
-      y = 48;
-    }
-
     const cardX = ctx.margin;
     const cardW = ctx.contentWidth;
     const padding = 6;
 
-    // Estimate height
+    // Compute actual card height FIRST so we know if it fits on the
+    // remaining page space. The previous code used a static "y > pageHeight - 40"
+    // pre-check that didn't account for tall multi-line cards, causing
+    // the bottom of long recommendation cards to be silently clipped.
     setFont(doc, 'Inter', 10, 'normal');
     const recoLines = doc.splitTextToSize(a.recommendation, cardW - 2 * padding);
     const cardH = 28 + recoLines.length * 4.5;
+
+    // Page-break BEFORE drawing if this card wouldn't fit (account for footer ~20)
+    if (y + cardH > ctx.pageHeight - 22) {
+      doc.addPage();
+      drawPageHeader(ctx, 'Recommandations prioritaires (suite)');
+      y = 48;
+    }
 
     // Card background
     setFill(doc, CANVAS_50);
@@ -882,7 +886,11 @@ function drawMethodology(ctx: DrawCtx): void {
   ];
 
   sections.forEach((s) => {
-    if (y > ctx.pageHeight - 40) {
+    // Pre-compute height to avoid splitting a section across pages mid-paragraph
+    setFont(doc, 'Inter', 10, 'normal');
+    const previewLines = doc.splitTextToSize(s.body, ctx.contentWidth);
+    const sectionH = 5 + previewLines.length * 4.6 + 6;
+    if (y + sectionH > ctx.pageHeight - 22) {
       doc.addPage();
       drawPageHeader(ctx, 'Méthodologie (suite)');
       y = 48;

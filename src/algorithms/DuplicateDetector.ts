@@ -10,6 +10,7 @@ import {
   BankConditions,
 } from '../types';
 import { transactionSimilarity, descriptionSimilarity } from './utils/similarity';
+import { formatNumber } from '../utils';
 
 interface DuplicateGroup {
   original: Transaction;
@@ -29,6 +30,52 @@ export class DuplicateDetector {
   }
 
   /**
+   * Real bank fees are bounded in amount AND have recognizable labels.
+   * Anything outside this profile is almost certainly a business
+   * transaction (transfer, payment, salary) and would produce massive
+   * false-positive duplicate-fee flags if compared by amount-similarity.
+   *
+   * Conservative defaults:
+   *   - Amount must be a debit
+   *   - Amount magnitude < 1,000,000 XAF (largest real bank fee
+   *     observed in CEMAC/UEMOA grids: ~500k for crédit dossier)
+   *   - Description must contain at least one fee-related keyword
+   *
+   * The keyword list covers the standard CEMAC/UEMOA fee taxonomy.
+   */
+  static readonly FEE_KEYWORDS = [
+    // Generic
+    'frais', 'commission', 'comm.', 'comm ',
+    'agios', 'agio',
+    'cotisation', 'abonnement',
+    'gestion', 'manipulation',
+    // Account
+    'tenue', 'tdc', 'tcompte', 't.compte', 't compte',
+    'releve', 'relevé', 'attestation',
+    // Notifications
+    'sms', 'alerte', 'notification', 'avis',
+    // Cards
+    'carte', ' cb ', 'visa', 'mastercard', 'gimac',
+    // Operations
+    'opposition', 'rejet', 'incident', 'retour',
+    'rib', 'duplicata',
+    // Tax
+    'tva', 'taxe', 'timbre', 'droit',
+    // Cashflow
+    'cpfd', 'plus forte', 'cfd', 'mouvement',
+  ];
+  static readonly MAX_FEE_AMOUNT_XAF = 1_000_000;
+
+  static isLikelyFee(t: Transaction): boolean {
+    if (t.amount >= 0) return false; // Must be a debit
+    const absAmount = Math.abs(t.amount);
+    if (absAmount > DuplicateDetector.MAX_FEE_AMOUNT_XAF) return false;
+    const desc = (t.description || '').toLowerCase();
+    if (!desc) return false;
+    return DuplicateDetector.FEE_KEYWORDS.some((kw) => desc.includes(kw));
+  }
+
+  /**
    * Detect duplicate transactions in a list
    */
   detectDuplicates(transactions: Transaction[], bankConditions?: BankConditions): Anomaly[] {
@@ -40,10 +87,14 @@ export class DuplicateDetector {
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
-    // Filter to fee-type transactions (most commonly duplicated)
-    const feeTransactions = sorted.filter(
-      (t) => t.amount < 0 // Only consider debits
-    );
+    // ⚠ Filter: REAL bank fees only — debits whose label looks like a fee
+    // AND whose amount is bounded (real fees are small, business
+    // transactions of 1M+ FCFA are not duplicate-fee candidates).
+    //
+    // Without this filter, the detector matches large transfers and
+    // payments by amount-similarity, producing massive false-positive
+    // savings (e.g. claiming a 1.7M FCFA virement is a "duplicate fee").
+    const feeTransactions = sorted.filter((t) => DuplicateDetector.isLikelyFee(t));
 
     for (let i = 0; i < feeTransactions.length; i++) {
       const trans = feeTransactions[i];
@@ -253,9 +304,9 @@ export class DuplicateDetector {
     const feeType = this.identifyFeeType(group.original.description);
 
     return (
-      `Double facturation de ${feeType} détectée: ${count} transaction${count > 1 ? 's' : ''} en double pour ${Math.round(totalAmount).toLocaleString('fr-FR')} FCFA. ` +
+      `Double facturation de ${feeType} détectée: ${count} transaction${count > 1 ? 's' : ''} en double pour ${formatNumber(Math.round(totalAmount))} FCFA. ` +
       `Similarité: ${Math.round(group.similarity * 100)}%. ` +
-      `Réclamer auprès de ${bankName} le remboursement de ${Math.round(totalAmount).toLocaleString('fr-FR')} FCFA.`
+      `Réclamer auprès de ${bankName} le remboursement de ${formatNumber(Math.round(totalAmount))} FCFA.`
     );
   }
 }
