@@ -571,6 +571,10 @@ export function BankConditionsModal({
   // pour une nouvelle banque, ou explicitement après un Save.
   const [baseline, setBaseline] = useState<string>('');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  // Success toast + auto-close after save. When showSaveSuccess === true,
+  // a banner displays "Conditions bancaires importées avec succès" then the
+  // modal auto-closes ~1.5s later.
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
   // Verification modal — opens after extraction so the user can review the
   // raw label/value pairs and validate before they're applied to the form.
@@ -744,11 +748,18 @@ export function BankConditionsModal({
     }));
   };
 
-  // Sauvegarder les conditions
+  // Sauvegarder les conditions — persiste, affiche un toast de succès,
+  // puis ferme la modale automatiquement après 1.5s.
   const handleSave = () => {
     onSaveConditions(bank.id, conditions as any);
     // Re-baseline → diff devient 0 → hasChanges devient false → bouton désactivé.
     setBaseline(serializeForDiff(conditions));
+    // Affiche le toast de succès puis ferme la modale.
+    setShowSaveSuccess(true);
+    setTimeout(() => {
+      setShowSaveSuccess(false);
+      onClose();
+    }, 1500);
   };
 
   // Upload document — PDF goes through the verification modal so the user
@@ -1046,6 +1057,15 @@ export function BankConditionsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      {/* Success toast — displayed for 1.5s after save, then modal auto-closes */}
+      {showSaveSuccess && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[60] bg-emerald-600 text-white px-6 py-3 rounded-lg shadow-elevation-3 flex items-center gap-3 animate-fade-in-up">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="font-semibold">Conditions bancaires importées avec succès</span>
+        </div>
+      )}
       <div className="bg-white rounded-xl shadow-2xl w-[95vw] h-[90vh] max-w-7xl flex flex-col">
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-primary-200 bg-primary-900 text-white rounded-t-xl">
