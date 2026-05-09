@@ -16,6 +16,7 @@ import { OcrService } from './OcrService';
 import { OcrPipeline } from './ocr/OcrPipeline';
 import type { OcrPipelineOptions, OcrStructuredOutput } from './ocr/OcrPipelineTypes';
 import { auditLog, AuditEventType } from './auditTrail';
+import { extractStatement } from '../extraction/bank-statement';
 
 // Limite de taille de fichier (50 MB)
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -226,29 +227,72 @@ export class ImportService {
   }
 
   /**
-   * Parse PDF file using pdfjs-dist, with OCR fallback for scanned PDFs
+   * Parse PDF file. Strategy:
+   *   1. Generic position-aware extractor (extractStatement) — works on ANY
+   *      bank format by auto-detecting the table structure from the header row.
+   *   2. Falls back to legacy line-pattern matching if structure detection fails.
+   *   3. OCR fallback for image-based PDFs is built into extractStatement.
    */
   private static async parsePDF(
     file: File,
     config: Partial<ImportConfig>
   ): Promise<ImportResult> {
     try {
+      // ──────────────────────────────────────────────────────────────────
+      // PRIMARY: position-aware generic extractor
+      // ──────────────────────────────────────────────────────────────────
+      const result = await extractStatement(file, {
+        defaultCurrency: 'XOF',
+      });
+
+      if (result.success && result.transactions.length > 0) {
+        // Convert ExtractionResult.transactions back to the row shape that
+        // processRows expects (so the existing column-mapping / validation
+        // pipeline still applies).
+        const rows: ImportedRow[] = result.transactions.map((tx) => ({
+          date: tx.date instanceof Date
+            ? tx.date.toISOString().slice(0, 10)
+            : String(tx.date),
+          description: tx.description,
+          amount: String(tx.amount),
+          balance: tx.balance !== undefined ? String(tx.balance) : undefined,
+          currency: tx.currency,
+          reference: tx.reference,
+          type: tx.type,
+        }));
+
+        const processed = this.processRows(rows, config);
+        // Augment errors with extraction warnings as informational
+        if (result.warnings.length > 0) {
+          processed.errors = [
+            ...processed.errors,
+            ...result.warnings.map((w, i) => ({ row: 0, message: `[info] ${w}`, severity: 'info' as const })).slice(0, 3),
+          ];
+        }
+        return processed;
+      }
+
+      // ──────────────────────────────────────────────────────────────────
+      // FALLBACK: legacy line-pattern matching
+      // ──────────────────────────────────────────────────────────────────
+      console.warn(
+        '[ImportService] Position-aware extraction yielded 0 transactions, falling back to legacy parser. Diagnostic:',
+        result.diagnostic,
+      );
+
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
       const allTextLines: string[] = [];
 
-      // Extraire le texte de chaque page
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
         const textContent = await page.getTextContent();
 
-        // Grouper les items par ligne (même position Y)
         const lineMap = new Map<number, string[]>();
 
         for (const item of textContent.items) {
           if ('str' in item && item.str.trim()) {
-            // Arrondir Y pour grouper les éléments sur la même ligne
             const y = Math.round(('transform' in item ? item.transform[5] : 0) / 5) * 5;
             if (!lineMap.has(y)) {
               lineMap.set(y, []);
@@ -257,7 +301,6 @@ export class ImportService {
           }
         }
 
-        // Trier par Y décroissant (haut vers bas) et joindre
         const sortedLines = Array.from(lineMap.entries())
           .sort((a, b) => b[0] - a[0])
           .map(([, items]) => items.join(' ').trim())
@@ -266,23 +309,14 @@ export class ImportService {
         allTextLines.push(...sortedLines);
       }
 
-      // Parser les lignes pour extraire les transactions
       let rows = this.parseTextLinesToRows(allTextLines);
 
-      // Si aucune transaction trouvée, essayer l'OCR (PDF scanné probable)
       if (rows.length === 0) {
-        console.log('[ImportService] Aucun texte exploitable, tentative OCR...');
-
-        // Vérifier si le PDF est basé sur des images
         const isImageBased = await OcrService.isPdfImageBased(file);
-
         if (isImageBased || allTextLines.length < 10) {
-          // Utiliser l'OCR pour extraire le texte
           const ocrResult = await OcrService.recognizePdf(file);
-
           if (ocrResult.success && ocrResult.text) {
-            console.log(`[ImportService] OCR réussi (confiance: ${ocrResult.confidence.toFixed(1)}%)`);
-            const ocrLines = ocrResult.text.split('\n').filter(line => line.trim().length > 0);
+            const ocrLines = ocrResult.text.split('\n').filter(l => l.trim().length > 0);
             rows = this.parseTextLinesToRows(ocrLines);
           }
         }
@@ -296,7 +330,8 @@ export class ImportService {
           skippedRows: 0,
           errors: [{
             row: 0,
-            message: 'Aucune transaction détectée dans le PDF (texte et OCR). Vérifiez le format du relevé.',
+            message: result.diagnostic
+              ?? 'Aucune transaction détectée dans le PDF (texte et OCR). Vérifiez le format du relevé.',
           }],
           transactions: [],
         };
