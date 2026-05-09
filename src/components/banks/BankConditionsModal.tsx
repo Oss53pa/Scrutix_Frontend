@@ -493,42 +493,68 @@ export function BankConditionsModal({
   // État local pour les conditions éditables
   const [conditions, setConditions] = useState<FullBankConditions>(getDefaultFullConditions());
 
-  // ⚠ Bug-fix critique : on doit recharger les conditions de la banque
-  // UNIQUEMENT quand le modal s'ouvre OU quand l'utilisateur passe à une
-  // autre banque. Le useEffect précédent dépendait de la référence d'objet
-  // `bank` — qui changeait à chaque mutation Zustand (sauvegarde, autre
-  // banque modifiée, etc.) — et écrasait `hasChanges = false` ainsi que
-  // les valeurs importées juste après chaque commit de la modal de
-  // vérification. Résultat : le bouton « Enregistrer » restait désactivé
-  // même après import réussi.
+  // ⚠ Bug-fix structurel — gestion du flag « modifications non sauvegardées »
   //
-  // Solution : pin l'effect sur `bank?.id` + un ref pour détecter le vrai
-  // changement d'identité, pas la simple ré-affectation de référence.
+  // CONTEXTE DU BUG :
+  // Le useEffect d'initialisation se redéclenchait sur chaque ré-affectation
+  // de la prop `bank` (mutations Zustand non liées) et remettait
+  // `hasChanges = false` après chaque commit de la modal de vérification.
+  // Plusieurs tentatives de patch n'ont pas réglé le problème car la racine
+  // est la fragilité de l'approche impérative : tout setState concurrent
+  // peut écraser le flag.
+  //
+  // SOLUTION ROBUSTE :
+  // On dérive `hasChanges` automatiquement par DIFF SÉMANTIQUE entre les
+  // conditions actuelles et un snapshot de la baseline (prise au mount du
+  // modal pour cette banque). Plus aucun risque qu'un setState concurrent
+  // efface le flag : si les données diffèrent, le bouton est actif. Point.
+  //
+  // Le flag impératif `hasChanges` reste pour les cas où on veut le forcer
+  // (ex. après save → on remet la baseline, hasChanges devient false).
+  const baselineRef = useRef<string>(''); // JSON snapshot of initial conditions
   const lastInitBankIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !bank) {
-      // Reset on close so the next open re-initializes cleanly.
-      if (!isOpen) lastInitBankIdRef.current = null;
+      if (!isOpen) {
+        lastInitBankIdRef.current = null;
+        baselineRef.current = '';
+      }
       return;
     }
 
-    // Only re-initialize when the bank identity changes — not on every
-    // reference flip caused by an unrelated Zustand mutation.
+    // Only re-initialize when the bank identity changes
     if (lastInitBankIdRef.current === bank.id) return;
     lastInitBankIdRef.current = bank.id;
 
+    let initial: FullBankConditions;
     if (bank.conditions) {
-      setConditions({
+      initial = {
         ...getDefaultFullConditions(),
         ...bank.conditions,
         documents: bank.conditions.documents || [],
-      } as FullBankConditions);
+      } as FullBankConditions;
     } else {
-      setConditions(getDefaultFullConditions());
+      initial = getDefaultFullConditions();
     }
+    setConditions(initial);
+    // Take baseline snapshot — this is what hasChanges compares against.
+    baselineRef.current = serializeForDiff(initial);
     setHasChanges(false);
   }, [bank, isOpen]);
+
+  // ─── DERIVED DIRTY FLAG ─────────────────────────────────────────────
+  // Re-evaluate hasChanges every time conditions change. The diff is
+  // computed against the baseline snapshot — any real difference flips
+  // the flag to true. This bypasses every imperative race condition.
+  useEffect(() => {
+    if (!isOpen || !bank) return;
+    if (!baselineRef.current) return; // baseline not yet captured
+    const current = serializeForDiff(conditions);
+    if (current !== baselineRef.current) {
+      setHasChanges(true);
+    }
+  }, [conditions, isOpen, bank]);
 
   if (!isOpen || !bank) return null;
 
@@ -630,6 +656,8 @@ export function BankConditionsModal({
   // Sauvegarder les conditions
   const handleSave = () => {
     onSaveConditions(bank.id, conditions as any);
+    // Re-baseline so the diff watcher sees no pending changes.
+    baselineRef.current = serializeForDiff(conditions);
     setHasChanges(false);
   };
 
@@ -2054,4 +2082,36 @@ export function BankConditionsModal({
       )}
     </div>
   );
+}
+
+// ============================================================================
+// DIFF-BASED DIRTY FLAG HELPER
+// ============================================================================
+// Stable JSON serialization of the conditions blob, used to compare current
+// state against the baseline snapshot. Document `fileData` (base64 PDF) is
+// excluded — its presence doesn't matter for dirtiness, only the doc list.
+function serializeForDiff(c: FullBankConditions): string {
+  const stripped = {
+    ...c,
+    documents: c.documents.map((d) => ({
+      id: d.id,
+      name: d.name,
+      type: d.type,
+      fileSize: d.fileSize,
+      // Date objects don't survive JSON identity — convert to ISO
+      uploadDate: d.uploadDate ? new Date(d.uploadDate).toISOString() : null,
+      effectiveDate: d.effectiveDate ? new Date(d.effectiveDate).toISOString() : null,
+      extractedAt: d.extractedAt ? new Date(d.extractedAt).toISOString() : null,
+      isActive: d.isActive,
+      // Note: fileData (base64) intentionally omitted — not relevant for diff
+    })),
+  };
+  try {
+    return JSON.stringify(stripped, (_key, value) => {
+      if (value instanceof Date) return value.toISOString();
+      return value;
+    });
+  } catch {
+    return '';
+  }
 }
