@@ -22,6 +22,8 @@ import { ImageAdapter } from './adapters/ImageAdapter';
 import { patternStrategy } from './strategies/PatternStrategy';
 import { tabularStrategy } from './strategies/TabularStrategy';
 import { semanticStrategy } from './strategies/SemanticStrategy';
+import { extractConditions } from './conditions';
+import type { RubricMatch } from './conditions/types';
 
 // ============================================================================
 // Format detection
@@ -156,7 +158,34 @@ export class DocumentIntelligenceEngine {
     });
 
     // -----------------------------------------------------------------------
-    // STEP 3: Per-field cascade — Pattern → Tabular → Semantic
+    // STEP 2.5: Position-aware extraction (PDF only) — primary strategy.
+    // Reads the document with X/Y positions, isolates "label → value" pairs
+    // per row, fuzzy-matches each label to a FieldDefinition. Works on
+    // ANY bank format because it doesn't assume column orders.
+    // -----------------------------------------------------------------------
+    let positionMatches: Record<string, RubricMatch> = {};
+    if ((format === 'pdf-native' || format === 'pdf-scan') && file) {
+      try {
+        const conditionsResult = await extractConditions(file, {
+          bankCode: bankDetected?.code,
+          onProgress: (p) =>
+            options.onProgress?.({
+              stage: `position-${p.stage}`,
+              pct: 0.4 + p.pct * 0.2,
+              message: p.message,
+            }),
+        });
+        positionMatches = conditionsResult.matches;
+        if (conditionsResult.warnings.length > 0) {
+          warnings.push(...conditionsResult.warnings);
+        }
+      } catch (err) {
+        console.warn('[DocumentIntelligenceEngine] Position-aware extraction failed:', err);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // STEP 3: Per-field cascade — Position → Pattern → Tabular → Semantic
     // -----------------------------------------------------------------------
     const fields: Record<string, FieldExtraction> = {};
     let extracted = 0;
@@ -164,7 +193,13 @@ export class DocumentIntelligenceEngine {
 
     for (let i = 0; i < FIELD_DEFINITIONS.length; i++) {
       const fdef = FIELD_DEFINITIONS[i];
-      const result = this.extractField(fdef, text, adapterOutput.tables, bankDetected?.code);
+      const result = this.extractField(
+        fdef,
+        text,
+        adapterOutput.tables,
+        bankDetected?.code,
+        positionMatches[fdef.key],
+      );
 
       if (result) {
         fields[fdef.key] = { ...result, key: fdef.key, kind: fdef.kind };
@@ -233,8 +268,21 @@ export class DocumentIntelligenceEngine {
     text: string,
     tables: string[][][] | undefined,
     bankCode: string | undefined,
+    positionMatch?: RubricMatch,
   ): Omit<FieldExtraction, 'key' | 'kind'> | null {
     const candidates: Array<Omit<FieldExtraction, 'key' | 'kind'>> = [];
+
+    // Strategy 0 (highest priority): position-aware extraction
+    // Uses X/Y from pdfjs to isolate "label → amount" pairs and fuzzy-match.
+    // The most reliable strategy because it works on any bank format.
+    if (positionMatch) {
+      candidates.push({
+        value: positionMatch.pair.value,
+        confidence: positionMatch.confidence,
+        strategy: 'tabular', // reuse the existing badge — it IS tabular reasoning
+        evidence: `${positionMatch.pair.label} → ${positionMatch.pair.rawValue} (page ${positionMatch.pair.page})`,
+      });
+    }
 
     // Strategy 1: pattern (template + generic)
     const p = patternStrategy(text, fdef, bankCode);
