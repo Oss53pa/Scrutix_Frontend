@@ -2140,13 +2140,32 @@ export function BankConditionsModal({
 
         {/* Footer */}
         <div className="flex-shrink-0 px-6 py-4 border-t border-primary-200 bg-primary-50 flex items-center justify-between">
-          <p className="text-sm text-primary-500">
-            Dernière modification: {(() => {
-              if (!bank.updatedAt) return 'N/A';
-              const d = new Date(bank.updatedAt);
-              return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('fr-FR');
-            })()}
-          </p>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm text-primary-500">
+              Dernière modification: {(() => {
+                if (!bank.updatedAt) return 'N/A';
+                const d = new Date(bank.updatedAt);
+                return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('fr-FR');
+              })()}
+            </p>
+            {/* Visual diagnostic — surfaces why the Save button is in its
+                current state. Tells the user "you have N pending changes"
+                or "no pending changes" so the disabled state is never
+                a mystery. */}
+            <p className="text-[11px] text-primary-400 font-mono">
+              {(() => {
+                const current = serializeForDiff(conditions);
+                const baselineLen = baseline.length;
+                const currentLen = current.length;
+                const diff = baselineLen === 0
+                  ? 'État initial — aucun changement à sauvegarder'
+                  : currentLen === baselineLen && current === baseline
+                    ? 'Aucune modification depuis le dernier chargement'
+                    : `Changements détectés : ${Math.abs(currentLen - baselineLen)} octets de diff`;
+                return `${hasChanges ? '⬤' : '○'} ${diff}`;
+              })()}
+            </p>
+          </div>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={onClose}>
               Annuler
