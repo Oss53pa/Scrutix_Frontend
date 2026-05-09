@@ -12,7 +12,7 @@
 // Data is read straight from useBankStore; no backend round-trip.
 // ============================================================================
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -25,11 +25,41 @@ import {
   Globe,
   Zap,
   ChevronRight,
+  Shield,
+  ShoppingBag,
+  LineChart as LineChartIcon,
+  Sparkles,
+  FileDown,
+  Loader2,
+  Send,
+  Bot,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardBody, Badge, Input } from '../ui';
+import { Card, CardHeader, CardTitle, CardBody, Badge, Input, Button } from '../ui';
 import { useBankStore } from '../../store/bankStore';
 import type { Bank, ConditionGrid } from '../../types';
 import { formatCurrency } from '../../utils';
+import {
+  computeAggressiveness,
+  computeCoverage,
+  computeCostBasket,
+  computeDistribution,
+  detectOutliers,
+  forecastBank,
+  PROFILE_BASKETS,
+  type ClientProfile,
+  type RubricRef,
+} from '../../services/conditionsAnalytics';
+import { checkCohortCompliance } from '../../services/regulatoryCompliance';
+import {
+  generateExecutiveSummary,
+  analyzeBenchmarkSection,
+  answerNaturalLanguageQ,
+  isLlmAvailable,
+  type ExecutiveSummary,
+  type SectionInsight,
+  type NlqAnswer,
+} from '../../services/proph3tBenchmark';
+import { BenchmarkReportService } from '../../services/BenchmarkReportService';
 
 // ───────────────────────────────────────────────────────────────────────────
 // RUBRIC CATALOG — what we benchmark
@@ -140,7 +170,7 @@ function getZone(b: Bank): 'CEMAC' | 'UEMOA' | null {
 // PAGE
 // ───────────────────────────────────────────────────────────────────────────
 
-type SectionId = 'evolution' | 'benchmark' | 'zone' | 'drift';
+type SectionId = 'benchmark' | 'evolution' | 'zone' | 'drift' | 'compliance' | 'basket' | 'forecast' | 'proph3t';
 
 export function ConditionsIntelligencePage() {
   const { banks } = useBankStore();
@@ -148,6 +178,9 @@ export function ConditionsIntelligencePage() {
   const [zoneFilter, setZoneFilter] = useState<'all' | 'CEMAC' | 'UEMOA'>('all');
   const [search, setSearch] = useState('');
   const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<ClientProfile>('particulier_basique');
+  const [isExportingReport, setIsExportingReport] = useState(false);
+  const llmReady = isLlmAvailable();
 
   // ─── Filtered banks for the current zone selection ──────────────────────
   const scopedBanks = useMemo(() => {
@@ -179,31 +212,76 @@ export function ConditionsIntelligencePage() {
   return (
     <div className="space-y-4">
       {/* ─── HEADER ─── */}
-      <div>
-        <p className="page-eyebrow mb-2">Intelligence tarifaire</p>
-        <h1 className="text-2xl font-bold text-ink-900 tracking-tight">Conditions bancaires — Benchmark</h1>
-        <p className="text-sm text-ink-500 mt-1">
-          Analyse comparative de {coverage.totalGrids} grille{coverage.totalGrids > 1 ? 's' : ''} sur {coverage.banksWithGrid}/{coverage.totalBanks} banque{coverage.totalBanks > 1 ? 's' : ''} ·{' '}
-          {RUBRICS.length} rubriques suivies
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <p className="page-eyebrow mb-2">Intelligence tarifaire</p>
+          <h1 className="text-2xl font-bold text-ink-900 tracking-tight">Conditions bancaires — Benchmark</h1>
+          <p className="text-sm text-ink-500 mt-1">
+            Analyse comparative de {coverage.totalGrids} grille{coverage.totalGrids > 1 ? 's' : ''} sur {coverage.banksWithGrid}/{coverage.totalBanks} banque{coverage.totalBanks > 1 ? 's' : ''} ·{' '}
+            {RUBRICS.length} rubriques suivies
+            {llmReady && (
+              <Badge variant="success" className="ml-2 text-[10px]">
+                <Sparkles className="w-2.5 h-2.5 inline mr-0.5" />
+                Proph3t actif
+              </Badge>
+            )}
+          </p>
+        </div>
+        <Button
+          onClick={async () => {
+            if (isExportingReport) return;
+            setIsExportingReport(true);
+            try {
+              await BenchmarkReportService.download({
+                banks: scopedBanks,
+                rubrics: RUBRICS as RubricRef[],
+                focusBankId: focusBank?.id,
+                profile,
+                auditId: `BENCH-${Date.now().toString(36).toUpperCase()}`,
+              });
+            } catch (err) {
+              alert('Erreur lors de la génération du rapport : ' + (err instanceof Error ? err.message : 'inconnue'));
+            } finally {
+              setIsExportingReport(false);
+            }
+          }}
+          disabled={isExportingReport || coverage.banksWithGrid === 0}
+          size="sm"
+        >
+          {isExportingReport ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
+              Génération du PDF…
+            </>
+          ) : (
+            <>
+              <FileDown className="w-4 h-4 mr-1.5" />
+              Rapport expert PDF
+            </>
+          )}
+        </Button>
       </div>
 
       {/* ─── TOOLBAR ─── */}
       <div className="flex flex-wrap items-center gap-2 p-3 rounded-card bg-white/60 backdrop-blur border border-primary-200/60">
         {/* Section tabs */}
-        <div className="flex bg-canvas-100 rounded-lg p-0.5">
+        <div className="flex flex-wrap bg-canvas-100 rounded-lg p-0.5">
           {([
-            { id: 'benchmark', label: 'Benchmark', icon: ArrowLeftRight },
-            { id: 'evolution', label: 'Évolution', icon: TrendingUp },
-            { id: 'zone',      label: 'CEMAC vs UEMOA', icon: Globe },
-            { id: 'drift',     label: 'Dérives', icon: Zap },
+            { id: 'proph3t',    label: 'Proph3t',         icon: Sparkles },
+            { id: 'benchmark',  label: 'Benchmark',       icon: ArrowLeftRight },
+            { id: 'evolution',  label: 'Évolution',       icon: TrendingUp },
+            { id: 'zone',       label: 'CEMAC vs UEMOA',  icon: Globe },
+            { id: 'drift',      label: 'Dérives',         icon: Zap },
+            { id: 'compliance', label: 'Conformité',      icon: Shield },
+            { id: 'basket',     label: 'Panier',          icon: ShoppingBag },
+            { id: 'forecast',   label: 'Tendances',       icon: LineChartIcon },
           ] as Array<{ id: SectionId; label: string; icon: typeof TrendingUp }>).map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setSection(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   section === tab.id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-900'
                 }`}
               >
@@ -266,6 +344,8 @@ export function ConditionsIntelligencePage() {
             </p>
           </CardBody>
         </Card>
+      ) : section === 'proph3t' ? (
+        <Proph3tInsightsPanel banks={scopedBanks} llmReady={llmReady} />
       ) : section === 'benchmark' ? (
         <BenchmarkSection banks={scopedBanks} search={search} />
       ) : section === 'evolution' ? (
@@ -277,8 +357,18 @@ export function ConditionsIntelligencePage() {
         />
       ) : section === 'zone' ? (
         <ZoneCompareSection banks={banks.filter((b) => b.isActive)} search={search} />
-      ) : (
+      ) : section === 'drift' ? (
         <DriftSection banks={scopedBanks} search={search} />
+      ) : section === 'compliance' ? (
+        <ComplianceSection banks={scopedBanks} />
+      ) : section === 'basket' ? (
+        <BasketSection banks={scopedBanks} profile={profile} onProfileChange={setProfile} />
+      ) : (
+        <ForecastSection
+          banks={scopedBanks}
+          focusBank={focusBank}
+          onSelectBank={setSelectedBankId}
+        />
       )}
     </div>
   );
@@ -809,4 +899,551 @@ function quantile(values: number[], q: number): number {
 function formatDateShort(d: Date | string): string {
   const dt = typeof d === 'string' ? new Date(d) : d;
   return dt.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+}
+
+// ===========================================================================
+// PROPH3T INSIGHTS PANEL — auto-generated executive summary + Q&A
+// ===========================================================================
+
+function Proph3tInsightsPanel({ banks, llmReady }: { banks: Bank[]; llmReady: boolean }) {
+  const [summary, setSummary] = useState<ExecutiveSummary | null>(null);
+  const [insights, setInsights] = useState<Record<string, SectionInsight>>({});
+  const [loading, setLoading] = useState(true);
+  const [question, setQuestion] = useState('');
+  const [answers, setAnswers] = useState<Array<{ q: string; a: NlqAnswer }>>([]);
+  const [asking, setAsking] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const exec = await generateExecutiveSummary(banks, RUBRICS as RubricRef[]);
+      if (cancelled) return;
+      setSummary(exec);
+      const sectionIds = ['benchmark', 'compliance', 'drift', 'basket'] as const;
+      const results = await Promise.all(
+        sectionIds.map((s) => analyzeBenchmarkSection(s, banks, RUBRICS as RubricRef[])),
+      );
+      if (cancelled) return;
+      const map: Record<string, SectionInsight> = {};
+      sectionIds.forEach((s, i) => { map[s] = results[i]; });
+      setInsights(map);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [banks]);
+
+  const handleAsk = async () => {
+    if (!question.trim() || asking) return;
+    setAsking(true);
+    const q = question.trim();
+    const ans = await answerNaturalLanguageQ(q, banks, RUBRICS as RubricRef[]);
+    setAnswers((prev) => [{ q, a: ans }, ...prev]);
+    setQuestion('');
+    setAsking(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* LLM status banner */}
+      {!llmReady && (
+        <div className="rounded-card border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+          <Bot className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-amber-900">Mode déterministe</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              Proph3t (Ollama) n'est pas connecté. Les analyses sont générées par les calculs statistiques. Pour activer l'enrichissement IA, configure une instance dans <strong>Paramètres → Intelligence</strong>.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Executive summary */}
+      <Card>
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-accent-600" />
+              <CardTitle className="text-sm">Synthèse exécutive Proph3t</CardTitle>
+            </div>
+            <Badge variant={summary?.source === 'llm' ? 'success' : 'secondary'}>
+              {summary?.source === 'llm' ? 'IA enrichi' : 'Déterministe'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardBody>
+          {loading || !summary ? (
+            <div className="flex items-center gap-2 text-ink-500 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Analyse en cours…
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-lg border-l-4 border-l-accent-500 bg-canvas-50 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-ink-500 font-semibold">Verdict</p>
+                <p className="text-base font-semibold text-ink-900 mt-1">{summary.headline}</p>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase tracking-[0.16em] text-ink-500 font-semibold mb-2">Faits clés</p>
+                <ul className="space-y-1.5">
+                  {summary.bullets.map((b, i) => (
+                    <li key={i} className="text-sm text-ink-700 leading-relaxed flex gap-2">
+                      <span className="text-accent-600 flex-shrink-0">•</span>
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase tracking-[0.16em] text-ink-500 font-semibold mb-2">Recommandations</p>
+                <div className="space-y-2">
+                  {summary.recommendations.map((r, i) => (
+                    <div key={i} className="rounded-lg bg-accent-50 border border-accent-200 p-3 flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-md bg-ink-900 text-accent-300 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                        {String(i + 1).padStart(2, '0')}
+                      </div>
+                      <p className="text-sm text-ink-800">{r}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Per-section insights */}
+      {!loading && Object.keys(insights).length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {(['benchmark', 'compliance', 'drift', 'basket'] as const).map((sec) => {
+            const insight = insights[sec];
+            if (!insight) return null;
+            return (
+              <Card key={sec}>
+                <CardHeader className="py-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm capitalize">
+                      {sec === 'compliance' ? 'Conformité' :
+                       sec === 'basket' ? 'Panier client' :
+                       sec === 'drift' ? 'Dérives' :
+                       'Benchmark'}
+                    </CardTitle>
+                    <Badge variant={insight.source === 'llm' ? 'success' : 'secondary'} className="text-[10px]">
+                      {insight.source === 'llm' ? 'IA' : 'Det'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardBody>
+                  <div className="space-y-3">
+                    {insight.paragraphs.map((p, i) => (
+                      <p key={i} className="text-sm text-ink-700 leading-relaxed">{p}</p>
+                    ))}
+                    {insight.actions.length > 0 && (
+                      <div className="pt-2 border-t border-primary-100">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-ink-500 font-semibold mb-1.5">Actions</p>
+                        <ul className="space-y-1">
+                          {insight.actions.map((a, i) => (
+                            <li key={i} className="text-xs text-ink-600">{a}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </CardBody>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Natural language Q&A */}
+      <Card>
+        <CardHeader className="py-3">
+          <div className="flex items-center gap-2">
+            <Bot className="w-4 h-4 text-ink-700" />
+            <CardTitle className="text-sm">Posez une question à Proph3t</CardTitle>
+          </div>
+          <p className="text-xs text-ink-500 mt-1">
+            Ex. : « Quelle est la banque la moins chère pour une PME en zone UEMOA ? »
+          </p>
+        </CardHeader>
+        <CardBody>
+          <div className="flex gap-2 mb-3">
+            <Input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAsk(); }}
+              placeholder="Votre question…"
+              disabled={asking}
+              className="flex-1"
+            />
+            <Button onClick={handleAsk} disabled={asking || !question.trim()} size="sm">
+              {asking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </Button>
+          </div>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {answers.map((qa, i) => (
+              <div key={i} className="space-y-1">
+                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider">Q : {qa.q}</p>
+                <div className="rounded-lg bg-canvas-50 border border-primary-100 p-3">
+                  <p className="text-sm text-ink-800 whitespace-pre-wrap">{qa.a.answer}</p>
+                  {qa.a.source === 'llm' && (
+                    <Badge variant="success" className="mt-2 text-[9px]">
+                      <Sparkles className="w-2 h-2 inline mr-0.5" />
+                      Réponse IA
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ))}
+            {answers.length === 0 && (
+              <p className="text-xs text-ink-400 italic text-center py-4">Aucune question posée pour le moment.</p>
+            )}
+          </div>
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+// ===========================================================================
+// COMPLIANCE SECTION
+// ===========================================================================
+
+function ComplianceSection({ banks }: { banks: Bank[] }) {
+  const reports = useMemo(() => checkCohortCompliance(banks), [banks]);
+
+  if (reports.length === 0) {
+    return <EmptyHint message="Aucune banque n'a de plafond réglementaire applicable documenté." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {reports.map((r) => {
+        const tone =
+          r.score === 100 ? 'border-l-emerald-500' :
+          r.score >= 70 ? 'border-l-amber-500' :
+          'border-l-red-500';
+        return (
+          <Card key={r.bankId} className={`border-l-4 ${tone}`}>
+            <CardBody>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p className="text-base font-semibold text-ink-900">{r.bankName}</p>
+                  <p className="text-xs text-ink-500">
+                    {r.zone ?? '—'} · {r.applicable} plafond(s) applicable(s)
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-2xl font-bold tabular-nums ${
+                    r.score === 100 ? 'text-emerald-700' :
+                    r.score >= 70 ? 'text-amber-700' :
+                    'text-red-700'
+                  }`}>
+                    {r.score}<span className="text-sm text-ink-400">/100</span>
+                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-ink-500">Conformité</p>
+                </div>
+              </div>
+
+              {r.violations.length > 0 ? (
+                <div className="border-t border-primary-100 pt-3 space-y-2">
+                  {r.violations.map((v, i) => {
+                    const sevColor =
+                      v.limit.severity === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
+                      v.limit.severity === 'high' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                      'bg-yellow-50 text-yellow-700 border-yellow-200';
+                    return (
+                      <div key={i} className="flex items-start gap-3">
+                        <Badge variant="secondary" className={`${sevColor} flex-shrink-0`}>
+                          {v.limit.severity === 'critical' ? 'CRITIQUE' : v.limit.severity === 'high' ? 'SÉVÈRE' : 'MÉDIUM'}
+                        </Badge>
+                        <div className="flex-1 min-w-0 text-xs">
+                          <p className="font-semibold text-ink-900">{v.limit.rubricLabel}</p>
+                          <p className="text-ink-600 mt-0.5">
+                            Plafond <strong>{v.limit.limit} {v.limit.unit}</strong> · observé <strong className="text-red-700">{v.observed} {v.limit.unit}</strong> · dépassement <strong className="text-red-700">+{v.breachPct.toFixed(0)} %</strong>
+                          </p>
+                          <p className="text-ink-500 mt-1 italic">{v.limit.rationale}</p>
+                          <p className="text-[10px] text-ink-400 mt-0.5">Référence : {v.limit.reference}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-emerald-700 border-t border-primary-100 pt-3">
+                  ✓ Aucun dépassement détecté sur les plafonds applicables.
+                </p>
+              )}
+            </CardBody>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ===========================================================================
+// BASKET SECTION (B2 + B6)
+// ===========================================================================
+
+function BasketSection({
+  banks,
+  profile,
+  onProfileChange,
+}: {
+  banks: Bank[];
+  profile: ClientProfile;
+  onProfileChange: (p: ClientProfile) => void;
+}) {
+  const baskets = useMemo(() => computeCostBasket(banks, profile), [banks, profile]);
+  const aggressiveness = useMemo(() => computeAggressiveness(banks, RUBRICS as RubricRef[]), [banks]);
+
+  const cheapest = baskets[0];
+  const dearest = baskets[baskets.length - 1];
+
+  return (
+    <div className="space-y-4">
+      {/* Profile picker */}
+      <Card>
+        <CardBody>
+          <p className="text-[10px] uppercase tracking-[0.14em] text-ink-500 font-semibold mb-2">
+            Profil de client-type
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(PROFILE_BASKETS) as ClientProfile[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => onProfileChange(p)}
+                className={`px-3 py-1.5 rounded-pill text-xs font-medium transition-colors ${
+                  profile === p ? 'bg-ink-900 text-white' : 'bg-canvas-100 text-ink-700 hover:bg-canvas-200'
+                }`}
+              >
+                {PROFILE_BASKETS[p].label}
+              </button>
+            ))}
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Aggressiveness ranking */}
+      {aggressiveness.length > 0 && (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm">Indice d'agressivité tarifaire</CardTitle>
+            <p className="text-xs text-ink-500 mt-1">
+              % de rubriques où la banque est au-dessus du Q3 (cher) – % où elle est sous le Q1 (compétitif). Score &gt;0 = position chère, &lt;0 = compétitive.
+            </p>
+          </CardHeader>
+          <CardBody className="p-0">
+            <div className="divide-y divide-primary-100">
+              {aggressiveness.map((s) => {
+                const tone = s.score > 0.2 ? 'bg-red-500' : s.score < -0.2 ? 'bg-emerald-500' : 'bg-ink-300';
+                const widthPct = Math.abs(s.score) * 50; // -1..1 → 0..50%
+                return (
+                  <div key={s.bankId} className="px-4 py-2.5 flex items-center gap-3 hover:bg-canvas-50">
+                    <span className="text-sm font-medium text-ink-800 w-32 truncate">{s.bankName}</span>
+                    <div className="flex-1 relative h-2 bg-canvas-100 rounded-full overflow-hidden">
+                      <div className="absolute inset-y-0 left-1/2 w-px bg-ink-300" />
+                      <div
+                        className={`absolute inset-y-0 ${tone}`}
+                        style={{
+                          left: s.score >= 0 ? '50%' : `${50 - widthPct}%`,
+                          width: `${widthPct}%`,
+                        }}
+                      />
+                    </div>
+                    <span className={`text-xs font-bold tabular-nums w-14 text-right ${
+                      s.score > 0.2 ? 'text-red-700' : s.score < -0.2 ? 'text-emerald-700' : 'text-ink-600'
+                    }`}>
+                      {s.score > 0 ? '+' : ''}{s.score.toFixed(2)}
+                    </span>
+                    <span className="text-[10px] text-ink-400 w-12 text-right">n={s.n}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Cost basket ranking */}
+      <Card>
+        <CardHeader className="py-3">
+          <CardTitle className="text-sm">
+            Panier annuel — {PROFILE_BASKETS[profile].label}
+          </CardTitle>
+          {cheapest && dearest && cheapest.bankId !== dearest.bankId && (
+            <p className="text-xs text-ink-500 mt-1">
+              Écart marché : <strong className="text-ink-900">{formatCurrency(dearest.totalAnnual - cheapest.totalAnnual, 'XAF')}</strong>{' '}
+              ({((dearest.totalAnnual / Math.max(1, cheapest.totalAnnual) - 1) * 100).toFixed(0)} %) entre {cheapest.bankName} et {dearest.bankName}
+            </p>
+          )}
+        </CardHeader>
+        <CardBody className="p-0">
+          {baskets.length === 0 ? (
+            <p className="px-4 py-8 text-center text-ink-500 text-sm">Aucune banque ne couvre assez de rubriques pour calculer ce panier.</p>
+          ) : (
+            <div className="divide-y divide-primary-100">
+              {baskets.map((b, i) => (
+                <div key={b.bankId} className="px-4 py-3 flex items-center gap-3 hover:bg-canvas-50">
+                  <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    i === 0 ? 'bg-emerald-100 text-emerald-700' : i === baskets.length - 1 ? 'bg-red-100 text-red-700' : 'bg-canvas-100 text-ink-600'
+                  }`}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-ink-900 truncate">{b.bankName}</p>
+                    <p className="text-[11px] text-ink-500">
+                      {b.zone ?? '—'} · couverture {(b.coverage * 100).toFixed(0)} %
+                    </p>
+                  </div>
+                  <div className="text-right tabular-nums">
+                    <p className={`text-sm font-bold ${
+                      i === 0 ? 'text-emerald-700' : i === baskets.length - 1 ? 'text-red-700' : 'text-ink-900'
+                    }`}>
+                      {formatCurrency(b.totalAnnual, 'XAF')}
+                    </p>
+                    {i > 0 && cheapest && (
+                      <p className="text-[10px] text-ink-400">
+                        +{formatCurrency(b.totalAnnual - cheapest.totalAnnual, 'XAF')} vs n°1
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+// ===========================================================================
+// FORECAST SECTION (B7)
+// ===========================================================================
+
+function ForecastSection({
+  banks,
+  focusBank,
+  onSelectBank,
+}: {
+  banks: Bank[];
+  focusBank: Bank | null;
+  onSelectBank: (id: string) => void;
+}) {
+  const forecasts = useMemo(() => {
+    if (!focusBank) return [];
+    return forecastBank(focusBank, RUBRICS as RubricRef[])
+      .filter((f) => f.cagrPct != null)
+      .sort((a, b) => Math.abs(b.cagrPct ?? 0) - Math.abs(a.cagrPct ?? 0));
+  }, [focusBank]);
+
+  if (!focusBank) return <EmptyHint message="Aucune banque sélectionnable." />;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <Card className="lg:col-span-1">
+        <CardHeader className="py-3">
+          <CardTitle className="text-sm">Banque suivie</CardTitle>
+        </CardHeader>
+        <CardBody className="p-0 max-h-[600px] overflow-y-auto">
+          <div className="divide-y divide-primary-100/60">
+            {banks.map((b) => {
+              const gridCount = (b.conditionGrids ?? []).length;
+              const isActive = focusBank.id === b.id;
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => onSelectBank(b.id)}
+                  className={`w-full text-left px-4 py-2.5 hover:bg-canvas-50 transition-colors ${
+                    isActive ? 'bg-canvas-100 border-l-4 border-l-accent-500' : ''
+                  }`}
+                  disabled={gridCount < 2}
+                >
+                  <div className="text-sm font-medium text-ink-900 truncate">{b.name}</div>
+                  <div className="text-[10px] text-ink-500 mt-0.5">
+                    {gridCount < 2 ? 'historique insuffisant' : `${gridCount} versions`}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card className="lg:col-span-3">
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">{focusBank.name} — projections tarifaires</CardTitle>
+            <Badge variant="warning">Indicatif</Badge>
+          </div>
+          <p className="text-xs text-ink-500 mt-1">
+            Extrapolation linéaire sur l'historique des grilles. Signal de surveillance, non contractuel.
+          </p>
+        </CardHeader>
+        <CardBody className="p-0">
+          {forecasts.length === 0 ? (
+            <p className="px-4 py-8 text-center text-ink-500 text-sm">
+              Au moins 2 versions de grille sont nécessaires pour une projection.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-canvas-50 border-b border-primary-200/60">
+                    <th className="text-left px-4 py-2.5 font-semibold text-ink-600 uppercase tracking-wider">Rubrique</th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-ink-600">Actuel</th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-ink-600">+6 mois</th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-ink-600">+12 mois</th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-ink-600">CAGR</th>
+                    <th className="text-center px-3 py-2.5 font-semibold text-ink-600">Risque</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-primary-100/60">
+                  {forecasts.map((f) => {
+                    const last = f.history[f.history.length - 1].value;
+                    const cagr = f.cagrPct ?? 0;
+                    return (
+                      <tr key={f.rubricPath} className="hover:bg-canvas-50/60">
+                        <td className="px-4 py-2 font-medium text-ink-800">
+                          {f.rubricLabel}
+                          {f.seasonal && (
+                            <Badge variant="warning" className="ml-1.5 text-[9px]">Saisonnier</Badge>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{last.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-ink-600">
+                          {f.forecast6m != null ? f.forecast6m.toFixed(2) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-ink-600">
+                          {f.forecast12m != null ? f.forecast12m.toFixed(2) : '—'}
+                        </td>
+                        <td className={`px-3 py-2 text-right tabular-nums font-bold ${
+                          cagr > 5 ? 'text-red-700' : cagr < -5 ? 'text-emerald-700' : 'text-ink-700'
+                        }`}>
+                          {cagr > 0 ? '+' : ''}{cagr.toFixed(1)} %
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <div className="inline-flex items-center gap-1">
+                            <div className={`w-1.5 h-1.5 rounded-full ${
+                              f.riskScore > 60 ? 'bg-red-500' : f.riskScore > 30 ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`} />
+                            <span className="text-[11px] tabular-nums text-ink-600">{Math.round(f.riskScore)}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
 }
