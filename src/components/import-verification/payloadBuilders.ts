@@ -9,7 +9,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { ExtractedTransaction } from '../../extraction/bank-statement';
 import type { ExtractionReport } from '../../extraction';
-import type { LabelValuePair } from '../../extraction/conditions/types';
+import type { LabelValuePair, RubricMatch } from '../../extraction/conditions/types';
 import type {
   ConditionRow,
   StatementRow,
@@ -68,35 +68,58 @@ interface ConditionsBuildArgs {
   pairs: LabelValuePair[];
   /** Optional: full report — used to seed rubricKey from matched fields. */
   report?: ExtractionReport;
+  /** Optional: matches keyed by rubric key — preferred when calling extractConditions
+   *  directly (each match knows exactly which pair drove it). */
+  matches?: Record<string, RubricMatch>;
 }
 
 export function buildConditionsPayload(args: ConditionsBuildArgs): VerificationPayload {
-  // Build a lookup: matched fields by their evidence text → rubric key
+  // Pair-fingerprint → rubric key, derived from explicit matches when provided.
+  const matchedPairToRubric = new Map<string, { key: string; confidence: number }>();
+  if (args.matches) {
+    for (const [key, m] of Object.entries(args.matches)) {
+      const fp = `${m.pair.page}-${Math.round(m.pair.y)}-${normalize(m.pair.label)}`;
+      matchedPairToRubric.set(fp, { key, confidence: m.confidence });
+    }
+  }
+
+  // Fallback evidence lookup (used only when matches map is absent)
   const fieldsByEvidence = new Map<string, string>();
-  if (args.report) {
+  if (!args.matches && args.report) {
     for (const [key, field] of Object.entries(args.report.fields)) {
       if (field.evidence) {
-        const norm = normalize(field.evidence);
-        fieldsByEvidence.set(norm, key);
+        fieldsByEvidence.set(normalize(field.evidence), key);
       }
     }
   }
 
   const rows: ConditionRow[] = args.pairs.map((pair) => {
-    // Try to associate pair to an extracted rubric by matching the label text
     let rubricKey: string | undefined;
-    const labelKey = normalize(pair.label);
-    for (const [evidence, key] of fieldsByEvidence) {
-      if (evidence.includes(labelKey) || labelKey.includes(evidence.slice(0, 30))) {
-        rubricKey = key;
-        break;
+    let confidence = pair.confidence ?? 0.5;
+
+    // 1. Direct match lookup by pair fingerprint
+    const fp = `${pair.page}-${Math.round(pair.y)}-${normalize(pair.label)}`;
+    const direct = matchedPairToRubric.get(fp);
+    if (direct) {
+      rubricKey = direct.key;
+      confidence = Math.max(confidence, direct.confidence);
+    }
+
+    // 2. Evidence-based fallback
+    if (!rubricKey && fieldsByEvidence.size > 0) {
+      const labelKey = normalize(pair.label);
+      for (const [evidence, key] of fieldsByEvidence) {
+        if (evidence.includes(labelKey) || labelKey.includes(evidence.slice(0, 30))) {
+          rubricKey = key;
+          break;
+        }
       }
     }
 
     return {
       id: uuidv4(),
       state: 'pending',
-      confidence: pair.confidence ?? 0.7,
+      confidence,
       warnings: [],
       boundingBox: pair.boundingBox,
       data: {

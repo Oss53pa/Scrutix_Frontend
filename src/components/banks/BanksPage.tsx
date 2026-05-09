@@ -10,12 +10,19 @@ import { useBankStore } from '../../store/bankStore';
 import { useClientStore } from '../../store/clientStore';
 import { BankConditionsModal } from './BankConditionsModal';
 import { BankFormModal } from './BankFormModal';
-import type { Bank, ConditionGrid, MonetaryZone } from '../../types';
+import type { Bank, BankConditions, ConditionGrid, MonetaryZone } from '../../types';
 import { CEMAC_COUNTRIES, UEMOA_COUNTRIES, AFRICAN_COUNTRIES } from '../../types';
 import { formatCurrency } from '../../utils';
-import { getDocumentEngine } from '../../extraction';
+import { extractConditions } from '../../extraction/conditions';
 import { setByPath } from '../../extraction/normalize';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  ImportVerificationModal,
+  buildConditionsPayload,
+  type CommitArgs,
+  type CommitResult,
+  type VerificationPayload,
+} from '../import-verification';
 
 type ViewMode = 'banks' | 'grids';
 
@@ -58,6 +65,15 @@ export function BanksPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingBankId, setUploadingBankId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Conditions verification modal state — opened after extraction so the user
+  // can review/edit/validate before the grid is committed to the store.
+  const [verification, setVerification] = useState<{
+    file: File;
+    payload: VerificationPayload;
+    bankId: string;
+    bank: Bank;
+  } | null>(null);
 
   // Selected bank
   const selectedBank = useMemo(() => {
@@ -150,7 +166,9 @@ export function BanksPage() {
     return clients.filter((c) => c.accounts.some((a) => a.bankCode === _bankCode)).length;
   };
 
-  // Handle document upload and extraction (PDF, Excel, image)
+  // Handle document upload and extraction. PDFs go through the verification
+  // modal (split-screen: source PDF + editable rubric mapping). The grid is
+  // only committed to the store when the user validates the modal.
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>, bankId: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -162,76 +180,23 @@ export function BanksPage() {
     setUploadingBankId(bankId);
 
     try {
-      // Extract data via the multi-format DocumentIntelligenceEngine
-      const engine = getDocumentEngine();
-      const report = await engine.extract(file, { bankCode: bank.code });
-      // Map the extracted fields onto a nested object structure for legacy code
-      const extracted = engine.toBankConditions(report) as Record<string, unknown>;
-      // Backward-compat shim: old code reads result.data?.fees / interestRates.
-      // The new engine populates structured paths, so we expose empty arrays
-      // to satisfy the type and let the modal handle the detailed view.
-      const result = { data: { ...extracted, fees: [], interestRates: [] } } as {
-        data: { fees: unknown[]; interestRates: unknown[] };
-      };
-      // Apply extracted values onto the bank object via setByPath (no-op for
-      // the legacy grid-creation path below — we keep the original structure).
-      void setByPath; // imported but used in modal apply path
-
-      // Create new grid with extracted data
-      const newGrid: Omit<ConditionGrid, 'id' | 'createdAt' | 'updatedAt'> = {
-        bankId,
-        name: `Conditions ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`,
-        version: new Date().toISOString().slice(0, 7),
-        effectiveDate: new Date(),
-        status: 'active',
-        conditions: {
-          id: uuidv4(),
-          bankCode: bank.code,
-          bankName: bank.name,
-          country: bank.country,
-          currency: bank.zone === 'UEMOA' ? 'XOF' : 'XAF',
-          effectiveDate: new Date(),
-          fees: result.data?.fees || [],
-          interestRates: result.data?.interestRates || [],
-          isActive: true,
-          documents: [{
-            id: uuidv4(),
-            name: file.name,
-            type: 'conditions',
-            uploadDate: new Date(),
-            effectiveDate: new Date(),
-            fileSize: file.size,
-            extractedAt: new Date(),
-            isActive: true,
-          }],
-        },
-        sourceDocument: {
-          id: uuidv4(),
-          name: file.name,
-          type: 'conditions',
-          uploadDate: new Date(),
-          effectiveDate: new Date(),
-          fileSize: file.size,
-          extractedAt: new Date(),
-          isActive: true,
-        },
-      };
-
-      // Archive current active grid and add new one
-      if (activeGrid) {
-        archiveConditionGrid(bankId, activeGrid.id);
+      const result = await extractConditions(file, { bankCode: bank.code });
+      if (result.rawPairs.length === 0) {
+        alert('Aucune condition n\'a pu être extraite du document. Vérifie le format du PDF.');
+        return;
       }
 
-      const createdGrid = addConditionGrid(bankId, newGrid);
-      setActiveGrid(bankId, createdGrid.id);
+      const payload = buildConditionsPayload({
+        fileName: file.name,
+        bankCode: bank.code,
+        pairs: result.rawPairs,
+        matches: result.matches,
+      });
 
-      // Open conditions modal to review/edit
-      setSelectedBank(bankId);
-      setShowConditions(true);
-
+      setVerification({ file, payload, bankId, bank });
     } catch (error) {
-      console.error('Erreur extraction PDF:', error);
-      alert('Erreur lors de l\'extraction des conditions. Veuillez reessayer.');
+      console.error('Erreur extraction conditions:', error);
+      alert('Erreur lors de l\'extraction des conditions. Veuillez réessayer.');
     } finally {
       setIsUploading(false);
       setUploadingBankId(null);
@@ -239,6 +204,81 @@ export function BanksPage() {
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  // User validated rows in the modal → commit a new ConditionGrid
+  const handleVerifiedConditionsCommit = (_args: CommitArgs, commit: CommitResult) => {
+    if (!verification) {
+      return;
+    }
+    const { bankId, bank, file } = verification;
+
+    if (!commit.conditions || Object.keys(commit.conditions).length === 0) {
+      alert('Aucune rubrique n\'a été mappée — sélectionne au moins une rubrique avant de valider.');
+      return;
+    }
+
+    // Project validated rubrics into the nested BankConditions structure via dot notation
+    const structured: Record<string, unknown> = {};
+    for (const [rubricKey, val] of Object.entries(commit.conditions)) {
+      // Skip qualitative-only rows (no numeric value) for the structured mapping
+      const value = val.qualitative && val.value === 0 ? null : val.value;
+      if (value === null) continue;
+      setByPath(structured, rubricKey, value);
+    }
+
+    const baseConditions: BankConditions = {
+      id: uuidv4(),
+      bankCode: bank.code,
+      bankName: bank.name,
+      country: bank.country,
+      currency: bank.zone === 'UEMOA' ? 'XOF' : 'XAF',
+      effectiveDate: new Date(),
+      fees: [],
+      interestRates: [],
+      isActive: true,
+      documents: [{
+        id: uuidv4(),
+        name: file.name,
+        type: 'conditions',
+        uploadDate: new Date(),
+        effectiveDate: new Date(),
+        fileSize: file.size,
+        extractedAt: new Date(),
+        isActive: true,
+      }],
+      ...structured,
+    };
+
+    const newGrid: Omit<ConditionGrid, 'id' | 'createdAt' | 'updatedAt'> = {
+      bankId,
+      name: `Conditions ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`,
+      version: new Date().toISOString().slice(0, 7),
+      effectiveDate: new Date(),
+      status: 'active',
+      conditions: baseConditions,
+      sourceDocument: {
+        id: uuidv4(),
+        name: file.name,
+        type: 'conditions',
+        uploadDate: new Date(),
+        effectiveDate: new Date(),
+        fileSize: file.size,
+        extractedAt: new Date(),
+        isActive: true,
+      },
+      notes: `${commit.validated} rubrique(s) validée(s), ${commit.rejected} rejetée(s).`,
+    };
+
+    if (activeGrid) {
+      archiveConditionGrid(bankId, activeGrid.id);
+    }
+    const createdGrid = addConditionGrid(bankId, newGrid);
+    setActiveGrid(bankId, createdGrid.id);
+
+    setVerification(null);
+    setSelectedBank(bankId);
+    setShowConditions(true); // open the legacy editor on the new grid for fine-tuning
   };
 
   const handleSaveBank = (data: Partial<Bank>) => {
@@ -793,6 +833,17 @@ export function BanksPage() {
           // Handle document
         }}
       />
+
+      {/* Conditions verification modal — opens after PDF extraction */}
+      {verification && (
+        <ImportVerificationModal
+          open
+          file={verification.file}
+          initialPayload={verification.payload}
+          onCommit={handleVerifiedConditionsCommit}
+          onCancel={() => setVerification(null)}
+        />
+      )}
     </div>
   );
 }
