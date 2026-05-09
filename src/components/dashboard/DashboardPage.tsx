@@ -77,11 +77,18 @@ export function DashboardPage() {
     });
 
     // Savings
+    // ⚠ Audit fix: anomalies stay in `pending` until reviewed, so the previous
+    // "totalSavings = confirmed only" displayed 0 most of the time, which is
+    // misleading. We now expose three values:
+    //   - confirmedSavings: ratified by the auditor (the legal floor)
+    //   - pendingSavings : detected but not yet reviewed
+    //   - identifiedSavings: confirmed + pending (the operational headline)
+    // Dismissed / contested are excluded from all three.
     const confirmedAnomalies = allAnomalies.filter((a) => a.status === 'confirmed');
-    const totalSavings = confirmedAnomalies.reduce((sum, a) => sum + a.amount, 0);
-    const potentialSavings = allAnomalies
-      .filter((a) => a.status === 'pending')
-      .reduce((sum, a) => sum + a.amount, 0);
+    const pendingAnomalies = allAnomalies.filter((a) => a.status === 'pending');
+    const confirmedSavings = confirmedAnomalies.reduce((sum, a) => sum + a.amount, 0);
+    const pendingSavings = pendingAnomalies.reduce((sum, a) => sum + a.amount, 0);
+    const identifiedSavings = confirmedSavings + pendingSavings;
 
     // By severity
     const criticalCount = allAnomalies.filter((a) => a.severity === Severity.CRITICAL).length;
@@ -100,6 +107,10 @@ export function DashboardPage() {
     const pendingStatements = statements.filter((s) => s.status === 'imported').length;
 
     // Client risk scores (simulated based on anomalies)
+    // ⚠ Audit fix: include pending amounts in the per-client savings figure
+    // so the "Top clients" ranking is meaningful from day one. We expose
+    // `confirmedSavings` separately for cabinets that want to show the ratified
+    // portion only.
     const clientRiskScores = clients.map((client) => {
       const clientAnomalies = allAnomalies.filter((a) =>
         a.transactions.some((t) => t.clientId === client.id)
@@ -113,16 +124,30 @@ export function DashboardPage() {
           return score + 3;
         }, 0)
       );
-      const savings = clientAnomalies
+      const clientConfirmedSavings = clientAnomalies
         .filter((a) => a.status === 'confirmed')
         .reduce((sum, a) => sum + a.amount, 0);
-      return { ...client, riskScore, anomalyCount: clientAnomalies.length, savings };
+      const clientPendingSavings = clientAnomalies
+        .filter((a) => a.status === 'pending')
+        .reduce((sum, a) => sum + a.amount, 0);
+      const savings = clientConfirmedSavings + clientPendingSavings; // identified
+      return {
+        ...client,
+        riskScore,
+        anomalyCount: clientAnomalies.length,
+        savings,
+        confirmedSavings: clientConfirmedSavings,
+        pendingSavings: clientPendingSavings,
+      };
     });
 
     // Transaction volume
     const totalTransactionVolume = transactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     // Monthly trend data (last 6 months)
+    // ⚠ Audit fix: same as the headline metric — show identified savings
+    // (confirmed + pending) so the chart is informative even when nothing has
+    // been ratified yet.
     const monthlyTrend = [];
     for (let i = 5; i >= 0; i--) {
       const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -131,7 +156,7 @@ export function DashboardPage() {
         return date.getMonth() === month.getMonth() && date.getFullYear() === month.getFullYear();
       });
       const monthSavings = monthAnomalies
-        .filter((a) => a.status === 'confirmed')
+        .filter((a) => a.status === 'confirmed' || a.status === 'pending')
         .reduce((sum, a) => sum + a.amount, 0);
       monthlyTrend.push({
         month: month.toLocaleDateString('fr-FR', { month: 'short' }),
@@ -149,8 +174,14 @@ export function DashboardPage() {
       allAnomalies,
       anomaliesThisMonth: anomaliesThisMonth.length,
       anomaliesLastMonth: anomaliesLastMonth.length,
-      totalSavings,
-      potentialSavings,
+      // Headline savings: detected so far (confirmed + pending). The previous
+      // "totalSavings" silently meant "confirmed only" which was misleading.
+      identifiedSavings,
+      confirmedSavings,
+      pendingSavings,
+      // Backwards-compat alias — some legacy props may still reference this.
+      totalSavings: identifiedSavings,
+      potentialSavings: pendingSavings,
       criticalCount,
       highCount,
       mediumCount,
@@ -273,11 +304,15 @@ export function DashboardPage() {
         />
 
         <PremiumKpi
-          label="Économies réalisées"
-          value={formatCurrency(stats.totalSavings, 'XAF')}
+          label="Économies identifiées"
+          value={formatCurrency(stats.identifiedSavings, 'XAF')}
           accent
           icon={PiggyBank}
-          subtitle={`+${formatCurrency(stats.potentialSavings, 'XAF')} potentielles`}
+          subtitle={
+            stats.confirmedSavings > 0
+              ? `${formatCurrency(stats.confirmedSavings, 'XAF')} confirmées · ${formatCurrency(stats.pendingSavings, 'XAF')} en attente`
+              : `${formatCurrency(stats.pendingSavings, 'XAF')} à confirmer`
+          }
         />
 
         <PremiumKpi
@@ -470,8 +505,14 @@ export function DashboardPage() {
           </CardHeader>
           <CardBody className="p-0">
             <div className="divide-y divide-primary-100/60">
-              {stats.clientRiskScores
-                .sort((a, b) => b.savings - a.savings)
+              {[...stats.clientRiskScores]
+                .sort((a, b) => {
+                  // Primary: identified savings (confirmed + pending)
+                  // Tie-breaker: anomaly count (so ranking stays meaningful
+                  // even before any anomaly is ratified)
+                  if (b.savings !== a.savings) return b.savings - a.savings;
+                  return b.anomalyCount - a.anomalyCount;
+                })
                 .slice(0, 4)
                 .map((client, idx) => (
                   <div

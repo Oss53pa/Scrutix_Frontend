@@ -41,7 +41,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const { isEnterprise } = useAccountType();
   const { transactions } = useTransactionStore();
-  const { clients } = useClientStore();
+  const { clients, statements } = useClientStore();
   const { banks } = useBankStore();
   const { currentAnalysis, getTotalPotentialSavings } = useAnalysisStore();
   const profile = useAuthStore((s) => s.profile);
@@ -74,10 +74,13 @@ export function HomePage() {
   }, [clients]);
   const transactionVolume = transactions.reduce((s, t) => s + Math.abs(t.amount), 0);
 
-  // ─── Progress through audit period ──────────────────────────────────────
-  const monthIndex = now.getMonth(); // 0 = jan
-  const periodProgress = Math.round(((monthIndex + 1) / 12) * 100);
-  const monthsRemaining = 12 - (monthIndex + 1);
+  // ─── Audit coverage (= % of imported statements that have been analyzed) ─
+  const totalStatements = statements.length;
+  const analyzedStatements = statements.filter((s) => s.status === 'analyzed').length;
+  const pendingStatements = statements.filter((s) => s.status === 'imported').length;
+  const auditCoverage = totalStatements === 0
+    ? 0
+    : Math.round((analyzedStatements / totalStatements) * 100);
 
   // ─── Period status indicator ────────────────────────────────────────────
   const auditStatus: 'idle' | 'in-progress' | 'done' =
@@ -209,43 +212,61 @@ export function HomePage() {
 
       {/* ─── PROGRESS + AI ─── */}
       <div className="px-6 sm:px-10 lg:px-14 mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Audit progression card */}
+        {/* Audit coverage card — % of imported statements analyzed */}
         <div className="lg:col-span-2 rounded-2xl border border-primary-200/60 bg-white/70 backdrop-blur-xl shadow-card p-6">
           <div className="flex items-start justify-between gap-3 mb-5">
             <div>
               <p className="text-[10px] uppercase tracking-[0.18em] text-ink-500 font-semibold">
-                Avancement de l'exercice
+                Couverture d'audit
               </p>
-              <p className="text-2xl font-bold text-ink-900 capitalize mt-1">{periodLabel}</p>
+              <p className="text-2xl font-bold text-ink-900 mt-1">
+                {analyzedStatements} <span className="text-ink-400">/</span> {totalStatements}{' '}
+                <span className="text-base text-ink-500 font-medium">relevé{totalStatements > 1 ? 's' : ''} analysé{analyzedStatements > 1 ? 's' : ''}</span>
+              </p>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold text-ink-900 tabular-nums">{periodProgress}<span className="text-base text-ink-400 ml-0.5">%</span></p>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-ink-500 mt-0.5">YTD</p>
+              <p className="text-3xl font-bold text-ink-900 tabular-nums">
+                {auditCoverage}<span className="text-base text-ink-400 ml-0.5">%</span>
+              </p>
+              <p className="text-[10px] uppercase tracking-[0.16em] text-ink-500 mt-0.5">Couverts</p>
             </div>
           </div>
 
           <div className="h-2 bg-canvas-200/70 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-ink-900 via-accent-500 to-accent-300 transition-all duration-1000"
-              style={{ width: `${periodProgress}%` }}
+              style={{ width: `${auditCoverage}%` }}
             />
           </div>
 
           <div className="flex items-center justify-between mt-4 text-[11px] text-ink-500">
             <span>
-              Reste {monthsRemaining} mois avant clôture
+              {pendingStatements > 0 ? (
+                <>
+                  <span className="text-amber-700 font-medium">{pendingStatements}</span> relevé{pendingStatements > 1 ? 's' : ''} en attente
+                </>
+              ) : totalStatements > 0 ? (
+                <span className="text-emerald-700 font-medium">Tous les relevés ont été analysés</span>
+              ) : (
+                'Aucun relevé importé pour le moment'
+              )}
               {totalAccounts > 0 && (
                 <>
                   {' · '}
                   <span className="text-ink-700 font-medium">
-                    {totalAccounts} compte{totalAccounts > 1 ? 's' : ''}
+                    {totalAccounts} compte{totalAccounts > 1 ? 's' : ''} sous surveillance
                   </span>
                 </>
               )}
             </span>
-            <span className="font-mono text-ink-700 tabular-nums">
-              {savings > 0 ? formatCurrency(savings, 'XAF') : '0 XAF'}
-            </span>
+            <button
+              onClick={() => navigate('/analyses')}
+              className="font-medium text-ink-700 hover:text-accent-700 inline-flex items-center gap-1"
+              disabled={pendingStatements === 0}
+            >
+              {pendingStatements > 0 ? 'Lancer une analyse' : 'Voir les analyses'}
+              <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
         </div>
 
@@ -279,20 +300,7 @@ export function HomePage() {
           Accès rapide
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <QuickCard
-            icon={<Upload className="w-4 h-4" />}
-            iconBg="bg-amber-50 text-amber-700"
-            title="Imports"
-            subtitle="Relevés · GL · Tiers"
-            onClick={() => navigate('/import')}
-          />
-          <QuickCard
-            icon={<FolderOpen className="w-4 h-4" />}
-            iconBg="bg-emerald-50 text-emerald-700"
-            title="Analyses"
-            subtitle="Algo · IA · Hybride"
-            onClick={() => navigate('/analyses')}
-          />
+          {/* Workflow order: 1) Banques · 2) Clients · 3) Import · 4) Analyses · 5) Rapports · 6) Paramètres */}
           <QuickCard
             icon={<Landmark className="w-4 h-4" />}
             iconBg="bg-blue-50 text-blue-700"
@@ -310,6 +318,20 @@ export function HomePage() {
                 : `${clients.length} dossier${clients.length > 1 ? 's' : ''}`
             }
             onClick={() => navigate('/clients')}
+          />
+          <QuickCard
+            icon={<Upload className="w-4 h-4" />}
+            iconBg="bg-amber-50 text-amber-700"
+            title="Imports"
+            subtitle="Relevés · GL · Tiers"
+            onClick={() => navigate('/import')}
+          />
+          <QuickCard
+            icon={<FolderOpen className="w-4 h-4" />}
+            iconBg="bg-emerald-50 text-emerald-700"
+            title="Analyses"
+            subtitle="Algo · IA · Hybride"
+            onClick={() => navigate('/analyses')}
           />
           <QuickCard
             icon={<FileBarChart className="w-4 h-4" />}

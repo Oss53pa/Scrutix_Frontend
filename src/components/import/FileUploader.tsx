@@ -3,7 +3,7 @@ import { Upload, FileSpreadsheet, FileText, Image, X, AlertCircle, CheckCircle }
 import { Card, Button, Progress, Alert } from '../ui';
 import { ImportService } from '../../services';
 import { ImportResult, Transaction } from '../../types';
-import { formatFileSize } from '../../utils';
+import { formatFileSize, computeStatementPeriod } from '../../utils';
 import { extractStatement, type ExtractedTransaction } from '../../extraction/bank-statement';
 
 // Limite de taille de fichier (50 MB)
@@ -157,10 +157,10 @@ export function FileUploader({ onImportComplete, onPdfStaged, clientId = 'defaul
         );
 
         if (result.success && result.transactions.length > 0) {
-          // Extract period dates from transactions
-          const dates = result.transactions.map(t => new Date(t.date));
-          const periodStart = new Date(Math.min(...dates.map(d => d.getTime())));
-          const periodEnd = new Date(Math.max(...dates.map(d => d.getTime())));
+          // Trimmed period — see computeStatementPeriod for the rationale
+          const period = computeStatementPeriod(result.transactions.map(t => t.date));
+          const periodStart = period?.start ?? new Date();
+          const periodEnd = period?.end ?? new Date();
 
           // Determine file type
           const fileExt = uploadedFile.file.name.split('.').pop()?.toLowerCase();

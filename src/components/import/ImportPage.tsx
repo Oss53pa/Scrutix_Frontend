@@ -8,7 +8,7 @@ import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
 import { useAccountType } from '../../hooks/useAccountType';
 import { Transaction, AFRICAN_COUNTRIES } from '../../types';
-import { formatCurrency, formatDate, formatNumber } from '../../utils';
+import { formatCurrency, formatDate, formatNumber, computeStatementPeriod } from '../../utils';
 import {
   ImportVerificationModal,
   buildStatementPayload,
@@ -155,9 +155,11 @@ export function ImportPage() {
 
     addTransactions(stamped);
 
-    const dates = stamped.map((t) => new Date(t.date));
-    const periodStart = new Date(Math.min(...dates.map((d) => d.getTime())));
-    const periodEnd = new Date(Math.max(...dates.map((d) => d.getTime())));
+    // Trimmed period (5th–95th percentile) — defends against balance-forward
+    // entries from the previous month that pollute the min/max calc.
+    const period = computeStatementPeriod(stamped.map((t) => t.date));
+    const periodStart = period?.start ?? new Date();
+    const periodEnd = period?.end ?? new Date();
 
     addStatement(selectedClientId, {
       accountId: selectedAccountId || 'new-account',

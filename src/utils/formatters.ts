@@ -125,6 +125,45 @@ export function formatDateRelative(date: Date | string): string {
   return formatDate(date);
 }
 
+/**
+ * Compute a robust period (start, end) from a set of dates.
+ *
+ * Naive `Math.min` / `Math.max` of transaction dates drift wildly when the
+ * extractor picks up a "Solde reporté" entry from the previous period or
+ * a misparsed date, producing a 4-month range for a 1-month statement.
+ *
+ * This helper:
+ *   1. Drops invalid / NaN dates
+ *   2. Trims to the 5th–95th percentile (5% on each side) to absorb stragglers
+ *   3. Falls back to min/max when fewer than 4 dates remain
+ *
+ * Returns null when no valid date is provided.
+ */
+export function computeStatementPeriod(
+  dates: Array<Date | string | number>,
+): { start: Date; end: Date } | null {
+  const ms: number[] = [];
+  for (const d of dates) {
+    const dt = d instanceof Date ? d : new Date(d);
+    const t = dt.getTime();
+    if (Number.isFinite(t)) ms.push(t);
+  }
+  if (ms.length === 0) return null;
+
+  ms.sort((a, b) => a - b);
+
+  if (ms.length < 4) {
+    return { start: new Date(ms[0]), end: new Date(ms[ms.length - 1]) };
+  }
+
+  const lo = Math.floor(ms.length * 0.05);
+  const hi = Math.ceil(ms.length * 0.95) - 1;
+  return {
+    start: new Date(ms[Math.max(0, lo)]),
+    end: new Date(ms[Math.min(ms.length - 1, hi)]),
+  };
+}
+
 // Account number formatting (mask middle digits)
 export function formatAccountNumber(accountNumber: string, showFull: boolean = false): string {
   if (showFull || accountNumber.length < 8) {
