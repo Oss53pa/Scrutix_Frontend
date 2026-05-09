@@ -53,13 +53,15 @@
     @apply ring-accent-300/60 ring-offset-ink-900;
   }
 
-  /* Refined headings */
-  h1, h2, h3, h4, h5, h6 {
+  /* Refined headings — use :where() so inherited or utility-class colors win.
+     Without :where(), `@apply text-ink-900` outranks any `text-white` set on
+     the heading or its parent, making heading text invisible on dark headers. */
+  :where(h1, h2, h3, h4, h5, h6) {
     @apply text-ink-900;
     letter-spacing: -0.015em;
   }
 
-  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  :where(.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6) {
     @apply text-ink-50;
   }
 }

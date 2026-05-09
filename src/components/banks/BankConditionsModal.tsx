@@ -727,8 +727,8 @@ export function BankConditionsModal({
               <Landmark className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">{bank.name}</h2>
-              <div className="flex items-center gap-3 text-sm text-primary-300">
+              <h2 className="text-xl font-bold !text-white">{bank.name}</h2>
+              <div className="flex items-center gap-3 text-sm text-white/80">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
                   {countryName}

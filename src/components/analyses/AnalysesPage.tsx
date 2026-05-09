@@ -27,7 +27,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useAccountType } from '../../hooks/useAccountType';
 import { formatCurrency, formatDate } from '../../utils';
 import { AnomalyType, Severity, ANOMALY_TYPE_LABELS, DetectionSource, DEFAULT_THRESHOLDS, Anomaly, Transaction } from '../../types';
-import { getAnalysisService, ClaudeService, ReportService } from '../../services';
+import { getAnalysisService, ClaudeService, PremiumReportService } from '../../services';
 
 type ViewMode = 'config' | 'viewer';
 
@@ -409,15 +409,26 @@ export function AnalysesPage() {
           ?? clients.find((c) => c.id === currentAnalysis?.config.clientId)?.name
           ?? 'Client';
 
-      await ReportService.downloadPDF(
+      // Resolve banks involved in the analysis (from selected codes or transactions)
+      const bankCodesUsed = selectedBanks.length > 0
+        ? selectedBanks
+        : Array.from(new Set(displayTransactions.map((t) => t.bankCode).filter(Boolean)));
+      const reportBanks = bankCodesUsed
+        .map((code) => banks.find((b) => b.code === code))
+        .filter((b): b is NonNullable<typeof b> => !!b)
+        .map((b) => ({ name: b.name, code: b.code }));
+
+      await PremiumReportService.download(
         {
-          title: `Rapport d'audit bancaire — ${clientName}`,
+          title: `Rapport d'audit bancaire`,
           clientName,
           period,
           anomalies,
           statistics: stats,
           summary,
-          includeAIAnalysis: analysisMode !== 'algorithm',
+          analysisMode,
+          banks: reportBanks,
+          auditId: currentAnalysis?.id ?? `DEMO-${Date.now().toString(36).toUpperCase()}`,
         },
         undefined,
         currentAnalysis?.id,

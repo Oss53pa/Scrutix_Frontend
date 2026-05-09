@@ -25,6 +25,8 @@ export type { OcrResult, OcrProgress } from './OcrService';
 export { AnalysisService, getAnalysisService } from './AnalysisService';
 export { ClaudeService, getClaudeService, hasClaudeService, clearClaudeService } from './ClaudeService';
 export { ReportService } from './ReportService';
+export { PremiumReportService } from './PremiumReportService';
+export type { PremiumReportData } from './PremiumReportService';
 export { PrintService } from './PrintService';
 export type { PrintOptions } from './PrintService';
 export { BackupService, APP_VERSION } from './BackupService';
