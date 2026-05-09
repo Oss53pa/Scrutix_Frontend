@@ -493,10 +493,32 @@ export function BankConditionsModal({
   // État local pour les conditions éditables
   const [conditions, setConditions] = useState<FullBankConditions>(getDefaultFullConditions());
 
-  // Charger les conditions existantes quand la modal s'ouvre
+  // ⚠ Bug-fix critique : on doit recharger les conditions de la banque
+  // UNIQUEMENT quand le modal s'ouvre OU quand l'utilisateur passe à une
+  // autre banque. Le useEffect précédent dépendait de la référence d'objet
+  // `bank` — qui changeait à chaque mutation Zustand (sauvegarde, autre
+  // banque modifiée, etc.) — et écrasait `hasChanges = false` ainsi que
+  // les valeurs importées juste après chaque commit de la modal de
+  // vérification. Résultat : le bouton « Enregistrer » restait désactivé
+  // même après import réussi.
+  //
+  // Solution : pin l'effect sur `bank?.id` + un ref pour détecter le vrai
+  // changement d'identité, pas la simple ré-affectation de référence.
+  const lastInitBankIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (bank?.conditions) {
-      // Fusionner avec les valeurs par défaut
+    if (!isOpen || !bank) {
+      // Reset on close so the next open re-initializes cleanly.
+      if (!isOpen) lastInitBankIdRef.current = null;
+      return;
+    }
+
+    // Only re-initialize when the bank identity changes — not on every
+    // reference flip caused by an unrelated Zustand mutation.
+    if (lastInitBankIdRef.current === bank.id) return;
+    lastInitBankIdRef.current = bank.id;
+
+    if (bank.conditions) {
       setConditions({
         ...getDefaultFullConditions(),
         ...bank.conditions,
@@ -706,26 +728,26 @@ export function BankConditionsModal({
     if (!verification) return;
     const { file } = verification;
 
+    // Mark dirty IMMEDIATELY — going through the import flow at all is
+    // a user-confirmed intent to mutate the grid. We fire setHasChanges
+    // first, then again at the end as a belt-and-braces guarantee.
+    setHasChanges(true);
+
     // Apply each validated rubric into the conditions form via setByPath.
-    // We don't bail out when nothing is mapped — committing still archives
-    // the source document so the user can re-map manually inside the editor.
     const values: Record<string, number | string> = {};
     if (commit.conditions) {
       for (const [rubricKey, val] of Object.entries(commit.conditions)) {
-        if (val.qualitative && val.value === 0) continue; // skip "Gratuit/Néant" for numeric form fields
+        if (val.qualitative && val.value === 0) continue;
         values[rubricKey] = val.value;
       }
     }
     const mappedCount = Object.keys(values).length;
     if (mappedCount > 0) {
-      handleApplyExtraction(values);
+      handleApplyExtraction(values); // sets hasChanges(true) too
     }
 
     // Archive the source document so it's listed in the Documents tab.
-    // Even when nothing got mapped automatically, having the PDF stored
-    // means the user can re-open the verification modal later or keep it
-    // as a reference document.
-    let docArchived = false;
+    let archiveError: unknown = null;
     try {
       const base64 = await fileToBase64(file);
       const document: ArchivedDocument = {
@@ -743,28 +765,34 @@ export function BankConditionsModal({
         ...prev,
         documents: [...prev.documents, document],
       }));
-      docArchived = true;
     } catch (err) {
+      archiveError = err;
       console.warn('[BankConditionsModal] failed to archive source document:', err);
     }
 
-    // ALWAYS mark dirty when the user went through the import — that's the
-    // signal the editor uses to enable the "Enregistrer" button. Otherwise
-    // the user would be stuck with a disabled button after a partial import.
-    if (mappedCount > 0 || docArchived) {
-      setHasChanges(true);
-    }
+    // Belt-and-braces: re-fire setHasChanges(true) AFTER all awaits to
+    // guarantee the final state is dirty regardless of React batching.
+    setHasChanges(true);
 
-    // Soft warning when nothing got mapped — lets the user act on it without
-    // blocking the workflow (the doc is still archived for manual mapping).
-    if (mappedCount === 0) {
-      alert(
-        'Aucune rubrique n\'a été automatiquement mappée. Le document a été archivé — '
-        + 'tu peux saisir manuellement les valeurs dans les onglets ci-dessus.'
-      );
-    }
-
+    // Close the verification modal first — keeps the UI snappy.
     setVerification(null);
+
+    // Defer the alert to the next tick so it doesn't block the React
+    // commit phase. Using setTimeout(_, 0) keeps the alert async to React.
+    if (mappedCount === 0 && !archiveError) {
+      setTimeout(() => {
+        alert(
+          'Aucune rubrique n\'a été automatiquement mappée — le document a été archivé. '
+          + 'Tu peux saisir les valeurs manuellement dans les onglets ci-dessus, '
+          + 'puis cliquer sur Enregistrer.'
+        );
+      }, 0);
+    }
+    if (archiveError) {
+      setTimeout(() => {
+        alert('Le document n\'a pas pu être archivé. Détail : ' + (archiveError instanceof Error ? archiveError.message : 'inconnu'));
+      }, 0);
+    }
   };
 
   /**
