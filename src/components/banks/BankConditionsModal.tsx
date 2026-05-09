@@ -35,8 +35,16 @@ import { Button, Badge } from '../ui';
 import type { Bank, BankConditions, ArchivedDocument } from '../../types';
 import { AFRICAN_COUNTRIES, ZONE_CURRENCIES } from '../../types';
 import { getDocumentEngine, type ExtractionReport } from '../../extraction';
+import { extractConditions } from '../../extraction/conditions';
 import { setByPath } from '../../extraction/normalize';
 import { ExtractionReportPanel } from './ExtractionReportPanel';
+import {
+  ImportVerificationModal,
+  buildConditionsPayload,
+  type CommitArgs,
+  type CommitResult,
+  type VerificationPayload,
+} from '../import-verification';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types pour les frais personnalisés
@@ -421,6 +429,13 @@ export function BankConditionsModal({
   const [extractionProgress, setExtractionProgress] = useState<{ stage: string; pct: number; message: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+
+  // Verification modal — opens after extraction so the user can review the
+  // raw label/value pairs and validate before they're applied to the form.
+  const [verification, setVerification] = useState<{
+    file: File;
+    payload: VerificationPayload;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // État local pour les conditions éditables
@@ -544,16 +559,54 @@ export function BankConditionsModal({
     setHasChanges(false);
   };
 
-  // Upload document — supports PDF (native + scanned), Excel, image
+  // Upload document — PDF goes through the verification modal so the user
+  // can review the extracted label/value pairs before they're applied.
+  // Excel / image still use the legacy engine flow.
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset the input so re-uploading the same file fires onChange
+    e.target.value = '';
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
     setIsUploading(true);
     setExtractionReport(null);
     setExtractionProgress(null);
 
     try {
+      // ─── PDF route: verification modal (split-screen review) ─────────
+      if (isPdf && bank) {
+        setIsExtracting(true);
+        setExtractionProgress({ stage: 'load', pct: 0, message: 'Chargement du PDF…' });
+        const result = await extractConditions(file, {
+          bankCode: bank.code,
+          onProgress: (p) => setExtractionProgress(p),
+        });
+
+        if (result.rawPairs.length === 0) {
+          setIsExtracting(false);
+          setIsUploading(false);
+          setExtractionProgress(null);
+          alert('Aucune condition n\'a pu être extraite du document. Vérifie le format du PDF.');
+          return;
+        }
+
+        const payload = buildConditionsPayload({
+          fileName: file.name,
+          bankCode: bank.code,
+          pairs: result.rawPairs,
+          matches: result.matches,
+        });
+
+        setVerification({ file, payload });
+        setIsExtracting(false);
+        setIsUploading(false);
+        setExtractionProgress(null);
+        return;
+      }
+
+      // ─── Non-PDF route: legacy engine (Excel, CSV, image) ────────────
       const base64 = await fileToBase64(file);
       setIsExtracting(true);
 
@@ -584,11 +637,62 @@ export function BankConditionsModal({
 
     } catch (error) {
       console.error('Erreur upload:', error);
+      alert('Erreur lors de l\'extraction du document. Veuillez réessayer.');
     } finally {
       setIsUploading(false);
       setIsExtracting(false);
       setExtractionProgress(null);
     }
+  };
+
+  // Commit handler for the verification modal — apply the validated rubrics
+  // into the conditions form and archive the source document.
+  const handleVerifiedConditionsCommit = async (
+    _args: CommitArgs,
+    commit: CommitResult,
+  ): Promise<void> => {
+    if (!verification) return;
+    const { file } = verification;
+
+    if (!commit.conditions || Object.keys(commit.conditions).length === 0) {
+      alert('Aucune rubrique n\'a été mappée — sélectionne au moins une rubrique avant de valider.');
+      return;
+    }
+
+    // Apply each validated rubric into the conditions form via setByPath
+    const values: Record<string, number | string> = {};
+    for (const [rubricKey, val] of Object.entries(commit.conditions)) {
+      if (val.qualitative && val.value === 0) continue; // skip "Gratuit/Néant" for numeric form fields
+      values[rubricKey] = val.value;
+    }
+    if (Object.keys(values).length > 0) {
+      handleApplyExtraction(values);
+    }
+
+    // Archive the source document so it's listed in the Documents tab
+    try {
+      const base64 = await fileToBase64(file);
+      const document: ArchivedDocument = {
+        id: `doc-${Date.now()}`,
+        name: file.name,
+        type: 'conditions',
+        uploadDate: new Date(),
+        effectiveDate: new Date(),
+        fileData: base64,
+        fileSize: file.size,
+        extractedAt: new Date(),
+        isActive: true,
+      };
+      setConditions(prev => ({
+        ...prev,
+        documents: [...prev.documents, document],
+      }));
+      setHasChanges(true);
+    } catch (err) {
+      console.warn('[BankConditionsModal] failed to archive source document:', err);
+    }
+
+    setVerification(null);
   };
 
   /**
@@ -1814,7 +1918,11 @@ export function BankConditionsModal({
         {/* Footer */}
         <div className="flex-shrink-0 px-6 py-4 border-t border-primary-200 bg-primary-50 flex items-center justify-between">
           <p className="text-sm text-primary-500">
-            Dernière modification: {bank.updatedAt ? new Date(bank.updatedAt).toLocaleDateString('fr-FR') : 'N/A'}
+            Dernière modification: {(() => {
+              if (!bank.updatedAt) return 'N/A';
+              const d = new Date(bank.updatedAt);
+              return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('fr-FR');
+            })()}
           </p>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={onClose}>
@@ -1827,6 +1935,18 @@ export function BankConditionsModal({
           </div>
         </div>
       </div>
+
+      {/* Conditions verification modal — opens after PDF extraction in the
+          Documents tab so the user can review pairs before applying them */}
+      {verification && (
+        <ImportVerificationModal
+          open
+          file={verification.file}
+          initialPayload={verification.payload}
+          onCommit={handleVerifiedConditionsCommit}
+          onCancel={() => setVerification(null)}
+        />
+      )}
     </div>
   );
 }
