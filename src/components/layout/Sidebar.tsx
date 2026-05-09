@@ -12,6 +12,7 @@ import {
   Home,
   X,
   ChevronDown,
+  BrainCircuit,
 } from 'lucide-react';
 import { Button } from '../ui';
 import { useAccountType } from '../../hooks/useAccountType';
@@ -55,8 +56,9 @@ const SECTIONS: NavSection[] = [
   {
     label: 'Administration',
     items: [
-      { name: 'Facturation', href: '/billing',  icon: Receipt,  cabinetOnly: true },
-      { name: 'Paramètres',  href: '/settings', icon: Settings },
+      { name: 'Intelligence', href: '/intelligence', icon: BrainCircuit },
+      { name: 'Facturation',  href: '/billing',      icon: Receipt,  cabinetOnly: true },
+      { name: 'Paramètres',   href: '/settings',     icon: Settings },
     ],
   },
 ];
