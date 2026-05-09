@@ -124,6 +124,42 @@ const REGISTRY_TO_FORM_PATH: Record<string, string> = {
   // E-Banking
   'eBankingFees.abonnementMensuel':          'ebanking.abonnementMensuel',
   'eBankingFees.smsAlerte':                  'ebanking.smsAlerte',
+  'eBankingFees.virementEnLigne':            'ebanking.virementEnLigne',
+  'eBankingFees.mobileBanking':              'ebanking.mobileBanking',
+  'eBankingFees.ussd':                       'ebanking.ussd',
+  // Guichet — opérations en espèces et change manuel
+  'cashOperations.versementEspeces':           'guichet.versementEspeces',
+  'cashOperations.versementEspecesCommission': 'guichet.versementEspecesCommission',
+  'cashOperations.retraitEspeces':             'guichet.retraitEspeces',
+  'cashOperations.retraitEspecesCommission':   'guichet.retraitEspecesCommission',
+  'cashOperations.changeManuel':               'guichet.changeManuel',
+  'cashOperations.achatDevises':               'guichet.achatDevises',
+  'cashOperations.venteDevises':               'guichet.venteDevises',
+  // Cartes — opérations détaillées
+  'cardFees.retraitDabPropre':              'fraisCartes.retraitDabPropre',
+  'cardFees.retraitDabInternational':       'fraisCartes.retraitDabInternational',
+  'cardFees.paiementTpePropre':             'fraisCartes.paiementTpePropre',
+  'cardFees.paiementTpeInternational':      'fraisCartes.paiementTpeInternational',
+  'cardFees.paiementInternet':              'fraisCartes.paiementInternet',
+  'cardFees.codeOublie':                    'fraisCartes.codeOublie',
+  'cardFees.consultationSolde':             'fraisCartes.consultationSolde',
+  // Virements — flux nationaux
+  'transferFees.virementNationalAutreBanque': 'virements.nationalAutreBank',
+  'transferFees.virementInstantane':          'virements.instantane',
+  'transferFees.virementPermanent':           'virements.permanent',
+  'transferFees.rejetVirement':               'virements.rejetVirement',
+  // Chèques — opérations détaillées
+  'checkFees.chequeCertifie':       'cheques.chequeCertifie',
+  'checkFees.chequeBanque':         'cheques.chequeBanque',
+  'checkFees.encaissementPlace':    'cheques.encaissementPlace',
+  'checkFees.encaissementEtranger': 'cheques.encaissementEtranger',
+  // Divers
+  'miscFees.coffrePetit':       'divers.coffrePetit',
+  'miscFees.garantieBancaire':  'divers.garantieBancaire',
+  'miscFees.successionFrais':   'divers.successionFrais',
+  'miscFees.procurationCompte': 'divers.procuration',
+  'miscFees.assuranceCompte':   'divers.assuranceCompte',
+  'miscFees.droitTimbre':       'divers.droitTimbre',
 };
 
 type TabId = 'compte' | 'guichet' | 'cartes' | 'virements' | 'cheques' | 'credits' | 'ebanking' | 'divers' | 'documents';
