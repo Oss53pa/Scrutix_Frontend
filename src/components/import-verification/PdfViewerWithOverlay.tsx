@@ -279,8 +279,11 @@ export function PdfViewerWithOverlay({
         </div>
       </div>
 
-      {/* Pages */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto bg-canvas-100 p-4 space-y-4">
+      {/* Pages — overflow-auto on both axes so wide PDFs (landscape, A3,
+          conditions tarifaires NSIA, etc.) get a horizontal scrollbar
+          instead of being cropped. min-w-fit lets each page row expand
+          to canvas width even when the container is narrower. */}
+      <div ref={containerRef} className="flex-1 overflow-auto bg-canvas-100 p-4">
         {Array.from({ length: pdf.numPages }, (_, i) => i + 1).map((p) => (
           <div
             key={p}
@@ -288,7 +291,9 @@ export function PdfViewerWithOverlay({
               pageRefs.current[p] = el;
             }}
             data-page={p}
-            className="relative mx-auto bg-white rounded-card shadow-card border border-primary-200/60 overflow-hidden"
+            // Block wrapper that sizes to its canvas content. mx-auto centers
+            // when narrow, and yields to overflow when wider than container.
+            className="relative bg-white rounded-card shadow-card border border-primary-200/60 overflow-hidden mb-4 w-fit mx-auto"
             onClick={(e) => handlePageClick(e, p)}
           >
             {/* Canvas is appended dynamically */}
