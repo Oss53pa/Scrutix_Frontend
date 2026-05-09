@@ -74,6 +74,58 @@ interface BankConditionsModalProps {
   onUploadDocument: (bankId: string, document: ArchivedDocument) => void;
 }
 
+/**
+ * Translate FieldRegistry keys (used by the extractor + verification modal)
+ * into the form-state paths used by this editor. The two structures grew
+ * apart: the FieldRegistry maps to the legacy BankConditions shape
+ * (accountFees / cardFees / …) while this editor uses a richer
+ * FullBankConditions shape (tenueCompte / fraisCartes / …).
+ *
+ * Any FieldRegistry key not listed here falls through verbatim — that's the
+ * desired behaviour for keys that already match the form (e.g. cheques.*).
+ */
+const REGISTRY_TO_FORM_PATH: Record<string, string> = {
+  // Tenue de compte
+  'accountFees.tenueCompte.particulier':     'tenueCompte.particulierLocal',
+  'accountFees.tenueCompte.professionnel':   'tenueCompte.professionnel',
+  'accountFees.tenueCompte.entreprise':      'tenueCompte.entreprise',
+  // Ouverture / clôture
+  'accountFees.fraisOuverture':              'ouvertureCompte.particulier',
+  'accountFees.fraisCloture':                'clotureCompte.particulier',
+  'accountFees.fraisInactivite':             'divers.fraisInactivite',
+  // Relevés et attestations
+  'accountFees.releveCompte.mensuel':        'releves.mensuelPapier',
+  'accountFees.releveCompte.duplicata':      'releves.duplicata',
+  'accountFees.attestationSolde':            'releves.attestationSolde',
+  'accountFees.lettreInjonction':            'divers.lettreInjonction',
+  // Crédits & agios
+  'creditFees.tauxDecouvertAutorise':        'credits.decouvertAutorise',
+  'creditFees.tauxDecouvertNonAutorise':     'credits.decouvertNonAutorise',
+  'creditFees.commissionMouvement':          'credits.commissionMouvement',
+  'creditFees.commissionPlusForteDecouverte':'credits.commissionPlusForte',
+  'creditFees.tauxUsureLegal':               'credits.tauxUsure',
+  'creditFees.fraisDossierCredit':           'credits.fraisDossierCredit',
+  'creditFees.creditConsoTauxMin':           'credits.creditConsommationMin',
+  'creditFees.creditConsoTauxMax':           'credits.creditConsommationMax',
+  'creditFees.creditImmoTauxMin':            'credits.creditImmobilierMin',
+  'creditFees.creditImmoTauxMax':            'credits.creditImmobilierMax',
+  // Cartes — flat fees on fraisCartes (not the per-card array)
+  'cardFees.opposition':                     'fraisCartes.oppositionCarte',
+  'cardFees.retraitDabAutreBanque':          'fraisCartes.retraitDabAutre',
+  // Virements
+  'transferFees.virementInterne.commission':       'virements.interneFrais',
+  'transferFees.virementCemacUemoa.commission':    'virements.zoneMonetaireCommission',
+  'transferFees.virementInternational.commission': 'virements.internationalCommission',
+  'transferFees.virementInternational.swift':      'virements.swift',
+  // Chèques
+  'checkFees.chequierEmission':              'cheques.carnet25',
+  'checkFees.oppositionCheque':              'cheques.oppositionCheque',
+  'checkFees.chequeSansProvision':           'cheques.chequeImpaye',
+  // E-Banking
+  'eBankingFees.abonnementMensuel':          'ebanking.abonnementMensuel',
+  'eBankingFees.smsAlerte':                  'ebanking.smsAlerte',
+};
+
 type TabId = 'compte' | 'guichet' | 'cartes' | 'virements' | 'cheques' | 'credits' | 'ebanking' | 'divers' | 'documents';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
@@ -704,9 +756,14 @@ export function BankConditionsModal({
     setConditions(prev => {
       // Deep clone — we use setByPath which mutates
       const next = JSON.parse(JSON.stringify(prev)) as Record<string, unknown>;
-      for (const [key, value] of Object.entries(values)) {
+      for (const [rawKey, value] of Object.entries(values)) {
         if (value === null || value === undefined) continue;
-        setByPath(next, key, value);
+        // Translate FieldRegistry keys (e.g. accountFees.tenueCompte.particulier)
+        // into the modal's form-state paths (e.g. tenueCompte.particulierLocal).
+        // Without this step, setByPath wrote to a parallel object structure
+        // that no form field reads from — values silently disappeared.
+        const formPath = REGISTRY_TO_FORM_PATH[rawKey] ?? rawKey;
+        setByPath(next, formPath, value);
       }
       return next as typeof prev;
     });

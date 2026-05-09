@@ -37,12 +37,14 @@ export function BanksPage() {
     banks,
     addBank,
     updateBank,
+    updateConditions,
     deleteBank: _deleteBank,
     selectedBankId,
     setSelectedBank,
     getAllGrids,
     getActiveGrid,
     addConditionGrid,
+    updateConditionGrid,
     archiveConditionGrid,
     deleteConditionGrid,
     setActiveGrid,
@@ -826,11 +828,27 @@ export function BanksPage() {
           setViewingGrid(null);
         }}
         bank={selectedBank}
-        onSaveConditions={(_bankId, _conditions) => {
-          // Update via store
+        onSaveConditions={(bankId, conditions) => {
+          // 1. Persist into the bank's flat conditions blob (legacy field)
+          updateConditions(bankId, conditions);
+
+          // 2. Sync the active grid so the structured snapshot reflects the
+          //    edits — without this, re-opening the modal on a different
+          //    session would show stale values.
+          const bank = banks.find((b) => b.id === bankId);
+          const activeGridForBank = bank ? getActiveGrid(bankId) : null;
+          if (activeGridForBank) {
+            updateConditionGrid(bankId, activeGridForBank.id, {
+              conditions: {
+                ...activeGridForBank.conditions,
+                ...conditions,
+              } as typeof activeGridForBank.conditions,
+              updatedAt: new Date(),
+            });
+          }
         }}
         onUploadDocument={(_bankId, _document) => {
-          // Handle document
+          // Handled by the verification modal flow inside BankConditionsModal
         }}
       />
 
