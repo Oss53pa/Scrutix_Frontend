@@ -16,7 +16,9 @@ import type {
   RegulatoryRule,
   Agreement,
   BankReferenceVersion,
+  ResolutionMode,
 } from '../types';
+import { ReceiptSigner, createDevSigner } from './ReceiptSigner';
 
 // ============================================================================
 // Data access interface (injectable for testing / Supabase swap)
@@ -67,7 +69,8 @@ function buildCacheKey(req: ResolutionRequest): CacheKey {
         typeof v === 'bigint' ? v.toString() : v
       )
     : '';
-  return `${req.accountId}|${req.rubricCode}|${req.referenceDate.toISOString().slice(0, 10)}|${dimHash}`;
+  const mode = req.mode ?? 'strict';
+  return `${req.accountId}|${req.rubricCode}|${req.referenceDate.toISOString().slice(0, 10)}|${mode}|${dimHash}`;
 }
 
 // ============================================================================
@@ -110,11 +113,15 @@ function dimensionsMatch(
 
 export class ResolutionEngine {
   private dao: CdcDataAccess;
+  private signer: ReceiptSigner;
   private cache = new Map<CacheKey, ResolutionResult>();
   private contextCache = new Map<string, AccountContext>();
 
-  constructor(dao: CdcDataAccess) {
+  constructor(dao: CdcDataAccess, signer?: ReceiptSigner) {
     this.dao = dao;
+    // Default DEV signer if none provided (tenant-derived key).
+    // Production code paths should inject a signer wired to Supabase Vault.
+    this.signer = signer ?? createDevSigner('default');
   }
 
   clearCache(): void {
@@ -122,11 +129,22 @@ export class ResolutionEngine {
     this.contextCache.clear();
   }
 
+  /** Réinitialise la chaîne d'audit (nouveau job). */
+  resetChain(seedHash: string | null = null): void {
+    this.signer.resetChain(seedHash);
+  }
+
+  /** Tête actuelle de la chaîne — à persister côté audit_session. */
+  currentChainHead(): string | null {
+    return this.signer.currentHead();
+  }
+
   async resolve(req: ResolutionRequest): Promise<ResolutionResult> {
     const cacheKey = buildCacheKey(req);
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
+    const mode: ResolutionMode = req.mode ?? 'strict';
     const ctx = await this.loadContext(req.accountId);
     const superseded: SupersededLayer[] = [];
 
@@ -135,18 +153,39 @@ export class ResolutionEngine {
       const hit = await this.tryLayer(layer, req, ctx, superseded);
       if (hit) {
         const violations = await this.checkL1(hit.value, req, ctx);
+
+        // CDC §5.2 étape 4 — mode prescriptif : on plafonne à L1
+        const rawValue = hit.value;
+        let finalValue = hit.value;
+        let capApplied = false;
+        if (mode === 'prescriptif' && rawValue !== null && violations.length > 0) {
+          // Apply tightest cap_max / loosest cap_min from violations
+          for (const v of violations) {
+            if (rawValue > v.capValue && finalValue !== null && finalValue > v.capValue) {
+              finalValue = v.capValue;
+              capApplied = true;
+            }
+          }
+        }
+
+        const partial = {
+          layerUsed: layer as 1 | 2 | 3 | 4 | 5,
+          sourceId: hit.sourceId,
+          sourceLabel: hit.sourceLabel,
+          validFrom: hit.validFrom,
+          validTo: hit.validTo,
+          supersededLayers: superseded,
+          regulatoryViolations: violations,
+          mode,
+          rawValue,
+          capApplied,
+        };
+        const signedReceipt = await this.signer.sign(partial);
+
         const result: ResolutionResult = {
-          value: hit.value,
+          value: finalValue,
           formula: hit.formula,
-          receipt: {
-            layerUsed: layer as 1 | 2 | 3 | 4 | 5,
-            sourceId: hit.sourceId,
-            sourceLabel: hit.sourceLabel,
-            validFrom: hit.validFrom,
-            validTo: hit.validTo,
-            supersededLayers: superseded,
-            regulatoryViolations: violations,
-          },
+          receipt: signedReceipt,
           resolvedAt: new Date(),
         };
         this.cache.set(cacheKey, result);
@@ -163,7 +202,13 @@ export class ResolutionEngine {
   }
 
   async resolveMany(requests: ResolutionRequest[]): Promise<ResolutionResult[]> {
-    return Promise.all(requests.map((r) => this.resolve(r)));
+    // CDC : chain integrity — sign sequentially, not in parallel,
+    // so previousHash → receiptHash chaining is deterministic.
+    const results: ResolutionResult[] = [];
+    for (const r of requests) {
+      results.push(await this.resolve(r));
+    }
+    return results;
   }
 
   // ==========================================================================

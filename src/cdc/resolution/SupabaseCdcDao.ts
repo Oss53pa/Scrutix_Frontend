@@ -17,9 +17,113 @@ import type {
   RegulatoryRule,
 } from '../types';
 import type { CdcDataAccess } from './ResolutionEngine';
+import type { ResolutionResult } from '../types';
 
 export class SupabaseCdcDao implements CdcDataAccess {
   constructor(private supabase: SupabaseClient) {}
+
+  // ==========================================================================
+  // Two-eyes workflow helpers (CDC §8.4)
+  // ==========================================================================
+
+  /** Étape 1 — l'opérateur saisit puis soumet à validation. */
+  async submitBankReferenceVersion(versionId: string): Promise<void> {
+    const { error } = await this.supabase
+      .schema('atlasbanx')
+      .rpc('submit_bank_reference_version', { p_version_id: versionId });
+    if (error) throw new Error(`submit failed: ${error.message}`);
+  }
+
+  /** Étape 2 — un autre utilisateur valide. RLS + trigger imposent l'altérité. */
+  async validateBankReferenceVersion(versionId: string): Promise<void> {
+    const { error } = await this.supabase
+      .schema('atlasbanx')
+      .rpc('validate_bank_reference_version', { p_version_id: versionId });
+    if (error) throw new Error(`validate failed: ${error.message}`);
+  }
+
+  /** Étape 3 — publication. Toujours après validation. */
+  async publishBankReferenceVersion(versionId: string): Promise<void> {
+    const { error } = await this.supabase
+      .schema('atlasbanx')
+      .rpc('publish_bank_reference_version', { p_version_id: versionId });
+    if (error) throw new Error(`publish failed: ${error.message}`);
+  }
+
+  /** Rejet à n'importe quelle étape avant publish. */
+  async rejectBankReferenceVersion(versionId: string, reason: string): Promise<void> {
+    const { error } = await this.supabase
+      .schema('atlasbanx')
+      .rpc('reject_bank_reference_version', {
+        p_version_id: versionId,
+        p_reason: reason,
+      });
+    if (error) throw new Error(`reject failed: ${error.message}`);
+  }
+
+  // ==========================================================================
+  // Audit receipts persistence (CDC §8.3 — append-only chain)
+  // ==========================================================================
+
+  /**
+   * Persiste un receipt signé dans la chaîne d'audit.
+   * Utilisé par CdcAuditOrchestrator après chaque résolution.
+   */
+  async persistReceipt(args: {
+    auditSessionId: string;
+    sequenceNumber: number;
+    rubricCode: string;
+    accountId: string | null;
+    referenceDate: Date;
+    result: ResolutionResult;
+  }): Promise<void> {
+    const { result } = args;
+    const r = result.receipt;
+    const { error } = await this.supabase
+      .schema('atlasbanx')
+      .from('cdc_audit_receipts')
+      .insert({
+        audit_session_id: args.auditSessionId,
+        sequence_number: args.sequenceNumber,
+        rubric_code: args.rubricCode,
+        account_id: args.accountId,
+        reference_date: args.referenceDate.toISOString().slice(0, 10),
+        layer_used: r.layerUsed,
+        source_id: r.sourceId,
+        source_label: r.sourceLabel,
+        resolved_value: result.value,
+        raw_value: r.rawValue,
+        cap_applied: r.capApplied,
+        mode: r.mode,
+        receipt_payload: {
+          validFrom: r.validFrom.toISOString(),
+          validTo: r.validTo ? r.validTo.toISOString() : null,
+          supersededLayers: r.supersededLayers,
+          regulatoryViolations: r.regulatoryViolations,
+        },
+        signature: r.signature,
+        signature_algo: r.signatureAlgo,
+        signature_key_id: r.signatureKeyId,
+        receipt_hash: r.receiptHash,
+        previous_hash: r.previousHash,
+        resolved_at: result.resolvedAt.toISOString(),
+      });
+    if (error) {
+      // ne bloque pas l'audit si la persistance échoue, mais log
+      console.warn('[SupabaseCdcDao] persistReceipt failed', error.message);
+    }
+  }
+
+  /**
+   * Refresh la vue matérialisée resolved_conditions.
+   * À appeler après modification importante de référentiel ou de convention.
+   */
+  async refreshResolvedConditions(): Promise<void> {
+    const { error } = await this.supabase
+      .schema('atlasbanx')
+      .rpc('refresh_resolved_conditions');
+    if (error) throw new Error(`refresh failed: ${error.message}`);
+  }
 
   async getAccountContext(accountId: string): Promise<AccountContext> {
     // 1. Load account

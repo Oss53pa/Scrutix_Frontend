@@ -217,10 +217,26 @@ export interface PdfBbox {
 // Moteur de résolution
 // ============================================================================
 
+/**
+ * Mode de résolution réglementaire (CDC §5.2 étape 4).
+ *
+ * - 'strict' (audit) : la valeur résolue depuis L5–L2 est conservée même
+ *   si elle dépasse un plafond L1. La violation est ajoutée au receipt.
+ *   C'est ce que l'audit doit détecter : la banque a effectivement
+ *   appliqué une valeur au-delà du plafond.
+ *
+ * - 'prescriptif' (simulation) : la valeur est plafonnée à la limite
+ *   réglementaire. Utilisé pour les projections, simulations,
+ *   présentation au client de "ce qui aurait dû être appliqué".
+ */
+export type ResolutionMode = 'strict' | 'prescriptif';
+
 export interface ResolutionRequest {
   accountId: string;
   rubricCode: string;
   referenceDate: Date;
+  /** Mode strict (audit) par défaut. Voir ResolutionMode. */
+  mode?: ResolutionMode;
   dimensions?: {
     montantCentimes?: bigint;
     profil?: 'particulier' | 'pme' | 'corporate';
@@ -253,6 +269,26 @@ export interface ResolutionReceipt {
   validTo: Date | null;
   supersededLayers: SupersededLayer[];
   regulatoryViolations: RegulatoryViolation[];
+  /** Mode utilisé pour la résolution (CDC §5.2). */
+  mode: ResolutionMode;
+  /** Valeur brute résolue avant plafonnement éventuel (mode prescriptif). */
+  rawValue: number | null;
+  /** TRUE si la valeur a été plafonnée par L1 (mode prescriptif). */
+  capApplied: boolean;
+  /**
+   * Signature HMAC-SHA256 du receipt canonicalisé.
+   * Vérifiable a posteriori avec la clé Atlas Studio.
+   * CDC §8.3 — receipt cryptographiquement signé.
+   */
+  signature: string;
+  /** Algorithme de signature, pour évolution future. */
+  signatureAlgo: 'hmac-sha256';
+  /** Identifiant de la clé utilisée (rotation). */
+  signatureKeyId: string;
+  /** Hash SHA-256 du receipt précédent dans la chaîne d'audit (chained signing). */
+  previousHash: string | null;
+  /** Hash SHA-256 du receipt courant (sert de previousHash au suivant). */
+  receiptHash: string;
 }
 
 export interface ResolutionResult {
