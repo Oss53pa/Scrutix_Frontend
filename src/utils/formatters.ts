@@ -1,25 +1,45 @@
 import { format, parseISO, isValid } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
+/**
+ * Replace narrow no-break space (U+202F) and NBSP (U+00A0) with regular
+ * spaces. Some webfonts render U+202F as zero-width, which collapses
+ * Intl.NumberFormat('fr-FR') output like "397 914 601" into "397914601".
+ */
+function normalizeSpaces(s: string): string {
+  return s.replace(/[  ]/g, ' ');
+}
+
 // Currency formatting
 export function formatCurrency(
   amount: number,
   currency: string = 'XAF',
   locale: string = 'fr-FR'
 ): string {
-  // For FCFA, we typically don't show decimals
+  const isFranc = currency === 'XAF' || currency === 'XOF';
+
+  // For FCFA, format the number ourselves and append "FCFA" so we get
+  // consistent rendering everywhere (Intl outputs "F CFA" with a narrow
+  // no-break space which some fonts collapse).
+  if (isFranc) {
+    const formatted = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+    return `${normalizeSpaces(formatted)} FCFA`;
+  }
+
   const options: Intl.NumberFormatOptions = {
     style: 'currency',
     currency,
-    minimumFractionDigits: currency === 'XAF' || currency === 'XOF' ? 0 : 2,
-    maximumFractionDigits: currency === 'XAF' || currency === 'XOF' ? 0 : 2,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   };
 
   try {
-    return new Intl.NumberFormat(locale, options).format(amount);
+    return normalizeSpaces(new Intl.NumberFormat(locale, options).format(amount));
   } catch {
-    // Fallback for unsupported currencies
-    return `${amount.toLocaleString(locale)} ${currency}`;
+    return `${normalizeSpaces(amount.toLocaleString(locale))} ${currency}`;
   }
 }
 
@@ -42,10 +62,12 @@ export function formatCurrencyShort(amount: number, currency: string = 'XAF'): s
 
 // Number formatting
 export function formatNumber(value: number, decimals: number = 0, locale: string = 'fr-FR'): string {
-  return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
+  return normalizeSpaces(
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value),
+  );
 }
 
 // Percentage formatting

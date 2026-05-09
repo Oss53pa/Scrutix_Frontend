@@ -23,6 +23,7 @@ import {
 import { Card } from '../ui';
 import type { ExtractionReport, FieldExtraction, ExtractionStrategy } from '../../extraction';
 import { FIELD_BY_KEY } from '../../extraction';
+import { formatNumber } from '../../utils';
 
 interface Props {
   report: ExtractionReport;
@@ -60,7 +61,7 @@ function formatValue(ex: FieldExtraction): string {
   if (ex.value === null) return '—';
   if (ex.kind === 'percentage') return `${ex.value} %`;
   if (ex.kind === 'amount') {
-    return `${Number(ex.value).toLocaleString('fr-FR')} FCFA`;
+    return `${formatNumber(Number(ex.value))} FCFA`;
   }
   return String(ex.value);
 }
@@ -317,8 +318,8 @@ function UnmatchedPairsSection({
                       ) : (
                         <>
                           {p.unit === '%' ? `${p.value} %` :
-                           p.unit ? `${p.value.toLocaleString('fr-FR')} ${p.unit === 'XAF' || p.unit === 'XOF' ? p.unit : p.unit === 'FCFA' ? 'FCFA' : p.unit}` :
-                           p.value.toLocaleString('fr-FR')}
+                           p.unit ? `${formatNumber(p.value)} ${p.unit === 'XAF' || p.unit === 'XOF' ? p.unit : p.unit === 'FCFA' ? 'FCFA' : p.unit}` :
+                           formatNumber(p.value)}
                         </>
                       )}
                     </span>

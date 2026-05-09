@@ -1,3 +1,4 @@
+import { formatNumber } from '../../utils';
 /**
  * @module AtlasBanx
  * @file src/components/performance/PerformanceDashboard.tsx
@@ -60,7 +61,7 @@ export function PerformanceDashboard() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-primary-900">
-                  {avgThroughput.toLocaleString('fr-FR')} tx/s
+                  {formatNumber(avgThroughput)} tx/s
                 </div>
                 <div className="text-xs text-primary-500">Débit moyen</div>
               </div>
@@ -113,7 +114,7 @@ export function PerformanceDashboard() {
                   <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip
                     formatter={(v: number, name: string) => [
-                      name === 'duration' ? `${v} s` : `${v.toLocaleString('fr-FR')} tx`,
+                      name === 'duration' ? `${v} s` : `${formatNumber(v)} tx`,
                       name === 'duration' ? 'Durée' : 'Transactions',
                     ]}
                   />

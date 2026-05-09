@@ -1,3 +1,4 @@
+import { formatNumber } from '../../utils';
 /**
  * @module AtlasBanx
  * @file src/components/billing/InvoicePreview.tsx
@@ -101,10 +102,10 @@ export function InvoicePreview({ invoice, clientName, settings }: InvoicePreview
               <td className="py-2 px-2">{line.description}</td>
               <td className="py-2 px-2 text-right">{line.quantity}</td>
               <td className="py-2 px-2 text-right font-mono">
-                {line.unitPriceFcfa.toLocaleString('fr-FR')}
+                {formatNumber(line.unitPriceFcfa)}
               </td>
               <td className="py-2 px-2 text-right font-mono">
-                {line.lineTotalFcfa.toLocaleString('fr-FR')}
+                {formatNumber(line.lineTotalFcfa)}
               </td>
             </tr>
           ))}
@@ -123,15 +124,15 @@ export function InvoicePreview({ invoice, clientName, settings }: InvoicePreview
         <div className="w-72">
           <div className="flex justify-between text-sm py-1">
             <span className="text-primary-600">Sous-total HT</span>
-            <span className="font-mono">{invoice.subtotalFcfa.toLocaleString('fr-FR')} FCFA</span>
+            <span className="font-mono">{formatNumber(invoice.subtotalFcfa)} FCFA</span>
           </div>
           <div className="flex justify-between text-sm py-1 border-b border-primary-200">
             <span className="text-primary-600">TVA ({invoice.taxRate.toFixed(2)}%)</span>
-            <span className="font-mono">{invoice.taxAmountFcfa.toLocaleString('fr-FR')} FCFA</span>
+            <span className="font-mono">{formatNumber(invoice.taxAmountFcfa)} FCFA</span>
           </div>
           <div className="flex justify-between items-center py-2 bg-primary-900 text-white px-3 rounded mt-1">
             <span className="font-bold">TOTAL TTC</span>
-            <span className="font-mono font-bold">{invoice.totalFcfa.toLocaleString('fr-FR')} FCFA</span>
+            <span className="font-mono font-bold">{formatNumber(invoice.totalFcfa)} FCFA</span>
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { formatNumber } from '../../utils';
 import { useState, useEffect, useRef } from 'react';
 import { Zap, ChevronDown } from 'lucide-react';
 import { rateLimiter } from '../../ai/RateLimiter';
@@ -128,7 +129,7 @@ export function AIQuotaIndicator() {
 
                   <div className="flex items-center justify-between text-xs text-primary-400">
                     <span>
-                      {status.tokensUsed.toLocaleString('fr-FR')} / {status.tokensLimit.toLocaleString('fr-FR')} tokens
+                      {formatNumber(status.tokensUsed)} / {formatNumber(status.tokensLimit)} tokens
                     </span>
                     <span>
                       Réinitialise dans {formatMinutes(resetIn)}

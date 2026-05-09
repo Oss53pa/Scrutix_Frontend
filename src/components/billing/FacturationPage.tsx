@@ -1,3 +1,4 @@
+import { formatNumber } from '../../utils';
 /**
  * @module AtlasBanx
  * @file src/components/billing/FacturationPage.tsx
@@ -146,18 +147,18 @@ export function FacturationPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard
           label="CA du mois"
-          value={`${kpis.monthlyRevenue.toLocaleString('fr-FR')} FCFA`}
+          value={`${formatNumber(kpis.monthlyRevenue)} FCFA`}
           icon={CheckCircle2}
           variant="success"
         />
         <StatCard
           label="En attente"
-          value={`${kpis.pending.toLocaleString('fr-FR')} FCFA`}
+          value={`${formatNumber(kpis.pending)} FCFA`}
           icon={Send}
         />
         <StatCard
           label="En retard"
-          value={`${kpis.overdue.toLocaleString('fr-FR')} FCFA`}
+          value={`${formatNumber(kpis.overdue)} FCFA`}
           icon={XCircle}
           variant="danger"
         />
@@ -217,10 +218,10 @@ export function FacturationPage() {
                     <td className="px-3 py-2">{invoice.issueDate.toLocaleDateString('fr-FR')}</td>
                     <td className="px-3 py-2">{invoice.dueDate.toLocaleDateString('fr-FR')}</td>
                     <td className="px-3 py-2 text-right font-mono">
-                      {invoice.subtotalFcfa.toLocaleString('fr-FR')}
+                      {formatNumber(invoice.subtotalFcfa)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono font-semibold">
-                      {invoice.totalFcfa.toLocaleString('fr-FR')}
+                      {formatNumber(invoice.totalFcfa)}
                     </td>
                     <td className="px-3 py-2">
                       <InvoiceStatusBadge status={invoice.status} size="sm" />

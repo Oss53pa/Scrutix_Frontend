@@ -1,3 +1,4 @@
+import { formatNumber } from '../../utils';
 import { useState, useRef, useEffect } from 'react';
 import { Bell, X, AlertTriangle, CheckCircle, FileText, Upload, Clock, Play, DollarSign } from 'lucide-react';
 import { Button } from '../ui';
@@ -63,13 +64,13 @@ export function NotificationsDropdown() {
           addNotification({
             type: 'anomaly_critical' as NotificationType,
             title: 'Budget IA depasse',
-            message: `Le budget mensuel de ${status.monthlyBudgetXAF.toLocaleString('fr-FR')} FCFA est depasse (${Math.round(status.usedPercent * 100)}%). Basculement automatique sur PROPH3T.`,
+            message: `Le budget mensuel de ${formatNumber(status.monthlyBudgetXAF)} FCFA est depasse (${Math.round(status.usedPercent * 100)}%). Basculement automatique sur PROPH3T.`,
           });
         } else if (status.alertTriggered) {
           addNotification({
             type: 'anomaly_detected' as NotificationType,
             title: 'Alerte budget IA',
-            message: `${Math.round(status.usedPercent * 100)}% du budget mensuel utilise (${status.usedXAF.toLocaleString('fr-FR')} / ${status.monthlyBudgetXAF.toLocaleString('fr-FR')} FCFA).`,
+            message: `${Math.round(status.usedPercent * 100)}% du budget mensuel utilise (${formatNumber(status.usedXAF)} / ${formatNumber(status.monthlyBudgetXAF)} FCFA).`,
           });
         }
       } catch {

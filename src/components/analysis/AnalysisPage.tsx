@@ -21,7 +21,7 @@ import { useTransactionStore, useAnalysisStore, useSettingsStore } from '../../s
 import { useBankStore } from '../../store/bankStore';
 import { getAnalysisService, ClaudeService } from '../../services';
 import { AnomalyType, Anomaly, Severity, DEFAULT_THRESHOLDS, ANOMALY_TYPE_LABELS, BankConditions } from '../../types';
-import { formatCurrency, formatDate, formatConfidence } from '../../utils';
+import { formatCurrency, formatDate, formatConfidence, formatNumber } from '../../utils';
 
 export function AnalysisPage() {
   const navigate = useNavigate();
@@ -208,7 +208,7 @@ export function AnalysisPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-primary-900">Analyse des anomalies</h1>
-          <p className="text-sm text-primary-500">{transactions.length.toLocaleString('fr-FR')} transactions</p>
+          <p className="text-sm text-primary-500">{formatNumber(transactions.length)} transactions</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowFilters(!showFilters)} disabled={isAnalyzing}>

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Anomaly, Severity, BankConditions, ANOMALY_TYPE_LABELS, SEVERITY_LABELS } from '../../types';
 import { Button, SeverityBadge, AnomalyTypeBadge } from '../ui';
-import { formatCurrency, formatDate } from '../../utils';
+import { formatCurrency, formatDate, formatNumber } from '../../utils';
 import { useSettingsStore, useReportStore } from '../../store';
 import { ClaudeService } from '../../services/ClaudeService';
 
@@ -130,11 +130,11 @@ Analyse cette anomalie bancaire en détail:
 
 TYPE: ${ANOMALY_TYPE_LABELS[anomaly.type]}
 SÉVÉRITÉ: ${SEVERITY_LABELS[anomaly.severity]}
-MONTANT: ${anomaly.amount.toLocaleString('fr-FR')} FCFA
+MONTANT: ${formatNumber(anomaly.amount)} FCFA
 CONFIANCE: ${(anomaly.confidence * 100).toFixed(0)}%
 
 TRANSACTIONS CONCERNÉES:
-${anomaly.transactions.map(t => `- ${formatDate(t.date)}: ${t.description} = ${t.amount.toLocaleString('fr-FR')} FCFA`).join('\n')}
+${anomaly.transactions.map(t => `- ${formatDate(t.date)}: ${t.description} = ${formatNumber(t.amount)} FCFA`).join('\n')}
 
 PREUVES:
 ${anomaly.evidence.map(e => `- ${e.description}: ${e.value}`).join('\n')}
@@ -329,13 +329,13 @@ Réponds en JSON:
                               <div className="mt-1 flex items-center gap-2 text-xs">
                                 <span className="text-green-600">
                                   Attendu: {typeof ev.expectedValue === 'number'
-                                    ? `${ev.expectedValue.toLocaleString('fr-FR')} FCFA`
+                                    ? `${formatNumber(ev.expectedValue)} FCFA`
                                     : ev.expectedValue}
                                 </span>
                                 <span className="text-primary-400">→</span>
                                 <span className="text-red-600">
                                   Facturé: {typeof ev.appliedValue === 'number'
-                                    ? `${ev.appliedValue.toLocaleString('fr-FR')} FCFA`
+                                    ? `${formatNumber(ev.appliedValue)} FCFA`
                                     : ev.appliedValue}
                                 </span>
                               </div>

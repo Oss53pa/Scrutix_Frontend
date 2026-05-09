@@ -8,7 +8,7 @@ import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
 import { useAccountType } from '../../hooks/useAccountType';
 import { Transaction, AFRICAN_COUNTRIES } from '../../types';
-import { formatCurrency, formatDate } from '../../utils';
+import { formatCurrency, formatDate, formatNumber } from '../../utils';
 import {
   ImportVerificationModal,
   buildStatementPayload,
@@ -476,7 +476,7 @@ export function ImportPage() {
               <div>
                 <p className="text-sm text-primary-500">Transactions</p>
                 <p className="text-xl font-semibold text-primary-900">
-                  {transactionCount.toLocaleString('fr-FR')}
+                  {formatNumber(transactionCount)}
                 </p>
               </div>
               <div>

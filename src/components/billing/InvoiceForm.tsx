@@ -1,3 +1,4 @@
+import { formatNumber } from '../../utils';
 /**
  * @module AtlasBanx
  * @file src/components/billing/InvoiceForm.tsx
@@ -262,15 +263,15 @@ export function InvoiceForm({
               <div className="w-72 space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-primary-600">Sous-total HT</span>
-                  <span className="font-mono">{totals.subtotal.toLocaleString('fr-FR')} FCFA</span>
+                  <span className="font-mono">{formatNumber(totals.subtotal)} FCFA</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-primary-600">TVA ({taxRate.toFixed(2)}%)</span>
-                  <span className="font-mono">{totals.tax.toLocaleString('fr-FR')} FCFA</span>
+                  <span className="font-mono">{formatNumber(totals.tax)} FCFA</span>
                 </div>
                 <div className="flex justify-between py-2 border-t border-primary-300 font-bold">
                   <span>Total TTC</span>
-                  <span className="font-mono">{totals.total.toLocaleString('fr-FR')} FCFA</span>
+                  <span className="font-mono">{formatNumber(totals.total)} FCFA</span>
                 </div>
               </div>
             </div>

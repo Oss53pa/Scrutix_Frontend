@@ -23,7 +23,7 @@ import { useAnalysisStore } from '../../store/analysisStore';
 import { useBankStore } from '../../store/bankStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAccountType } from '../../hooks/useAccountType';
-import { formatCurrency } from '../../utils';
+import { formatCurrency, formatNumber } from '../../utils';
 
 // ===========================================================================
 // AtlasBanx — Cockpit-style home page
@@ -181,7 +181,7 @@ export function HomePage() {
         />
         <KpiCard
           eyebrow="Anomalies"
-          value={anomalies.length.toLocaleString('fr-FR')}
+          value={formatNumber(anomalies.length)}
           subline={criticalAnomalies > 0
             ? `${criticalAnomalies} critique${criticalAnomalies > 1 ? 's' : ''}`
             : anomalies.length > 0 ? 'Aucune critique' : 'Conformité totale'}
@@ -198,7 +198,7 @@ export function HomePage() {
         />
         <KpiCard
           eyebrow="Transactions analysées"
-          value={transactions.length.toLocaleString('fr-FR')}
+          value={formatNumber(transactions.length)}
           subline={transactionVolume > 0
             ? `${formatCurrency(transactionVolume, 'XAF')} volume`
             : 'Aucun relevé importé'}
