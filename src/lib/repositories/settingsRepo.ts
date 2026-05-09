@@ -66,13 +66,14 @@ export const settingsRepo = {
     if (!supabase) return null;
 
     const { data, error } = await supabase
+      .schema('atlasbanx')
       .from('user_settings')
       .select('settings')
       .eq('user_id', userId)
       .maybeSingle();
 
     if (error) {
-      console.error('[settingsRepo] load failed:', error);
+      console.error('[settingsRepo] load failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
       return null;
     }
     return (data?.settings as UserSettingsBlob | undefined) ?? null;
@@ -89,6 +90,7 @@ export const settingsRepo = {
 
     const sanitized = sanitizeForPersist(blob);
     const { error } = await supabase
+      .schema('atlasbanx')
       .from('user_settings')
       .upsert(
         {
@@ -100,7 +102,7 @@ export const settingsRepo = {
       );
 
     if (error) {
-      console.error('[settingsRepo] save failed:', error);
+      console.error('[settingsRepo] save failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
     }
   },
 };
