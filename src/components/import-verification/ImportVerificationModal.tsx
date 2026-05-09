@@ -110,9 +110,11 @@ export function ImportVerificationModal({
           }
         } else {
           const created = await importDraftsRepo.insert(userId, {
-            sourceHash,
+            source_hash: sourceHash,
             mode: initialPayload.mode,
-            fileName: initialPayload.fileName,
+            file_name: initialPayload.fileName,
+            bank_code: initialPayload.bankCode ?? null,
+            client_id: initialPayload.clientId ?? null,
             payload: initialPayload as unknown as Record<string, unknown>,
           }).catch(() => null);
           if (!cancelled) {

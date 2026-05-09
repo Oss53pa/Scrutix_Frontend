@@ -65,7 +65,7 @@ export const importDraftsRepo = {
       .eq('mode', mode)
       .maybeSingle();
     if (error) {
-      console.error('[importDraftsRepo] findByHash failed:', error);
+      console.error('[importDraftsRepo] findByHash failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
       return null;
     }
     return (data as ImportDraftRow | null) ?? null;
@@ -83,7 +83,7 @@ export const importDraftsRepo = {
       .eq('status', 'draft')
       .order('updated_at', { ascending: false });
     if (error) {
-      console.error('[importDraftsRepo] list failed:', error);
+      console.error('[importDraftsRepo] list failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
       return [];
     }
     return (data as ImportDraftRow[]) ?? [];
@@ -103,7 +103,7 @@ export const importDraftsRepo = {
       .select()
       .single();
     if (error) {
-      console.error('[importDraftsRepo] insert failed:', error);
+      console.error('[importDraftsRepo] insert failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
       return null;
     }
     return data as ImportDraftRow;
@@ -122,7 +122,7 @@ export const importDraftsRepo = {
       .update({ payload })
       .eq('id', draftId);
     if (error) {
-      console.error('[importDraftsRepo] update failed:', error);
+      console.error('[importDraftsRepo] update failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
     }
   },
 
@@ -136,7 +136,7 @@ export const importDraftsRepo = {
       .update({ status: 'committed', committed_at: new Date().toISOString() })
       .eq('id', draftId);
     if (error) {
-      console.error('[importDraftsRepo] commit failed:', error);
+      console.error('[importDraftsRepo] commit failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
     }
   },
 
@@ -150,7 +150,7 @@ export const importDraftsRepo = {
       .update({ status: 'cancelled' })
       .eq('id', draftId);
     if (error) {
-      console.error('[importDraftsRepo] cancel failed:', error);
+      console.error('[importDraftsRepo] cancel failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
     }
   },
 
@@ -164,7 +164,7 @@ export const importDraftsRepo = {
       .delete()
       .eq('id', draftId);
     if (error) {
-      console.error('[importDraftsRepo] remove failed:', error);
+      console.error('[importDraftsRepo] remove failed:', error.message, { code: error.code, details: error.details, hint: error.hint });
     }
   },
 };
