@@ -165,6 +165,46 @@ export function ClientDetailPage() {
       bankDistribution[name] = (bankDistribution[name] || 0) + 1;
     });
 
+    // Per-bank breakdown — used by the OverviewTab to show consolidated
+    // multi-bank view AND intra-client benchmark.
+    const FEE_RX = /(frais|commission|agios|tenue|sms|alerte|abonnement|cotisation|opposition|rejet|tva|taxe|cpfd|gimac)/i;
+    const bankCodesUsed = new Set<string>();
+    clientTransactions.forEach((t) => bankCodesUsed.add(t.bankCode));
+    const bankBreakdown = Array.from(bankCodesUsed).map((code) => {
+      const bank = banks.find((b) => b.code === code);
+      const txs = clientTransactions.filter((t) => t.bankCode === code);
+      const credits = txs.filter((t) => t.amount > 0);
+      const debits = txs.filter((t) => t.amount < 0);
+      const fees = debits.filter((t) => FEE_RX.test(t.description ?? ''));
+      const anomalies = clientAnomalies.filter((a) =>
+        a.transactions.some((t) => t.bankCode === code),
+      );
+      const confirmed = anomalies
+        .filter((a) => a.status === 'confirmed')
+        .reduce((s, a) => s + a.amount, 0);
+      const pending = anomalies
+        .filter((a) => a.status === 'pending')
+        .reduce((s, a) => s + a.amount, 0);
+      const debitVolumeBank = debits.reduce((s, t) => s + Math.abs(t.amount), 0);
+      const creditVolumeBank = credits.reduce((s, t) => s + t.amount, 0);
+      const feeVolumeBank = fees.reduce((s, t) => s + Math.abs(t.amount), 0);
+      return {
+        bankCode: code,
+        bankName: bank?.name || code,
+        zone: (bank?.zone === 'CEMAC' || bank?.zone === 'UEMOA' ? bank.zone : null) as 'CEMAC' | 'UEMOA' | null,
+        transactions: txs.length,
+        totalVolume: debitVolumeBank + creditVolumeBank,
+        creditVolume: creditVolumeBank,
+        debitVolume: debitVolumeBank,
+        feeVolume: feeVolumeBank,
+        anomalies: anomalies.length,
+        savings: confirmed,
+        potentialSavings: pending,
+        feeRate: debitVolumeBank > 0 ? feeVolumeBank / debitVolumeBank : 0,
+        anomalyRate: txs.length > 0 ? anomalies.length / txs.length : 0,
+      };
+    }).sort((a, b) => b.totalVolume - a.totalVolume);
+
     // Confirmation rate
     const confirmationRate = clientAnomalies.length > 0
       ? Math.round((confirmedAnomalies.length / clientAnomalies.length) * 100)
@@ -201,6 +241,7 @@ export function ClientDetailPage() {
       confirmationRate,
       confirmedCount: confirmedAnomalies.length,
       pendingCount: pendingAnomalies.length,
+      banks: bankBreakdown,
     };
   }, [client, clientTransactions, clientAnomalies, banks]);
 

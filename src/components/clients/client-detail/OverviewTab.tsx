@@ -7,6 +7,10 @@ import {
   Zap,
   Activity,
   CheckCircle2,
+  Landmark,
+  TrendingUp,
+  TrendingDown,
+  ArrowLeftRight,
 } from 'lucide-react';
 import {
   PieChart,
@@ -317,6 +321,180 @@ export const OverviewTab = memo(function OverviewTab({
           </CardBody>
         </Card>
       </div>
+
+      {/* ─── SYNTHÈSE PAR BANQUE ─── */}
+      {/* Multi-bank consolidated view + intra-client benchmark.
+          Only visible when the client has at least one bank connection. */}
+      {analytics.banks.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Landmark className="w-4 h-4 text-primary-600" />
+            <h2 className="text-sm font-bold text-primary-900 uppercase tracking-wider">
+              Synthèse par banque ({analytics.banks.length})
+            </h2>
+          </div>
+
+          {/* Per-bank breakdown cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {analytics.banks.map((b) => (
+              <Card key={b.bankCode} className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                      <Landmark className="w-4 h-4 text-primary-700" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-primary-900 truncate max-w-[180px]">{b.bankName}</p>
+                      <p className="text-[10px] text-primary-500">
+                        {b.zone ?? '—'} · {b.transactions} tx
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-pill text-[10px] font-semibold ${
+                    b.anomalyRate > 0.2 ? 'bg-red-100 text-red-700'
+                    : b.anomalyRate > 0.05 ? 'bg-amber-100 text-amber-700'
+                    : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {(b.anomalyRate * 100).toFixed(1)}% anomalies
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p className="text-primary-500">Crédits</p>
+                    <p className="font-semibold text-emerald-700 tabular-nums">{formatCurrency(b.creditVolume, 'XAF')}</p>
+                  </div>
+                  <div>
+                    <p className="text-primary-500">Débits</p>
+                    <p className="font-semibold text-red-700 tabular-nums">{formatCurrency(b.debitVolume, 'XAF')}</p>
+                  </div>
+                  <div>
+                    <p className="text-primary-500">Frais détectés</p>
+                    <p className="font-semibold text-primary-900 tabular-nums">{formatCurrency(b.feeVolume, 'XAF')}</p>
+                    <p className="text-[10px] text-primary-400">{(b.feeRate * 100).toFixed(1)}% des débits</p>
+                  </div>
+                  <div>
+                    <p className="text-primary-500">Économies</p>
+                    <p className="font-semibold text-primary-900 tabular-nums">{formatCurrency(b.savings + b.potentialSavings, 'XAF')}</p>
+                    {b.potentialSavings > 0 && (
+                      <p className="text-[10px] text-amber-600">+{formatCurrency(b.potentialSavings, 'XAF')} en attente</p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Intra-client benchmark — only meaningful with 2+ banks */}
+          {analytics.banks.length >= 2 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <ArrowLeftRight className="w-4 h-4 text-primary-600" />
+                  <CardTitle>Benchmark inter-banques pour ce client</CardTitle>
+                </div>
+                <p className="text-xs text-primary-500 mt-1">
+                  Comparaison directe des banques utilisées par ce client. Le pire et le meilleur sont signalés sur chaque métrique.
+                </p>
+              </CardHeader>
+              <CardBody className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-primary-50 border-b border-primary-100">
+                      <tr className="text-[10px] uppercase tracking-wider text-primary-600 font-semibold">
+                        <th className="text-left px-4 py-2.5">Banque</th>
+                        <th className="text-right px-3 py-2.5">Volume</th>
+                        <th className="text-right px-3 py-2.5">Frais détectés</th>
+                        <th className="text-right px-3 py-2.5">Taux de frais</th>
+                        <th className="text-right px-3 py-2.5">Anomalies</th>
+                        <th className="text-right px-3 py-2.5">Taux d'anomalie</th>
+                        <th className="text-right px-3 py-2.5">Économies</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-primary-100">
+                      {(() => {
+                        const bs = analytics.banks;
+                        const maxFeeRate = Math.max(...bs.map((b) => b.feeRate));
+                        const minFeeRate = Math.min(...bs.map((b) => b.feeRate));
+                        const maxAnoRate = Math.max(...bs.map((b) => b.anomalyRate));
+                        const minAnoRate = Math.min(...bs.map((b) => b.anomalyRate));
+                        const maxSavings = Math.max(...bs.map((b) => b.savings + b.potentialSavings));
+                        return bs.map((b) => {
+                          const total = b.savings + b.potentialSavings;
+                          const isWorstFee = bs.length > 1 && b.feeRate === maxFeeRate && b.feeRate > 0;
+                          const isBestFee = bs.length > 1 && b.feeRate === minFeeRate && b.feeRate < maxFeeRate;
+                          const isWorstAno = bs.length > 1 && b.anomalyRate === maxAnoRate && b.anomalyRate > 0;
+                          const isBestAno = bs.length > 1 && b.anomalyRate === minAnoRate && b.anomalyRate < maxAnoRate;
+                          const isHighestSavings = bs.length > 1 && total === maxSavings && total > 0;
+                          return (
+                            <tr key={b.bankCode} className="hover:bg-primary-50/60">
+                              <td className="px-4 py-2.5">
+                                <div className="font-medium text-primary-900">{b.bankName}</div>
+                                <div className="text-[10px] text-primary-500">{b.zone ?? '—'} · {b.transactions} tx</div>
+                              </td>
+                              <td className="text-right px-3 py-2.5 tabular-nums text-primary-700">
+                                {formatCurrency(b.totalVolume, 'XAF')}
+                              </td>
+                              <td className="text-right px-3 py-2.5 tabular-nums text-primary-900">
+                                {formatCurrency(b.feeVolume, 'XAF')}
+                              </td>
+                              <td className={`text-right px-3 py-2.5 tabular-nums font-semibold ${
+                                isWorstFee ? 'text-red-700' : isBestFee ? 'text-emerald-700' : 'text-primary-700'
+                              }`}>
+                                <span className="inline-flex items-center gap-1 justify-end">
+                                  {isWorstFee && <TrendingUp className="w-3 h-3" />}
+                                  {isBestFee && <TrendingDown className="w-3 h-3" />}
+                                  {(b.feeRate * 100).toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="text-right px-3 py-2.5 tabular-nums text-primary-900">{b.anomalies}</td>
+                              <td className={`text-right px-3 py-2.5 tabular-nums font-semibold ${
+                                isWorstAno ? 'text-red-700' : isBestAno ? 'text-emerald-700' : 'text-primary-700'
+                              }`}>
+                                <span className="inline-flex items-center gap-1 justify-end">
+                                  {isWorstAno && <TrendingUp className="w-3 h-3" />}
+                                  {isBestAno && <TrendingDown className="w-3 h-3" />}
+                                  {(b.anomalyRate * 100).toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className={`text-right px-3 py-2.5 tabular-nums font-bold ${
+                                isHighestSavings ? 'text-amber-700' : 'text-primary-900'
+                              }`}>
+                                {formatCurrency(total, 'XAF')}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                    <tfoot className="bg-primary-50 border-t border-primary-200">
+                      <tr className="text-[11px] font-semibold">
+                        <td className="px-4 py-2 text-primary-700 uppercase tracking-wider text-[10px]">Consolidé</td>
+                        <td className="text-right px-3 py-2 tabular-nums">
+                          {formatCurrency(analytics.banks.reduce((s, b) => s + b.totalVolume, 0), 'XAF')}
+                        </td>
+                        <td className="text-right px-3 py-2 tabular-nums">
+                          {formatCurrency(analytics.banks.reduce((s, b) => s + b.feeVolume, 0), 'XAF')}
+                        </td>
+                        <td className="text-right px-3 py-2 text-primary-500 text-[10px]">—</td>
+                        <td className="text-right px-3 py-2 tabular-nums">
+                          {analytics.banks.reduce((s, b) => s + b.anomalies, 0)}
+                        </td>
+                        <td className="text-right px-3 py-2 text-primary-500 text-[10px]">—</td>
+                        <td className="text-right px-3 py-2 tabular-nums">
+                          {formatCurrency(
+                            analytics.banks.reduce((s, b) => s + b.savings + b.potentialSavings, 0),
+                            'XAF',
+                          )}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 });

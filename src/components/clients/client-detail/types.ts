@@ -2,6 +2,26 @@ import { Client, BankStatement, AuditReport, Transaction, Anomaly, Bank } from '
 
 export type TabType = 'overview' | 'info' | 'statements' | 'analyses' | 'savings' | 'reports';
 
+export interface BankBreakdown {
+  bankCode: string;
+  bankName: string;
+  zone: 'CEMAC' | 'UEMOA' | null;
+  transactions: number;
+  totalVolume: number;
+  creditVolume: number;
+  debitVolume: number;
+  feeVolume: number;
+  anomalies: number;
+  /** Confirmed savings */
+  savings: number;
+  /** Pending (potential) savings */
+  potentialSavings: number;
+  /** % of debits classified as fees */
+  feeRate: number;
+  /** Anomalies / transactions */
+  anomalyRate: number;
+}
+
 export interface ClientAnalytics {
   totalSavings: number;
   potentialSavings: number;
@@ -40,6 +60,8 @@ export interface ClientAnalytics {
   confirmationRate: number;
   confirmedCount: number;
   pendingCount: number;
+  /** Per-bank breakdown for consolidated view + intra-client benchmark */
+  banks: BankBreakdown[];
 }
 
 export interface TabProps {
