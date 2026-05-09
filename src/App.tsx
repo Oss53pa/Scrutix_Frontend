@@ -37,6 +37,7 @@ const ReportsPage = lazy(() => import('./components/reports').then(m => ({ defau
 const BillingPage = lazy(() => import('./components/billing').then(m => ({ default: m.BillingPage })));
 const SettingsPage = lazy(() => import('./components/settings').then(m => ({ default: m.SettingsPage })));
 const IntelligencePage = lazy(() => import('./components/intelligence').then(m => ({ default: m.IntelligenceDashboard })));
+const ConditionsIntelligencePage = lazy(() => import('./components/conditions-intelligence').then(m => ({ default: m.ConditionsIntelligencePage })));
 const NotFoundPage = lazy(() => import('./components/notfound').then(m => ({ default: m.NotFoundPage })));
 
 // Loading fallback component
@@ -381,6 +382,7 @@ function AppRoutes() {
                     <Route path="billing" element={<CabinetOnly><BillingPage /></CabinetOnly>} />
                     <Route path="settings" element={<SettingsPage />} />
                     <Route path="intelligence" element={<IntelligencePage />} />
+                    <Route path="conditions-intelligence" element={<ConditionsIntelligencePage />} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </Suspense>

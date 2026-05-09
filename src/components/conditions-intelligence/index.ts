@@ -1,0 +1,1 @@
+export { ConditionsIntelligencePage } from './ConditionsIntelligencePage';

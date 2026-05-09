@@ -27,6 +27,8 @@ export { ClaudeService, getClaudeService, hasClaudeService, clearClaudeService }
 export { ReportService } from './ReportService';
 export { PremiumReportService } from './PremiumReportService';
 export type { PremiumReportData } from './PremiumReportService';
+export { BankConditionsResolver, gridToBankConditions } from './BankConditionsResolver';
+export type { ResolutionInput, ResolutionResult } from './BankConditionsResolver';
 export { PrintService } from './PrintService';
 export type { PrintOptions } from './PrintService';
 export { BackupService, APP_VERSION } from './BackupService';

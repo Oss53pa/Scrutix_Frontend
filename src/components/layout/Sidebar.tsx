@@ -13,6 +13,7 @@ import {
   X,
   ChevronDown,
   BrainCircuit,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { Button } from '../ui';
 import { useAccountType } from '../../hooks/useAccountType';
@@ -51,6 +52,7 @@ const SECTIONS: NavSection[] = [
       // Workflow: 1) configure the banks & conditions, 2) register clients,
       // 3) import their statements for analysis. The order matters.
       { name: 'Banques & Conditions',  href: '/banks',   icon: Landmark },
+      { name: 'Benchmark tarifaire',   href: '/conditions-intelligence', icon: ArrowLeftRight },
       { name: 'Clients',               href: '/clients', icon: Users,    cabinetOnly: true },
       { name: 'Import',                href: '/import',  icon: Upload },
     ],

@@ -27,7 +27,8 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useAccountType } from '../../hooks/useAccountType';
 import { formatCurrency, formatDate } from '../../utils';
 import { AnomalyType, Severity, ANOMALY_TYPE_LABELS, DetectionSource, DEFAULT_THRESHOLDS, Anomaly, Transaction } from '../../types';
-import { getAnalysisService, ClaudeService, PremiumReportService } from '../../services';
+import { getAnalysisService, ClaudeService, PremiumReportService, BankConditionsResolver, gridToBankConditions } from '../../services';
+import type { ResolutionResult } from '../../services';
 
 type ViewMode = 'config' | 'viewer';
 
@@ -317,18 +318,81 @@ export function AnalysesPage() {
     try {
       const service = getAnalysisService(thresholds);
 
-      // Get bank conditions
-      const analysisConditions = bankConditions[0] || {
-        id: 'default',
-        bankCode: 'DEFAULT',
-        bankName: 'Banque',
-        country: 'CM',
-        currency: 'XAF',
-        effectiveDate: new Date(),
-        fees: [],
-        interestRates: [],
-        isActive: true,
-      };
+      // ── Bi-temporal grid resolution ────────────────────────────────────
+      // Pick the right tariff grid for each bank+period combination present
+      // in the transactions being audited. The previous code used the first
+      // grid in the global settings store regardless of bank — silently wrong
+      // on multi-bank or multi-period audits.
+      const txScope = clientTransactions.length > 0 ? clientTransactions : transactions;
+      const txByBank = new Map<string, { txs: typeof txScope; start: number; end: number }>();
+      for (const t of txScope) {
+        const code = t.bankCode || 'UNKNOWN';
+        const ts = new Date(t.date).getTime();
+        const bucket = txByBank.get(code);
+        if (bucket) {
+          bucket.txs.push(t);
+          if (ts < bucket.start) bucket.start = ts;
+          if (ts > bucket.end) bucket.end = ts;
+        } else {
+          txByBank.set(code, { txs: [t], start: ts, end: ts });
+        }
+      }
+
+      const resolver = new BankConditionsResolver(banks);
+      // Dominant bank = the one with the most transactions; we run the
+      // analysis once on its grid. Multi-bank merging is a Phase B follow-up.
+      const dominant = [...txByBank.entries()]
+        .sort(([, a], [, b]) => b.txs.length - a.txs.length)[0];
+
+      let resolution: ResolutionResult | null = null;
+      let analysisConditions;
+      if (dominant) {
+        const [domCode, domBucket] = dominant;
+        const bank = banks.find((b) => b.code === domCode);
+        resolution = resolver.resolve({
+          bankCode: domCode,
+          start: new Date(domBucket.start),
+          end: new Date(domBucket.end),
+        });
+        const zone = bank?.zone ?? null;
+        analysisConditions = bank
+          ? gridToBankConditions(resolution.grid, bank, zone)
+          : (bankConditions[0] ?? null);
+      } else {
+        analysisConditions = bankConditions[0];
+      }
+      if (!analysisConditions) {
+        analysisConditions = {
+          id: 'default',
+          bankCode: 'DEFAULT',
+          bankName: 'Banque',
+          country: 'CM',
+          currency: 'XAF',
+          effectiveDate: new Date(),
+          fees: [],
+          interestRates: [],
+          isActive: true,
+        };
+      }
+
+      // Surface the resolution in the console for now — Phase C will show
+      // it as a badge in the analysis viewer header.
+      if (resolution) {
+        console.info('[Analyses] Bi-temporal grid resolution:', {
+          strategy: resolution.strategy,
+          gridName: resolution.grid?.name,
+          partial: resolution.partial,
+          explanation: resolution.explanation,
+        });
+        if (resolution.strategy === 'none' || resolution.strategy === 'active_fallback') {
+          console.warn('[Analyses]', resolution.explanation);
+        }
+        if (txByBank.size > 1) {
+          console.warn(
+            `[Analyses] Multi-bank audit detected (${txByBank.size} banks). Currently the analysis applies the dominant bank's grid only.`,
+          );
+        }
+      }
 
       // Setup Claude service if enabled and mode requires it
       let claudeService: ClaudeService | undefined;
