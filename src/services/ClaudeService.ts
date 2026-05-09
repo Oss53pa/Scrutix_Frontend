@@ -78,8 +78,19 @@ interface ReportContent {
   conclusion: string;
 }
 
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 const REQUEST_TIMEOUT_MS = 60000; // 60 seconds
+
+/**
+ * URL of the server-side claude-proxy Edge Function. The user's API key
+ * is stored on Supabase (atlasbanx.user_ai_keys) and never travels through
+ * the browser. The proxy reads it via service_role and forwards the request
+ * to api.anthropic.com.
+ */
+function getProxyUrl(): string | null {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  if (!url || url === 'votre-supabase-url') return null;
+  return `${url.replace(/\/$/, '')}/functions/v1/claude-proxy`;
+}
 
 // Error types for better handling
 export class ClaudeAPIError extends Error {
@@ -467,9 +478,18 @@ Réponds UNIQUEMENT avec un JSON valide:
    * Core method to call Claude API with proper error handling
    */
   private async callClaude(messages: ClaudeMessage[], maxTokens?: number): Promise<string> {
-    // Validate API key
-    if (!this.config.apiKey || this.config.apiKey.trim() === '') {
-      throw new ClaudeAPIError('Clé API non configurée', 'AUTH');
+    const proxyUrl = getProxyUrl();
+    if (!proxyUrl) throw new ClaudeAPIError('Supabase non configuré', 'AUTH');
+
+    // Lazy-load the supabase client (avoids hard dep cycles)
+    const { getSupabaseClient } = await import('../lib/supabase');
+    const supabase = getSupabaseClient();
+    if (!supabase) throw new ClaudeAPIError('Supabase non configuré', 'AUTH');
+
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess.session?.access_token;
+    if (!token) {
+      throw new ClaudeAPIError('Session expirée — reconnectez-vous', 'AUTH');
     }
 
     // Create abort controller for timeout
@@ -477,13 +497,12 @@ Réponds UNIQUEMENT avec un JSON valide:
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      const response = await fetch(CLAUDE_API_URL, {
+      const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.config.apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           model: this.config.model,

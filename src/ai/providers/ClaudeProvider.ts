@@ -1,9 +1,12 @@
 // ============================================================================
 // ATLASBANX - Claude Provider
-// Implémentation du provider pour Anthropic Claude
+// Calls the Anthropic Claude API via the Supabase Edge Function `claude-proxy`.
+// The user's API key is stored server-side (atlasbanx.user_ai_keys), never
+// exposed to the browser. Authentication uses the user's Supabase session JWT.
 // ============================================================================
 
 import { BaseAIProvider } from './BaseAIProvider';
+import { getSupabaseClient } from '../../lib/supabase';
 import {
   AIProviderType,
   AIProviderConfig,
@@ -12,8 +15,18 @@ import {
   AIErrorCode,
 } from '../types';
 
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_TIMEOUT_MS = 60000;
+
+/**
+ * URL of the Edge Function. Derived from the Supabase URL at runtime.
+ * Returns null if Supabase isn't configured (e.g. demo mode) — provider
+ * fails gracefully with an explicit error.
+ */
+function getProxyUrl(): string | null {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  if (!url || url === 'votre-supabase-url') return null;
+  return `${url.replace(/\/$/, '')}/functions/v1/claude-proxy`;
+}
 
 /**
  * Provider pour Anthropic Claude
@@ -35,18 +48,36 @@ export class ClaudeProvider extends BaseAIProvider {
   // ============================================================================
 
   async testConnection(): Promise<{ valid: boolean; error?: string }> {
+    // Validation goes through the proxy's `action: "validate"` path.
+    // The user's stored key is read server-side, a tiny test call is made
+    // to Anthropic, and the validated_at timestamp is updated on success.
+    const proxyUrl = getProxyUrl();
+    if (!proxyUrl) return { valid: false, error: 'Supabase non configuré' };
+
+    const supabase = getSupabaseClient();
+    if (!supabase) return { valid: false, error: 'Supabase non configuré' };
+
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess.session?.access_token;
+    if (!token) return { valid: false, error: 'Session expirée' };
+
     try {
-      await this.callAPI(
-        [{ role: 'user', content: 'Réponds simplement "OK" pour valider la connexion.' }],
-        { maxTokens: 10 }
-      );
-      return { valid: true };
-    } catch (error) {
-      if (error instanceof ClaudeAPIError) {
-        return { valid: false, error: error.userMessage };
+      const res = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'validate', model: this.config.model }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { valid?: boolean; error?: string };
+      if (!res.ok) {
+        return { valid: false, error: data.error || res.statusText };
       }
-      const message = error instanceof Error ? error.message : 'Erreur inconnue';
-      return { valid: false, error: message };
+      return { valid: data.valid === true, error: data.valid ? undefined : data.error };
+    } catch (err) {
+      return { valid: false, error: err instanceof Error ? err.message : 'Erreur inconnue' };
     }
   }
 
@@ -58,9 +89,18 @@ export class ClaudeProvider extends BaseAIProvider {
     messages: Array<{ role: string; content: string }>,
     options?: { maxTokens?: number; temperature?: number }
   ): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
-    // Validate API key
-    if (!this.config.apiKey || this.config.apiKey.trim() === '') {
-      throw new ClaudeAPIError('Clé API non configurée', 'AUTH');
+    const proxyUrl = getProxyUrl();
+    if (!proxyUrl) {
+      throw new ClaudeAPIError('Supabase non configuré', 'AUTH');
+    }
+
+    const supabase = getSupabaseClient();
+    if (!supabase) throw new ClaudeAPIError('Supabase non configuré', 'AUTH');
+
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess.session?.access_token;
+    if (!token) {
+      throw new ClaudeAPIError('Session expirée — reconnectez-vous', 'AUTH');
     }
 
     // Convert system messages to Claude format (system messages become user context)
@@ -74,13 +114,12 @@ export class ClaudeProvider extends BaseAIProvider {
     );
 
     try {
-      const response = await fetch(CLAUDE_API_URL, {
+      const response = await fetch(proxyUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.config.apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           model: this.config.model,
@@ -119,7 +158,7 @@ export class ClaudeProvider extends BaseAIProvider {
 
       // Handle network errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new ClaudeAPIError('Impossible de contacter l\'API Claude', 'NETWORK');
+        throw new ClaudeAPIError('Impossible de contacter le proxy Claude', 'NETWORK');
       }
 
       // Re-throw ClaudeAPIError as-is

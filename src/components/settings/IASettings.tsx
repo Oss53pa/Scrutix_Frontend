@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Brain,
   Key,
@@ -16,6 +16,7 @@ import {
   Cpu,
   Sparkles,
   Calculator,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Card,
@@ -38,18 +39,41 @@ import {
   type ModelTier,
   type AnalysisModule,
 } from '../../services';
+import { ClaudeKeyManager, type AnthropicKeyInfo } from '../../services/ClaudeKeyManager';
 
 interface IASettingsProps {
   onSave?: () => void;
 }
 
 export function IASettings({ onSave }: IASettingsProps) {
-  const { claudeApi, updateClaudeApi, clearClaudeApiKey, resetMonthlyUsage } = useSettingsStore();
+  const { claudeApi, updateClaudeApi, resetMonthlyUsage } = useSettingsStore();
 
   const [showApiKey, setShowApiKey] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState(claudeApi.apiKey);
+  const [apiKeyInput, setApiKeyInput] = useState('');
   const [validating, setValidating] = useState(false);
   const [validationStatus, setValidationStatus] = useState<'idle' | 'valid' | 'invalid'>('idle');
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [keyInfo, setKeyInfo] = useState<AnthropicKeyInfo | null>(null);
+
+  // On mount: ask the server whether a key is configured for the current user
+  useEffect(() => {
+    let cancelled = false;
+    void ClaudeKeyManager.getInfo().then((info) => {
+      if (cancelled) return;
+      setKeyInfo(info);
+      // Sync the client-side `isEnabled` flag with server state
+      if (info.isConfigured && !claudeApi.isEnabled) {
+        updateClaudeApi({ isEnabled: true });
+      }
+      if (!info.isConfigured && claudeApi.isEnabled) {
+        updateClaudeApi({ isEnabled: false });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // AI Model Router
   const router = useMemo(() => getAIModelRouter(), []);
@@ -69,44 +93,51 @@ export function IASettings({ onSave }: IASettingsProps) {
     autre: 'Autre',
   };
 
+  /**
+   * Save the typed key on the server (RPC), then trigger server-side validation.
+   * The plaintext key is wiped from local state immediately after the save call.
+   */
   const handleValidateApiKey = async () => {
     if (!apiKeyInput.trim()) return;
 
     setValidating(true);
     setValidationStatus('idle');
+    setValidationError(null);
 
     try {
-      const { ClaudeService } = await import('../../services/ClaudeService');
-      const service = new ClaudeService({
-        apiKey: apiKeyInput,
-        model: claudeApi.model,
-      });
-
-      const result = await service.validateApiKey();
+      const result = await ClaudeKeyManager.setAndValidate(apiKeyInput, claudeApi.model);
+      // Wipe plaintext from local state regardless of outcome
+      setApiKeyInput('');
 
       if (result.valid) {
         setValidationStatus('valid');
-        updateClaudeApi({ apiKey: apiKeyInput, isEnabled: true });
+        updateClaudeApi({ isEnabled: true });
+        // Refresh metadata
+        const info = await ClaudeKeyManager.getInfo();
+        setKeyInfo(info);
       } else {
         setValidationStatus('invalid');
+        setValidationError(result.error ?? 'Validation échouée');
       }
-    } catch {
+    } catch (err) {
       setValidationStatus('invalid');
+      setValidationError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setValidating(false);
     }
   };
 
-  const handleClearApiKey = () => {
+  const handleClearApiKey = async () => {
     setApiKeyInput('');
     setValidationStatus('idle');
-    clearClaudeApiKey();
-  };
-
-  const maskApiKey = (key: string) => {
-    if (!key) return '';
-    if (key.length <= 8) return '********';
-    return key.substring(0, 4) + '************' + key.substring(key.length - 4);
+    setValidationError(null);
+    try {
+      await ClaudeKeyManager.clearKey();
+      updateClaudeApi({ isEnabled: false });
+      setKeyInfo({ isConfigured: false, fingerprint: null, validatedAt: null, updatedAt: null });
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Erreur de suppression');
+    }
   };
 
   return (
@@ -123,27 +154,58 @@ export function IASettings({ onSave }: IASettingsProps) {
       <CardBody className="space-y-6">
         {/* API Key */}
         <div>
-          <h4 className="text-sm font-medium text-primary-700 mb-4 flex items-center gap-2">
+          <h4 className="text-sm font-medium text-ink-700 mb-2 flex items-center gap-2">
             <Key className="w-4 h-4" />
-            Cle API Anthropic
-            <InfoTooltip content="Obtenez votre cle API sur console.anthropic.com" />
+            Clé API Anthropic
+            <InfoTooltip content="Votre clé est stockée chiffrée côté serveur Supabase et n'est jamais exposée au navigateur. Obtenez-la sur console.anthropic.com." />
           </h4>
+
+          {/* Status banner — shows server-side configuration state */}
+          {keyInfo?.isConfigured ? (
+            <div className="rounded-lg border border-emerald-200/70 bg-emerald-50 px-3.5 py-2.5 mb-3 flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-emerald-900 tracking-tight">
+                  Clé configurée côté serveur
+                </p>
+                <p className="text-xs text-emerald-700">
+                  Empreinte <span className="font-mono">{keyInfo.fingerprint}…</span>
+                  {keyInfo.validatedAt && (
+                    <> · validée le {keyInfo.validatedAt.toLocaleDateString('fr-FR')}</>
+                  )}
+                </p>
+              </div>
+              <Button variant="secondary" size="sm" onClick={handleClearApiKey}>
+                Effacer
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-ink-500 mb-3 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-accent-600" />
+              Aucune clé configurée. Saisissez-la ci-dessous — elle ne quittera jamais le serveur.
+            </p>
+          )}
+
           <div className="flex gap-3">
             <div className="relative flex-1">
               <Input
                 type={showApiKey ? 'text' : 'password'}
-                value={showApiKey ? apiKeyInput : maskApiKey(apiKeyInput)}
+                value={apiKeyInput}
                 onChange={(e) => {
                   setApiKeyInput(e.target.value);
                   setValidationStatus('idle');
+                  setValidationError(null);
                 }}
-                placeholder="sk-ant-api03-..."
+                placeholder={keyInfo?.isConfigured ? '••• Remplacer la clé existante' : 'sk-ant-api03-...'}
                 className="pr-10"
+                autoComplete="off"
+                spellCheck={false}
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary-400 hover:text-primary-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600"
+                aria-label={showApiKey ? 'Masquer' : 'Afficher'}
               >
                 {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -156,24 +218,21 @@ export function IASettings({ onSave }: IASettingsProps) {
               {validating ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : validationStatus === 'valid' ? (
-                <CheckCircle className="w-4 h-4 text-primary-500" />
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
               ) : validationStatus === 'invalid' ? (
-                <XCircle className="w-4 h-4 text-primary-500" />
+                <XCircle className="w-4 h-4 text-red-500" />
               ) : (
                 'Valider'
               )}
             </Button>
-            {claudeApi.apiKey && (
-              <Button variant="secondary" onClick={handleClearApiKey}>
-                Effacer
-              </Button>
-            )}
           </div>
           {validationStatus === 'valid' && (
-            <p className="text-sm text-green-600 mt-2">Cle API validee avec succes</p>
+            <p className="text-sm text-emerald-700 mt-2">Clé validée et enregistrée</p>
           )}
           {validationStatus === 'invalid' && (
-            <p className="text-sm text-red-600 mt-2">Cle API invalide. Verifiez votre cle et reessayez.</p>
+            <p className="text-sm text-red-600 mt-2">
+              {validationError ?? 'Clé API invalide. Vérifiez votre clé et réessayez.'}
+            </p>
           )}
         </div>
 
@@ -197,7 +256,7 @@ export function IASettings({ onSave }: IASettingsProps) {
                 type="checkbox"
                 checked={claudeApi.isEnabled}
                 onChange={(e) => updateClaudeApi({ isEnabled: e.target.checked })}
-                disabled={!claudeApi.apiKey}
+                disabled={!keyInfo?.isConfigured}
                 className="w-4 h-4"
               />
               <span className="text-sm">Activer l'IA Claude</span>

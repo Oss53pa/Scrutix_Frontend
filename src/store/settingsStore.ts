@@ -936,6 +936,29 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: 'atlasbanx-settings',
+      // Persist everything EXCEPT credential fields. The Claude API key is
+      // stored server-side (atlasbanx.user_ai_keys) and read by the
+      // claude-proxy Edge Function — it must never appear in localStorage.
+      partialize: (state) => {
+        const { claudeApi, providers, ...rest } = state;
+        return {
+          ...rest,
+          claudeApi: {
+            ...claudeApi,
+            apiKey: '',       // Never persist
+            apiKeyIv: '',     // Never persist
+          },
+          providers: {
+            ...providers,
+            claude: { ...providers.claude, apiKey: '' },
+            openai: { ...providers.openai, apiKey: '' },
+            mistral: { ...providers.mistral, apiKey: '' },
+            gemini: { ...providers.gemini, apiKey: '' },
+            ollama: providers.ollama,
+            custom: { ...providers.custom, apiKey: '' },
+          },
+        } as SettingsStore;
+      },
     }
   )
 );
