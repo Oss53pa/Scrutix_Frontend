@@ -8,6 +8,7 @@ import { AmountFCFA, RoleGuard } from '../../../../components/shared';
 import type { Anomaly, AccountConvention } from '../../types/statement.types';
 import { formatComplaintLetter } from '../../reports/formatComplaintLetter';
 import { ComplaintLetterDrawer } from './ComplaintLetterDrawer';
+import { resolveBankAddress } from '../../data/bankDirectory';
 
 interface ComplaintLetterCardProps {
   statement: {
@@ -38,9 +39,14 @@ export function ComplaintLetterCard(props: ComplaintLetterCardProps) {
 
   if (eligible.length === 0) return null;
 
+  const bankAddr = useMemo(() => resolveBankAddress(props.statement.bankCode), [props.statement.bankCode]);
+
   const formatted = props.convention ? formatComplaintLetter({
     cabinet: props.cabinet,
-    bank: { legalName: props.statement.bankLegalName, addressLines: ['—'] },
+    bank: {
+      legalName: bankAddr.legalName || props.statement.bankLegalName,
+      addressLines: bankAddr.addressLines.length > 0 ? bankAddr.addressLines : [props.statement.bankLegalName],
+    },
     client: { legalName: props.statement.clientLegalName, accountNumber: props.statement.accountNumber },
     period: props.statement.period,
     convention: { id: props.convention.id, signedDate: props.convention.signedDate },

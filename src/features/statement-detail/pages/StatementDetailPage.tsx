@@ -25,11 +25,14 @@ import { ReportTab } from '../components/ReportTab/ReportTab';
 import { SynthesisTab } from '../components/SynthesisTab';
 import { TransactionsTab } from '../components/TransactionsTab';
 import { ProphetDrawer } from '../../prophet-copilot/components/ProphetDrawer';
+import { CompareStatementModal } from '../components/CompareStatementModal';
 import { MOCK_PROPHET_SUGGESTIONS } from '../mock-data';
 import { StatementBreadcrumb } from '../components/StatementBreadcrumb';
 import { StatementHeader } from '../components/StatementHeader';
 import { StatementStatusBanner } from '../components/StatementStatusBanner';
 import { TabsBar, type StatementTabKey, STATEMENT_TAB_KEYS } from '../components/TabsBar';
+import { getSupabaseClient, isSupabaseConfigured } from '../../../lib/supabase';
+import { BANK_DIRECTORY } from '../data/bankDirectory';
 
 type TabKey = StatementTabKey;
 
@@ -41,6 +44,7 @@ export interface StatementDetailPageProps {
 
 export function StatementDetailPage(props: StatementDetailPageProps) {
   const [tab, setTab] = useState<TabKey>(props.defaultTab ?? 'synthesis');
+  const [compareOpen, setCompareOpen] = useState(false);
 
   // Sync URL ?tab=
   useEffect(() => {
@@ -93,7 +97,12 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
   });
 
   // === Analyse ===
-  const analysis = useStatementAnalysis(props.statementId);
+  const analysisMeta = useMemo(() => meta ? {
+    clientId: meta.clientId,
+    accountNumber: meta.accountNumber,
+    bankCode: meta.bankCode,
+  } : undefined, [meta]);
+  const analysis = useStatementAnalysis(props.statementId, analysisMeta);
 
   const conventionByAnomaly = useMemo(() => {
     const map: Record<string, { id: string; label: string; signedDate: string }> = {};
@@ -148,8 +157,8 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             importedAt={meta.importedAt}
             importedBy={null}
             fileName={null}
-            onPdfSource={() => window.open(`https://vgtmljfayiysuvrcmunt.supabase.co/storage/v1/object/sign/atlasbanx-pdfs/${meta.id}.pdf`, '_blank')}
-            onCompare={() => alert('Comparaison de relevés à implémenter')}
+            onPdfSource={() => openPdfSource(meta.id)}
+            onCompare={() => setCompareOpen(true)}
             onOpenProphet={prophet.openDrawer}
           />
         </div>
@@ -158,8 +167,8 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             status={meta.status === 'imported' ? 'analyzed' : meta.status}
             anomalies={anomaliesH.anomalies}
             onSeeAnomalies={() => changeTab('anomalies')}
-            onRefreshAnalysis={() => void analysis.run()}
-            onRunAnalysis={() => void analysis.run()}
+            onRefreshAnalysis={() => void analysis.run(reconH.bankTxs)}
+            onRunAnalysis={() => void analysis.run(reconH.bankTxs)}
           />
         </div>
         <div className="mt-3 -mb-px">
@@ -229,7 +238,15 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             onRecompute={() => void reconH.recompute()}
             onPushDiscrepancyToAtlas={(id) => void reconH.pushDiscrepancyToAtlas(id)}
             onIgnoreDiscrepancy={reconH.ignoreDiscrepancy}
-            onImportFromAtlasFinance={() => void reconH.recompute()}
+            onImportFromAtlasFinance={() => {
+              // Atlas Finance n'est pas encore connecté — toast informatif
+              if (typeof window !== 'undefined') {
+                const ev = new CustomEvent('atlas-toast', {
+                  detail: { message: 'Atlas Finance n\'est pas encore connecté. Utilisez l\'import fichier.', variant: 'info' },
+                });
+                window.dispatchEvent(ev);
+              }
+            }}
             onImportFromFile={() => void reconH.recompute()}
             onGenerateStatement={() => void reconH.generateStatement()}
           />
@@ -273,6 +290,25 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
         messages={prophet.messages}
         onAsk={prophet.ask}
       />
+
+      <CompareStatementModal
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        currentStatementId={meta.id}
+        accountId={meta.accountId}
+        bankCode={meta.bankCode}
+        onSelect={(id) => {
+          // Navigate to the compared statement
+          const url = new URL(window.location.href);
+          const segments = url.pathname.split('/');
+          const releveIdx = segments.findIndex((s) => s === 'releves');
+          if (releveIdx >= 0 && releveIdx + 1 < segments.length) {
+            segments[releveIdx + 1] = id;
+            url.pathname = segments.join('/');
+          }
+          window.location.href = url.toString();
+        }}
+      />
     </div>
   );
 }
@@ -293,6 +329,35 @@ function buildHandle(profile: { full_name?: string | null } | null, email?: stri
   }
   if (email) return email.split('@')[0];
   return 'user';
+}
+
+async function openPdfSource(statementId: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const sb = getSupabaseClient()!;
+    const path = `${statementId}.pdf`;
+    const { data, error } = await sb.storage
+      .from('atlasbanx-pdfs')
+      .createSignedUrl(path, 300); // 5 minutes
+    if (!error && data?.signedUrl) {
+      window.open(data.signedUrl, '_blank');
+      return;
+    }
+    // Fallback: essai avec le nom alternatif
+    const { data: d2 } = await sb.storage
+      .from('atlasbanx-pdfs')
+      .createSignedUrl(`statements/${path}`, 300);
+    if (d2?.signedUrl) {
+      window.open(d2.signedUrl, '_blank');
+      return;
+    }
+  }
+  // Fallback offline : pas de PDF disponible
+  if (typeof window !== 'undefined') {
+    const ev = new CustomEvent('atlas-toast', {
+      detail: { message: 'PDF source non disponible (Supabase non connecté).', variant: 'warning' },
+    });
+    window.dispatchEvent(ev);
+  }
 }
 
 function formatPeriodTitle(start: string, end: string): string {
