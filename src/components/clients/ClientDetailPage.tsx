@@ -339,6 +339,7 @@ export function ClientDetailPage() {
         <StatementsTab
           clientStatements={clientStatements}
           clientTransactions={clientTransactions}
+          clientAccounts={client.accounts ?? []}
           banks={banks}
           navigate={navigate}
           onOpenStatement={(id) => navigate(`/statements/${id}`)}

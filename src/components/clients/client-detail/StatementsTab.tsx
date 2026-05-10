@@ -1,378 +1,324 @@
 import { memo, useMemo, useState } from 'react';
 import {
-  FileText, Upload, Clock, Landmark, Eye, Download, ExternalLink,
-  ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle,
+  FileText, Upload, Clock, Landmark, ExternalLink,
+  ChevronDown, ChevronRight, CreditCard,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardBody, Button, Badge } from '../../ui';
 import { formatCurrency, formatDate } from '../../../utils';
-import type { Bank, BankStatement, Transaction } from '../../../types';
+import type { Bank, BankStatement, BankAccount, Transaction } from '../../../types';
 
 interface StatementsTabProps {
   clientStatements: BankStatement[];
   clientTransactions: Transaction[];
+  clientAccounts: BankAccount[];
   banks: Bank[];
   navigate: (path: string) => void;
   onOpenStatement?: (statementId: string) => void;
 }
 
+// ============================================================================
+// Arborescence : Banque → Compte → Releve
+// ============================================================================
+
+interface BankNode {
+  bankCode: string;
+  bankName: string;
+  accounts: AccountNode[];
+}
+
+interface AccountNode {
+  account: BankAccount;
+  statements: BankStatement[];
+}
+
+function buildTree(
+  accounts: BankAccount[],
+  statements: BankStatement[],
+  banks: Bank[],
+): BankNode[] {
+  // Group accounts by bankCode
+  const bankMap = new Map<string, { bankName: string; accounts: Map<string, AccountNode> }>();
+
+  for (const acc of accounts) {
+    if (!bankMap.has(acc.bankCode)) {
+      const bank = banks.find((b) => b.code === acc.bankCode);
+      bankMap.set(acc.bankCode, {
+        bankName: bank?.name ?? acc.bankName ?? acc.bankCode,
+        accounts: new Map(),
+      });
+    }
+    const node = bankMap.get(acc.bankCode)!;
+    if (!node.accounts.has(acc.id)) {
+      node.accounts.set(acc.id, { account: acc, statements: [] });
+    }
+  }
+
+  // Assign statements to their accounts
+  for (const stmt of statements) {
+    // Find account by accountId or by bankCode match
+    let placed = false;
+    for (const [, bankNode] of bankMap) {
+      for (const [, accNode] of bankNode.accounts) {
+        if (accNode.account.id === stmt.accountId ||
+            (accNode.account.bankCode === stmt.bankCode && accNode.account.accountNumber === (stmt as unknown as { accountNumber?: string }).accountNumber)) {
+          accNode.statements.push(stmt);
+          placed = true;
+          break;
+        }
+      }
+      if (placed) break;
+    }
+
+    // If statement has no matching account, create a virtual one under its bank
+    if (!placed) {
+      if (!bankMap.has(stmt.bankCode)) {
+        bankMap.set(stmt.bankCode, {
+          bankName: stmt.bankName ?? stmt.bankCode,
+          accounts: new Map(),
+        });
+      }
+      const bankNode = bankMap.get(stmt.bankCode)!;
+      const virtualId = `virtual-${stmt.bankCode}-${stmt.accountId ?? 'default'}`;
+      if (!bankNode.accounts.has(virtualId)) {
+        bankNode.accounts.set(virtualId, {
+          account: {
+            id: virtualId,
+            clientId: stmt.clientId,
+            accountNumber: stmt.accountId ?? '',
+            bankCode: stmt.bankCode,
+            bankName: stmt.bankName,
+            currency: 'XAF',
+            isActive: true,
+          },
+          statements: [],
+        });
+      }
+      bankNode.accounts.get(virtualId)!.statements.push(stmt);
+    }
+  }
+
+  // Convert to array and sort
+  return Array.from(bankMap.entries())
+    .map(([bankCode, node]) => ({
+      bankCode,
+      bankName: node.bankName,
+      accounts: Array.from(node.accounts.values()).sort(
+        (a, b) => a.account.accountNumber.localeCompare(b.account.accountNumber),
+      ),
+    }))
+    .sort((a, b) => a.bankName.localeCompare(b.bankName));
+}
+
+// ============================================================================
+// StatementsTab
+// ============================================================================
+
 export const StatementsTab = memo(function StatementsTab({
   clientStatements,
   clientTransactions,
+  clientAccounts,
+  banks,
   navigate,
   onOpenStatement,
 }: StatementsTabProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const tree = useMemo(
+    () => buildTree(clientAccounts, clientStatements, banks),
+    [clientAccounts, clientStatements, banks],
+  );
 
-  return (
-    <Card>
-      <CardHeader
-        action={
+  if (tree.length === 0) {
+    return (
+      <Card>
+        <CardBody className="py-12 text-center">
+          <Landmark className="w-12 h-12 text-primary-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-primary-900 mb-2">Aucune banque configuree</h3>
+          <p className="text-primary-500 mb-4">
+            Ajoutez un compte bancaire et importez des releves pour commencer.
+          </p>
           <Button onClick={() => navigate('/import')}>
             <Upload className="w-4 h-4 mr-2" />
-            Importer relevé
+            Importer un releve
           </Button>
-        }
-      >
-        <CardTitle>Journal des relevés bancaires</CardTitle>
-      </CardHeader>
-      <CardBody className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-primary-50 border-b border-primary-100">
-              <tr>
-                <th className="w-8 px-2"></th>
-                <Th>Date import</Th>
-                <Th>Fichier</Th>
-                <Th>Banque</Th>
-                <Th>Période</Th>
-                <Th align="center">Transactions</Th>
-                <Th align="center">Statut</Th>
-                <Th align="right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-primary-100">
-              {clientStatements.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
-                    <FileText className="w-12 h-12 text-primary-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-primary-900 mb-2">Aucun relevé importé</h3>
-                    <p className="text-primary-500 mb-4">Importez des relevés bancaires pour commencer l'analyse</p>
-                    <Button onClick={() => navigate('/import')}>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Importer un relevé
-                    </Button>
-                  </td>
-                </tr>
-              ) : (
-                clientStatements.map((statement) => {
-                  const isExpanded = expandedId === statement.id;
-                  return (
-                    <StatementRow
-                      key={statement.id}
-                      statement={statement}
-                      isExpanded={isExpanded}
-                      onToggle={() => setExpandedId(isExpanded ? null : statement.id)}
-                      transactions={clientTransactions}
-                      onOpen={() => onOpenStatement?.(statement.id)}
-                    />
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </CardBody>
-    </Card>
-  );
-});
-
-// ===========================================================================
-// STATEMENT ROW (with expandable journal detail)
-// ===========================================================================
-
-function StatementRow({
-  statement,
-  isExpanded,
-  onToggle,
-  transactions,
-  onOpen,
-}: {
-  statement: BankStatement;
-  isExpanded: boolean;
-  onToggle: () => void;
-  transactions: Transaction[];
-  onOpen?: () => void;
-}) {
-  return (
-    <>
-      <tr className={`hover:bg-primary-50 cursor-pointer ${isExpanded ? 'bg-primary-50/40' : ''}`} onClick={onToggle}>
-        <td className="px-2 text-center text-primary-400">
-          {isExpanded ? <ChevronDown className="w-4 h-4 inline" /> : <ChevronRight className="w-4 h-4 inline" />}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary-400" />
-            <span className="text-sm text-primary-900">{formatDate(statement.importedAt)}</span>
-          </div>
-        </td>
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-primary-400" />
-            <span className="text-sm font-medium text-primary-900">{statement.fileName}</span>
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            <Landmark className="w-4 h-4 text-primary-400" />
-            <span className="text-sm text-primary-700">{statement.bankName}</span>
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <span className="text-sm text-primary-700">
-            {formatDate(statement.periodStart)} — {formatDate(statement.periodEnd)}
-          </span>
-        </td>
-        <td className="px-6 py-4 text-center">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-            {statement.transactionCount}
-          </span>
-        </td>
-        <td className="px-6 py-4 text-center">
-          <Badge variant={
-            statement.status === 'analyzed' ? 'success' :
-            statement.status === 'imported' ? 'warning' : 'secondary'
-          }>
-            {statement.status === 'analyzed' ? 'Analysé' :
-             statement.status === 'imported' ? 'À analyser' : 'Archivé'}
-          </Badge>
-        </td>
-        <td className="px-6 py-4 text-right">
-          <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={onOpen}
-              className="p-1.5 hover:bg-amber-100 rounded text-amber-600 hover:text-amber-800 transition-colors"
-              title="Ouvrir le releve (analyse detaillee)"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onToggle}
-              className={`p-1.5 rounded transition-colors ${
-                isExpanded
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'hover:bg-primary-100 text-primary-500 hover:text-primary-700'
-              }`}
-              title={isExpanded ? 'Masquer le detail' : 'Voir le detail des ecritures'}
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-            <button
-              className="p-1.5 hover:bg-primary-100 rounded text-primary-500 hover:text-primary-700"
-              title="Telecharger"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          </div>
-        </td>
-      </tr>
-      {isExpanded && (
-        <tr>
-          <td colSpan={8} className="bg-canvas-50/40 p-0">
-            <StatementJournal statement={statement} transactions={transactions} />
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
-// ===========================================================================
-// JOURNAL DETAIL — bank-statement-style ledger with progressive balance
-// ===========================================================================
-
-function StatementJournal({
-  statement,
-  transactions,
-}: {
-  statement: BankStatement;
-  transactions: Transaction[];
-}) {
-  // Filter transactions belonging to this statement (same bank + within period)
-  const journal = useMemo(() => {
-    const startMs = new Date(statement.periodStart).getTime();
-    const endMs = new Date(statement.periodEnd).getTime();
-    const filtered = transactions
-      .filter((t) => t.bankCode === statement.bankCode)
-      .filter((t) => {
-        const ts = new Date(t.date).getTime();
-        return ts >= startMs && ts <= endMs;
-      })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // Reconstruct progressive balance — prefer the recorded balance, fall back
-    // to a computed running total when balance is missing.
-    let running = 0;
-    const firstWithBalance = filtered.find((t) => typeof t.balance === 'number' && Number.isFinite(t.balance));
-    if (firstWithBalance) {
-      // Initial balance = first row balance - first row amount
-      running = firstWithBalance.balance - firstWithBalance.amount;
-    }
-    return filtered.map((t, i) => {
-      const recorded = typeof t.balance === 'number' && Number.isFinite(t.balance) ? t.balance : null;
-      running = recorded ?? running + t.amount;
-      return {
-        ...t,
-        progressiveBalance: running,
-        seq: i + 1,
-        balanceFromRecord: recorded !== null,
-      };
-    });
-  }, [statement, transactions]);
-
-  // Header summary
-  const totalDebit = journal.reduce((s, t) => s + (t.amount < 0 ? -t.amount : 0), 0);
-  const totalCredit = journal.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
-  const openingBalance = journal.length > 0 ? journal[0].progressiveBalance - journal[0].amount : 0;
-  const closingBalance = journal.length > 0 ? journal[journal.length - 1].progressiveBalance : 0;
-
-  if (journal.length === 0) {
-    return (
-      <div className="px-6 py-6 text-center text-primary-500 text-sm">
-        Aucune écriture trouvée pour ce relevé. Vérifie que les transactions ont bien été importées.
-      </div>
+        </CardBody>
+      </Card>
     );
   }
 
   return (
-    <div className="px-6 py-4">
-      {/* Summary header */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <SummaryTile label="Solde initial" value={formatCurrency(openingBalance, 'XAF')} tone="ink" />
-        <SummaryTile label="Total débits" value={formatCurrency(totalDebit, 'XAF')} tone="red" />
-        <SummaryTile label="Total crédits" value={formatCurrency(totalCredit, 'XAF')} tone="emerald" />
-        <SummaryTile label="Solde final" value={formatCurrency(closingBalance, 'XAF')} tone={closingBalance >= 0 ? 'emerald' : 'red'} />
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-primary-700">
+          {tree.length} banque{tree.length > 1 ? 's' : ''} · {clientStatements.length} releve{clientStatements.length > 1 ? 's' : ''}
+        </h2>
+        <Button size="sm" onClick={() => navigate('/import')}>
+          <Upload className="w-3.5 h-3.5 mr-1.5" />
+          Importer
+        </Button>
       </div>
 
-      {/* Sanity check banner */}
-      {journal.length > 1 && (() => {
-        const expected = openingBalance + totalCredit - totalDebit;
-        const diff = Math.abs(expected - closingBalance);
-        if (diff < 1) return null;
-        return (
-          <div className="mb-3 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-xs text-amber-900">
-            ⚠ Réconciliation : solde initial + crédits − débits = {formatCurrency(expected, 'XAF')}
-            {' '}vs solde final récupéré {formatCurrency(closingBalance, 'XAF')}.
-            Écart : {formatCurrency(diff, 'XAF')}.
-          </div>
-        );
-      })()}
+      {tree.map((bankNode) => (
+        <BankSection
+          key={bankNode.bankCode}
+          bankNode={bankNode}
+          transactions={clientTransactions}
+          onOpenStatement={onOpenStatement}
+        />
+      ))}
+    </div>
+  );
+});
 
-      {/* Journal table — bank statement style */}
-      <div className="overflow-x-auto rounded-lg border border-primary-200 bg-white">
-        <table className="w-full text-xs">
-          <thead className="bg-primary-50">
-            <tr className="text-[10px] uppercase tracking-wider text-primary-600 font-semibold">
-              <th className="px-3 py-2 text-left w-12">#</th>
-              <th className="px-3 py-2 text-left">Date</th>
-              <th className="px-3 py-2 text-left">Date valeur</th>
-              <th className="px-3 py-2 text-left">Libellé</th>
-              <th className="px-3 py-2 text-left">Référence</th>
-              <th className="px-3 py-2 text-right">Débit</th>
-              <th className="px-3 py-2 text-right">Crédit</th>
-              <th className="px-3 py-2 text-right">Solde progressif</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-primary-100">
-            {journal.map((tx) => {
-              const isDebit = tx.amount < 0;
-              const isCredit = tx.amount > 0;
-              return (
-                <tr key={tx.id} className="hover:bg-primary-50/60">
-                  <td className="px-3 py-2 text-primary-400 tabular-nums">{tx.seq}</td>
-                  <td className="px-3 py-2 text-primary-700 tabular-nums whitespace-nowrap">
-                    {formatDate(tx.date)}
-                  </td>
-                  <td className="px-3 py-2 text-primary-500 tabular-nums whitespace-nowrap">
-                    {formatDate(tx.valueDate ?? tx.date)}
-                  </td>
-                  <td className="px-3 py-2 text-primary-900">
-                    <div className="flex items-center gap-1.5">
-                      {isDebit && <ArrowDownCircle className="w-3 h-3 text-red-500 flex-shrink-0" />}
-                      {isCredit && <ArrowUpCircle className="w-3 h-3 text-emerald-600 flex-shrink-0" />}
-                      <span className="truncate max-w-[280px]">{tx.description || '—'}</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-primary-500 font-mono whitespace-nowrap">
-                    {tx.reference || '—'}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums font-medium text-red-700 whitespace-nowrap">
-                    {isDebit ? formatCurrency(Math.abs(tx.amount), 'XAF') : ''}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums font-medium text-emerald-700 whitespace-nowrap">
-                    {isCredit ? formatCurrency(tx.amount, 'XAF') : ''}
-                  </td>
-                  <td className={`px-3 py-2 text-right tabular-nums font-semibold whitespace-nowrap ${
-                    tx.progressiveBalance < 0 ? 'text-red-700' : 'text-primary-900'
-                  }`}>
-                    {formatCurrency(tx.progressiveBalance, 'XAF')}
-                    {!tx.balanceFromRecord && (
-                      <span className="text-[9px] text-primary-400 ml-1" title="Solde recalculé (non récupéré du PDF)">±</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot className="bg-primary-50 border-t border-primary-200">
-            <tr className="text-xs font-semibold">
-              <td colSpan={5} className="px-3 py-2 text-right text-primary-700 uppercase tracking-wider text-[10px]">
-                Totaux
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-red-700">
-                {formatCurrency(totalDebit, 'XAF')}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-emerald-700">
-                {formatCurrency(totalCredit, 'XAF')}
-              </td>
-              <td className={`px-3 py-2 text-right tabular-nums ${
-                closingBalance < 0 ? 'text-red-700' : 'text-primary-900'
-              }`}>
-                {formatCurrency(closingBalance, 'XAF')}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+// ============================================================================
+// BankSection — niveau 1 (banque)
+// ============================================================================
 
-      <p className="text-[11px] text-primary-400 mt-2">
-        {journal.length} écriture{journal.length > 1 ? 's' : ''} importée{journal.length > 1 ? 's' : ''} pour la période {formatDate(statement.periodStart)} — {formatDate(statement.periodEnd)}.
-        Le solde progressif est calculé depuis le solde initial reconstruit ; les lignes marquées <strong>±</strong> ont été recalculées (pas de solde dans le PDF source).
-      </p>
+function BankSection({
+  bankNode,
+  transactions,
+  onOpenStatement,
+}: {
+  bankNode: BankNode;
+  transactions: Transaction[];
+  onOpenStatement?: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const totalStatements = bankNode.accounts.reduce((s, a) => s + a.statements.length, 0);
+
+  return (
+    <Card>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-primary-50/50 transition-colors"
+      >
+        {expanded ? <ChevronDown className="w-4 h-4 text-primary-400" /> : <ChevronRight className="w-4 h-4 text-primary-400" />}
+        <Landmark className="w-5 h-5 text-primary-600" />
+        <div className="flex-1 text-left">
+          <span className="text-sm font-semibold text-primary-900">{bankNode.bankName}</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-primary-500">
+          <span>{bankNode.accounts.length} compte{bankNode.accounts.length > 1 ? 's' : ''}</span>
+          <span>{totalStatements} releve{totalStatements > 1 ? 's' : ''}</span>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-primary-100">
+          {bankNode.accounts.map((accNode) => (
+            <AccountSection
+              key={accNode.account.id}
+              accNode={accNode}
+              transactions={transactions}
+              onOpenStatement={onOpenStatement}
+            />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ============================================================================
+// AccountSection — niveau 2 (compte)
+// ============================================================================
+
+function AccountSection({
+  accNode,
+  transactions,
+  onOpenStatement,
+}: {
+  accNode: AccountNode;
+  transactions: Transaction[];
+  onOpenStatement?: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const { account, statements } = accNode;
+
+  return (
+    <div className="border-t border-primary-50">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 px-4 py-2.5 pl-10 hover:bg-primary-50/30 transition-colors"
+      >
+        {expanded ? <ChevronDown className="w-3.5 h-3.5 text-primary-400" /> : <ChevronRight className="w-3.5 h-3.5 text-primary-400" />}
+        <CreditCard className="w-4 h-4 text-primary-500" />
+        <div className="flex-1 text-left">
+          <span className="text-sm font-medium text-primary-800 font-mono">{account.accountNumber || 'Compte principal'}</span>
+          <span className="text-xs text-primary-500 ml-2">{account.currency}</span>
+        </div>
+        <Badge variant={account.isActive ? 'success' : 'secondary'} className="text-[10px]">
+          {account.isActive ? 'Actif' : 'Inactif'}
+        </Badge>
+        <span className="text-xs text-primary-500">
+          {statements.length} releve{statements.length > 1 ? 's' : ''}
+        </span>
+      </button>
+
+      {expanded && statements.length > 0 && (
+        <div className="pl-16 pr-4 pb-2 space-y-1">
+          {statements
+            .sort((a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime())
+            .map((stmt) => (
+              <StatementRow
+                key={stmt.id}
+                statement={stmt}
+                onOpen={() => onOpenStatement?.(stmt.id)}
+              />
+            ))}
+        </div>
+      )}
+
+      {expanded && statements.length === 0 && (
+        <p className="pl-16 pr-4 pb-3 text-xs text-primary-400">
+          Aucun releve importe pour ce compte.
+        </p>
+      )}
     </div>
   );
 }
 
-// ===========================================================================
-// HELPERS
-// ===========================================================================
+// ============================================================================
+// StatementRow — niveau 3 (releve)
+// ============================================================================
 
-function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'center' | 'right' }) {
+function StatementRow({
+  statement,
+  onOpen,
+}: {
+  statement: BankStatement;
+  onOpen?: () => void;
+}) {
   return (
-    <th className={`px-6 py-3 text-${align} text-xs font-semibold text-primary-600 uppercase tracking-wider`}>
-      {children}
-    </th>
-  );
-}
-
-function SummaryTile({ label, value, tone }: { label: string; value: string; tone: 'ink' | 'red' | 'emerald' }) {
-  const toneClass =
-    tone === 'red' ? 'text-red-700 bg-red-50 border-red-200'
-    : tone === 'emerald' ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-    : 'text-primary-900 bg-white border-primary-200';
-  return (
-    <div className={`rounded-lg border px-3 py-2 ${toneClass}`}>
-      <p className="text-[10px] uppercase tracking-wider opacity-70 font-semibold">{label}</p>
-      <p className="text-sm font-bold tabular-nums mt-0.5">{value}</p>
+    <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary-50 group transition-colors">
+      <FileText className="w-4 h-4 text-primary-400 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-primary-900 truncate">
+            {formatDate(statement.periodStart)} — {formatDate(statement.periodEnd)}
+          </span>
+          <Badge
+            variant={statement.status === 'analyzed' ? 'success' : statement.status === 'imported' ? 'warning' : 'secondary'}
+            className="text-[10px] shrink-0"
+          >
+            {statement.status === 'analyzed' ? 'Analyse' : statement.status === 'imported' ? 'A analyser' : 'Archive'}
+          </Badge>
+        </div>
+        <p className="text-xs text-primary-500 truncate">
+          {statement.transactionCount} transactions · {statement.fileName}
+        </p>
+      </div>
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-primary-400">
+          <Clock className="w-3 h-3 inline mr-0.5" />
+          {formatDate(statement.importedAt)}
+        </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpen?.(); }}
+          className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 hover:text-amber-800 opacity-0 group-hover:opacity-100 transition-all"
+          title="Ouvrir le releve (analyse detaillee)"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }
