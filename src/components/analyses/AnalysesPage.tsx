@@ -18,6 +18,7 @@ import {
   X as XIcon,
   Loader2,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, Button, Input, Select, Badge, SeverityBadge } from '../ui';
 import { useClientStore } from '../../store/clientStore';
 import { useBankStore } from '../../store/bankStore';
@@ -137,6 +138,7 @@ const DEMO_ANOMALIES: Anomaly[] = [
 ];
 
 export function AnalysesPage() {
+  const navigate = useNavigate();
   const { isEnterprise } = useAccountType();
   const { clients = [] } = useClientStore();
   const { banks = [] } = useBankStore();
@@ -816,17 +818,28 @@ export function AnalysesPage() {
               <ChevronLeft className="w-4 h-4 mr-1" />
               Retour
             </Button>
-{isDemoMode ? (
-              <Badge variant="warning" className="gap-1">
-                <Eye className="w-3 h-3" />
-                Mode Démo
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="gap-1">
-                <Bot className="w-3 h-3" />
-                IA Active
-              </Badge>
-            )}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/statements/stmt-mock')}
+                className="text-xs text-accent-700 hover:text-accent-900"
+              >
+                <FileText className="w-3.5 h-3.5 mr-1" />
+                Voir releve
+              </Button>
+              {isDemoMode ? (
+                <Badge variant="warning" className="gap-1">
+                  <Eye className="w-3 h-3" />
+                  Mode Demo
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="gap-1">
+                  <Bot className="w-3 h-3" />
+                  IA Active
+                </Badge>
+              )}
+            </div>
           </div>
           <h2 className="font-semibold text-primary-900">Anomalies détectées</h2>
           <p className="text-sm text-primary-500">{anomalies.length} anomalies trouvées</p>

@@ -39,6 +39,7 @@ const BillingPage = lazy(() => import('./components/billing').then(m => ({ defau
 const SettingsPage = lazy(() => import('./components/settings').then(m => ({ default: m.SettingsPage })));
 const IntelligencePage = lazy(() => import('./components/intelligence').then(m => ({ default: m.IntelligenceDashboard })));
 const ConditionsIntelligencePage = lazy(() => import('./components/conditions-intelligence').then(m => ({ default: m.ConditionsIntelligencePage })));
+const StatementsListPage = lazy(() => import('./components/statements').then(m => ({ default: m.StatementsListPage })));
 const StatementDetailRoute = lazy(() => import('./features/statement-detail/components/StatementDetailRoute'));
 const RegulatoryWatchPage = lazy(() => import('./features/regulatory-watch/RegulatoryWatchPage'));
 const NotFoundPage = lazy(() => import('./components/notfound').then(m => ({ default: m.NotFoundPage })));
@@ -383,6 +384,7 @@ function AppRoutes() {
                     <Route path="dashboard" element={<DashboardPage />} />
                     <Route path="import" element={<ImportPage />} />
                     <Route path="analyses" element={<AnalysesPage />} />
+                    <Route path="statements" element={<StatementsListPage />} />
                     <Route path="statements/:id" element={<StatementDetailRoute />} />
                     <Route path="regulatory-watch" element={<RegulatoryWatchPage />} />
                     <Route path="clients" element={<CabinetOnly><ClientsPage /></CabinetOnly>} />
