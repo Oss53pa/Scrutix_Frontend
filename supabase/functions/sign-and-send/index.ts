@@ -28,8 +28,12 @@ const ADVIST_CLIENT_ID = Deno.env.get('ADVIST_CLIENT_ID') ?? '';
 const ADVIST_CLIENT_SECRET = Deno.env.get('ADVIST_CLIENT_SECRET') ?? '';
 const ADVIST_TOKEN_URL = Deno.env.get('ADVIST_TOKEN_URL') ?? '';
 const ADVIST_TSA_URL = Deno.env.get('ADVIST_TSA_URL') ?? '';
-const ATLAS_MAIL_URL = Deno.env.get('ATLAS_MAIL_URL') ?? '';
-const ATLAS_MAIL_API_KEY = Deno.env.get('ATLAS_MAIL_API_KEY') ?? '';
+
+// Resend — service mail Atlas Studio. La clé est déjà provisionnée côté
+// Supabase Vault. Le `from` doit être un domaine vérifié sur Resend.
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'AtlasBanx <noreply@atlasstudio.app>';
+const RESEND_REPLY_TO = Deno.env.get('RESEND_REPLY_TO') ?? '';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -164,43 +168,137 @@ async function uploadProofBundle(reportId: string, bundle: Uint8Array): Promise<
 }
 
 // ============================================================================
-// Atlas Mail
+// Resend mail provider
 // ============================================================================
+// Doc : https://resend.com/docs/api-reference/emails/send-email
+// Le PDF est attaché en binaire (téléchargé depuis Storage signed URL).
+// Une URL de vérification publique du hash est ajoutée au footer pour la
+// défendabilité juridique.
+
+interface MailContext {
+  reportId: string;
+  template: string;
+  subject: string;
+  message: string;
+  pdfUrl: string;
+  pdfHash: string;
+  signerName?: string;
+  timestampRfc3161?: string | null;
+  proofBundleUrl?: string | null;
+}
+
+async function fetchPdfBase64(url: string): Promise<string | null> {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let binary = '';
+    for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
+    return btoa(binary);
+  } catch (err) {
+    console.warn('[sign-and-send] pdf fetch failed', err);
+    return null;
+  }
+}
+
+function buildEmailHtml(rec: SignRequest['recipients'][number], ctx: MailContext): string {
+  const verifyUrl = `https://atlasbanx.app/verify?hash=${ctx.pdfHash}`;
+  const advistBlock = ctx.timestampRfc3161
+    ? `<tr><td style="padding:6px 0;color:#6e6e6e;font-size:11px;">Horodatage ADVIST RFC 3161</td><td style="padding:6px 0;font-family:monospace;font-size:11px;color:#0d1b33;">${ctx.timestampRfc3161}</td></tr>`
+    : '';
+  const proofBlock = ctx.proofBundleUrl
+    ? `<tr><td style="padding:6px 0;color:#6e6e6e;font-size:11px;">Bundle de preuve</td><td style="padding:6px 0;font-size:11px;"><a href="${ctx.proofBundleUrl}" style="color:#d4af37;">Télécharger</a></td></tr>`
+    : '';
+
+  return `<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>${escape(ctx.subject)}</title></head>
+<body style="margin:0;background:#f6f6f4;font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#1a1a1a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f4;padding:24px 0;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <tr><td style="background:#0d1b33;padding:18px 24px;">
+          <div style="color:#d4af37;font-weight:bold;font-size:18px;letter-spacing:1.5px;">ATLASBANX</div>
+          <div style="color:#ffffff;font-size:13px;margin-top:4px;">${escape(ctx.subject)}</div>
+        </td></tr>
+        <tr><td style="padding:24px;">
+          <p style="font-size:14px;margin:0 0 8px 0;">Bonjour ${escape(rec.displayName)},</p>
+          <p style="font-size:14px;line-height:1.55;color:#3a3a3a;white-space:pre-wrap;margin:0 0 18px 0;">${escape(ctx.message)}</p>
+
+          <a href="${ctx.pdfUrl}" style="display:inline-block;padding:10px 18px;background:#d4af37;color:#1a1a1a;text-decoration:none;border-radius:6px;font-weight:600;font-size:13px;">Consulter le rapport (PDF)</a>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;border-top:1px solid #e7e6e2;padding-top:14px;">
+            <tr><td style="padding:6px 0;color:#6e6e6e;font-size:11px;">Hash SHA-256 du document</td><td style="padding:6px 0;font-family:monospace;font-size:11px;color:#0d1b33;word-break:break-all;">${ctx.pdfHash.slice(0, 16)}…${ctx.pdfHash.slice(-4)}</td></tr>
+            ${advistBlock}${proofBlock}
+            <tr><td style="padding:6px 0;color:#6e6e6e;font-size:11px;">Vérification publique</td><td style="padding:6px 0;font-size:11px;"><a href="${verifyUrl}" style="color:#d4af37;">${escape(verifyUrl)}</a></td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="background:#f6f6f4;padding:14px 24px;border-top:1px solid #e7e6e2;">
+          <p style="margin:0;font-size:11px;color:#6e6e6e;">Atlas Studio — AtlasBanx · audit de relevés bancaires UEMOA / CEMAC<br>Conservation OHADA 10 ans · CGU et politique de confidentialité disponibles sur demande.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+function escape(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 async function sendMails(
   recipients: SignRequest['recipients'],
-  subject: string,
-  message: string,
-  pdfUrl: string,
-): Promise<number> {
-  if (!ATLAS_MAIL_URL || !ATLAS_MAIL_API_KEY) {
-    // Fallback : log côté Edge — l'utilisateur pourra configurer plus tard
-    console.log(`[sign-and-send] mail not configured, would send to:`, recipients.map((r) => r.email));
-    return 0;
+  ctx: MailContext,
+): Promise<{ sent: number; failed: number; errors: string[] }> {
+  if (!RESEND_API_KEY) {
+    console.log('[sign-and-send] RESEND_API_KEY missing — skipping');
+    return { sent: 0, failed: recipients.length, errors: ['RESEND_API_KEY not configured'] };
   }
 
+  // Télécharge le PDF UNE fois pour l'attacher à tous les emails
+  const pdfBase64 = await fetchPdfBase64(ctx.pdfUrl);
+
   let sent = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
   for (const rec of recipients) {
     try {
-      const r = await fetch(`${ATLAS_MAIL_URL}/send`, {
+      const body: Record<string, unknown> = {
+        from: RESEND_FROM,
+        to: [rec.email],
+        subject: ctx.subject,
+        html: buildEmailHtml(rec, ctx),
+      };
+      if (RESEND_REPLY_TO) body.reply_to = RESEND_REPLY_TO;
+      if (pdfBase64) {
+        body.attachments = [{
+          filename: `rapport-${ctx.reportId.slice(0, 8)}.pdf`,
+          content: pdfBase64,
+        }];
+      }
+
+      const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${ATLAS_MAIL_API_KEY}`,
+          Authorization: `Bearer ${RESEND_API_KEY}`,
         },
-        body: JSON.stringify({
-          to: rec.email,
-          subject,
-          html: `<p>${message.replace(/\n/g, '<br>')}</p><p><a href="${pdfUrl}">Consulter le rapport</a></p>`,
-          attachments: [{ url: pdfUrl, filename: 'rapport.pdf' }],
-        }),
+        body: JSON.stringify(body),
       });
-      if (r.ok) sent++;
+      if (r.ok) {
+        sent++;
+      } else {
+        failed++;
+        const txt = await r.text();
+        errors.push(`${rec.email}: ${r.status} ${txt.slice(0, 200)}`);
+      }
     } catch (err) {
-      console.warn(`[sign-and-send] mail to ${rec.email} failed`, err);
+      failed++;
+      errors.push(`${rec.email}: ${err instanceof Error ? err.message : 'unknown'}`);
     }
   }
-  return sent;
+
+  return { sent, failed, errors };
 }
 
 // ============================================================================
@@ -322,14 +420,18 @@ async function handle(req: Request): Promise<Response> {
     },
   });
 
-  // Send mails (best-effort)
+  // Send mails via Resend (best-effort)
   const subject = `Rapport AtlasBanx signé — ${report.template}`;
-  const sentCount = await sendMails(
-    body.recipients,
+  const mailResult = await sendMails(body.recipients, {
+    reportId: body.reportId,
+    template: report.template as string,
     subject,
-    body.message ?? '',
-    report.document_url as string,
-  );
+    message: body.message ?? '',
+    pdfUrl: report.document_url as string,
+    pdfHash: report.hash as string,
+    timestampRfc3161,
+    proofBundleUrl,
+  });
 
   // Realtime event
   await fetch(`${SUPABASE_URL}/rest/v1/atlasbanx_events`, {
@@ -359,7 +461,12 @@ async function handle(req: Request): Promise<Response> {
     timestampRfc3161,
     proofBundleUrl,
     advistUsed: advistConfigured && body.signatureType === 'advist',
-    mailsSent: sentCount,
+    mails: {
+      sent: mailResult.sent,
+      failed: mailResult.failed,
+      errors: mailResult.errors,
+      provider: 'resend',
+    },
     status: 'sent',
   });
 }
