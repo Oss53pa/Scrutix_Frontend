@@ -24,7 +24,7 @@ bash supabase/scripts/set-secrets.sh
 | Secret | Utilisé par | Fallback si absent | Comment l'obtenir |
 |---|---|---|---|
 | `RESEND_API_KEY` | sign-and-send | Pas d'envoi mail (warn log) | ✅ Déjà dans Vault selon utilisateur |
-| `RESEND_FROM_EMAIL` | sign-and-send | `AtlasBanx <noreply@atlasstudio.app>` | Domaine vérifié sur Resend |
+| `RESEND_FROM_EMAIL` | sign-and-send | `AtlasBanx <notifications@atlas-studio.org>` | Domaine vérifié sur Resend |
 | `RESEND_REPLY_TO` | sign-and-send | (non défini) | Optionnel |
 | `CDC_SIGNING_KEY` | cdc-resolution-cache | Endpoint /sign retourne 503 | **Généré par `set-secrets.sh`** au premier run |
 | `CDC_SIGNING_KEY_ID` | cdc-resolution-cache | `unknown` | Idem |

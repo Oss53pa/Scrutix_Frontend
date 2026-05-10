@@ -1,13 +1,16 @@
 // ============================================================================
-// StatementDetailPage — orchestrateur des onglets de la page relevé
+// StatementDetailPage — orchestrateur de la page relevé V1 spec
 // ============================================================================
-// Charge les vraies données du relevé via Supabase (avec fallback mock si non
-// configuré). Utilise l'utilisateur auth réel + le rôle workspace pour
-// alimenter les mutations.
+// Layout :
+//   1. Breadcrumb + UserPill
+//   2. StatementHeader (titre + actions globales)
+//   3. StatementStatusBanner (cercle score + résumé anomalies)
+//   4. TabsBar
+//   5. Contenu de l'onglet actif
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
-import { Sparkles, FileText, BookOpen, FileBadge, AlertTriangle, BarChart3 } from 'lucide-react';
+import { FileText, BookOpen, FileBadge, AlertTriangle, BarChart3, Scale } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useStatement } from '../hooks/useStatement';
 import { useAnomalies } from '../hooks/useAnomalies';
@@ -15,6 +18,7 @@ import { useReconciliation } from '../hooks/useReconciliation';
 import { useReportGeneration } from '../hooks/useReportGeneration';
 import { useStatementContext } from '../hooks/useStatementContext';
 import { useProphet } from '../../prophet-copilot/hooks/useProphet';
+import { useWorkspace } from '../../../workspace/useWorkspace';
 import { AnomaliesTab } from './AnomaliesTab/AnomaliesTab';
 import { ReconciliationTab } from './ReconciliationTab/ReconciliationTab';
 import { ReportTab } from './ReportTab/ReportTab';
@@ -23,21 +27,22 @@ import { TransactionsTab } from './TransactionsTab';
 import { ProphetDrawer } from '../../prophet-copilot/components/ProphetDrawer';
 import { MOCK_PROPHET_SUGGESTIONS } from '../mock-data';
 import { useRole } from '../../../workspace/useWorkspace';
-import { AmountFCFA, RoleGuard } from '../../../components/shared';
+import { StatementBreadcrumb } from './StatementBreadcrumb';
+import { StatementHeader } from './StatementHeader';
+import { StatementStatusBanner } from './StatementStatusBanner';
 
 type TabKey = 'synthesis' | 'transactions' | 'anomalies' | 'reconciliation' | 'report';
 
 export interface StatementDetailPageProps {
   statementId: string;
-  /** Onglet initial (par défaut: anomalies). */
   defaultTab?: TabKey;
   onTabChange?: (tab: TabKey) => void;
 }
 
 export function StatementDetailPage(props: StatementDetailPageProps) {
-  const [tab, setTab] = useState<TabKey>(props.defaultTab ?? 'anomalies');
+  const [tab, setTab] = useState<TabKey>(props.defaultTab ?? 'synthesis');
 
-  // Sync URL ?tab= si présent
+  // Sync URL ?tab=
   useEffect(() => {
     const url = new URL(window.location.href);
     const t = url.searchParams.get('tab') as TabKey | null;
@@ -54,9 +59,10 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
     props.onTabChange?.(next);
   }
 
-  // === Données chargées en réel depuis Supabase ===
+  // === Données ===
   const { meta, loading: metaLoading } = useStatement(props.statementId);
   const { team, convention } = useStatementContext(meta?.accountId);
+  const { workspace, type: workspaceType } = useWorkspace();
 
   const anomaliesH = useAnomalies(props.statementId);
   const reconH = useReconciliation(props.statementId);
@@ -89,7 +95,6 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
   const conventionByAnomaly = useMemo(() => {
     const map: Record<string, { id: string; label: string; signedDate: string }> = {};
     for (const a of anomaliesH.anomalies) {
-      // L'anomalie peut référencer une convention dédiée OU on retombe sur la convention courante du compte
       const fallbackConvId = convention?.id;
       const fallbackLabel = convention ? `Convention compte · ${convention.signedDate}` : null;
       const fallbackSigned = convention?.signedDate ?? '';
@@ -105,8 +110,6 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
   }, [anomaliesH.anomalies, convention]);
 
   // ============================================================================
-  // Rendu
-  // ============================================================================
 
   if (metaLoading || !meta) {
     return (
@@ -117,76 +120,100 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-canvas-50">
-      {/* === Header === */}
-      <header className="px-6 py-3 bg-white border-b border-canvas-200 shrink-0">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs text-ink-500">
-              <span>{meta.clientLegalName}</span>
-              <span>·</span>
-              <span className="font-mono">{meta.accountNumber}</span>
-              <span>·</span>
-              <span className="font-semibold text-ink-700">{meta.bankCode}</span>
-            </div>
-            <h1 className="text-base sm:text-lg font-semibold text-ink-900 truncate">
-              Relevé · {formatPeriodLong(meta.periodStart, meta.periodEnd)}
-            </h1>
-          </div>
-          <div className="flex items-center gap-3 text-xs">
-            <div className="text-right">
-              <div className="text-ink-500">Solde fin</div>
-              <AmountFCFA value={meta.finalBalanceCentimes} className="font-semibold text-ink-900" />
-            </div>
-            <div className="text-right">
-              <div className="text-ink-500">Transactions</div>
-              <span className="font-mono font-semibold">{meta.transactionCount}</span>
-            </div>
-            <button
-              onClick={prophet.toggleDrawer}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 text-white font-semibold hover:bg-amber-700 shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              PROPH3T
-            </button>
-          </div>
+    <div className="flex flex-col h-screen bg-canvas-50 overflow-hidden">
+      {/* === Header sticky : breadcrumb + titre + actions + status banner + tabs === */}
+      <header className="bg-white border-b border-canvas-200 px-4 sm:px-6 pt-3 pb-0 shrink-0">
+        <StatementBreadcrumb
+          workspaceType={workspaceType ?? 'cabinet'}
+          cabinetName={workspace?.name ?? 'Cabinet'}
+          clientName={meta.clientLegalName}
+          accountLabel={`${meta.bankCode} pro FCFA`}
+          accountNumber={meta.accountNumber}
+          periodLabel={formatPeriodShort(meta.periodStart, meta.periodEnd)}
+          currentUser={{
+            handle: userHandle,
+            displayName: userDisplayName,
+            role: role ?? 'consultation',
+          }}
+        />
+        <div className="mt-3">
+          <StatementHeader
+            bankCode={meta.bankCode}
+            periodLabel={formatPeriodTitle(meta.periodStart, meta.periodEnd)}
+            status={meta.status}
+            transactionCount={meta.transactionCount}
+            importedAt={meta.importedAt}
+            importedBy={null}
+            fileName={null}
+            onPdfSource={() => window.open(`https://vgtmljfayiysuvrcmunt.supabase.co/storage/v1/object/sign/atlasbanx-pdfs/${meta.id}.pdf`, '_blank')}
+            onCompare={() => alert('Comparaison de relevés à implémenter')}
+            onOpenProphet={prophet.openDrawer}
+          />
         </div>
+        <div className="mt-3">
+          <StatementStatusBanner
+            status={meta.status === 'imported' ? 'analyzed' : meta.status}
+            anomalies={anomaliesH.anomalies}
+            onSeeAnomalies={() => changeTab('anomalies')}
+            onRefreshAnalysis={() => alert('Relancer l\'analyse à implémenter')}
+            onRunAnalysis={() => alert('Lancer l\'analyse à implémenter')}
+          />
+        </div>
+        <nav className="mt-3 -mb-px">
+          <ul className="flex items-center gap-1 overflow-x-auto">
+            {TAB_DEFS.map((t) => {
+              const isActive = tab === t.key;
+              const badgeCount = t.key === 'transactions'
+                ? reconH.bankTxs.length
+                : t.key === 'anomalies'
+                  ? anomaliesH.anomalies.filter((a) => a.status !== 'closed' && a.status !== 'false_positive').length
+                  : 0;
+              return (
+                <li key={t.key}>
+                  <button
+                    onClick={() => changeTab(t.key)}
+                    className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-sm transition-colors ${
+                      isActive ? 'text-ink-900 font-semibold' : 'text-ink-500 hover:text-ink-900'
+                    }`}
+                  >
+                    <t.Icon className="w-4 h-4" />
+                    {t.label}
+                    {badgeCount > 0 && (
+                      <span className={`px-1.5 py-0 rounded-full text-[10px] font-bold ${
+                        t.key === 'anomalies' && anomaliesH.anomalies.some((a) => a.severity === 'critical' && a.status !== 'closed')
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                          : 'bg-canvas-100 text-ink-600 border border-canvas-200'
+                      }`}>
+                        {badgeCount}
+                      </span>
+                    )}
+                    {isActive && <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-amber-600" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       </header>
 
-      {/* === Tabs bar === */}
-      <nav className="px-6 bg-white border-b border-canvas-200 shrink-0">
-        <ul className="flex items-center gap-1">
-          {TAB_DEFS.map((t) => {
-            const isActive = tab === t.key;
-            return (
-              <li key={t.key}>
-                <button
-                  onClick={() => changeTab(t.key)}
-                  className={`relative inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
-                    isActive ? 'text-ink-900' : 'text-ink-500 hover:text-ink-900'
-                  }`}
-                >
-                  <t.Icon className="w-3.5 h-3.5" />
-                  {t.label}
-                  {t.key === 'anomalies' && anomaliesH.anomalies.length > 0 && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                      anomaliesH.anomalies.some((a) => a.severity === 'critical')
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-amber-600 text-white'
-                    }`}>
-                      {anomaliesH.anomalies.length}
-                    </span>
-                  )}
-                  {isActive && <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-amber-600" />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
       {/* === Content === */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-y-auto bg-canvas-50">
+        {tab === 'synthesis' && (
+          <SynthesisTab
+            bankTxs={reconH.bankTxs}
+            anomalies={anomaliesH.anomalies}
+            finalBalanceCentimes={meta.finalBalanceCentimes}
+            overdraftThresholdUnits={null}
+            onSeeAllCounterparties={() => changeTab('transactions')}
+            prophetActions={[
+              { label: 'Préparer lettre réclamation', onClick: () => changeTab('report') },
+              { label: 'Comparer Ecobank', onClick: () => alert('Comparaison à implémenter') },
+            ]}
+          />
+        )}
+
+        {tab === 'transactions' && <TransactionsTab bankTxs={reconH.bankTxs} />}
+
         {tab === 'anomalies' && (
           <AnomaliesTab
             anomalies={anomaliesH.anomalies}
@@ -201,9 +228,7 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             onSubmitComment={(anomalyId, text, mentions) => {
               if (!role || !userId) return;
               void anomaliesH.addComment(anomalyId, text, mentions, {
-                userId,
-                handle: userHandle,
-                role,
+                userId, handle: userHandle, role,
               });
             }}
           />
@@ -252,25 +277,12 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             }}
             generatedReport={reportH.generatedReport}
             onGenerateReport={(t) => void reportH.generateReport(t)}
-            onSignAndSend={async (args) => {
-              await reportH.signAndSend(args);
-            }}
+            onSignAndSend={async (args) => { await reportH.signAndSend(args); }}
             onGenerateComplaintLetter={(ids) => void reportH.generateComplaintLetter(ids)}
           />
         )}
-
-        {tab === 'synthesis' && (
-          <SynthesisTab
-            bankTxs={reconH.bankTxs}
-            anomalies={anomaliesH.anomalies}
-            reconciliation={reconH.reconciliation}
-            finalBalanceCentimes={meta.finalBalanceCentimes}
-          />
-        )}
-        {tab === 'transactions' && <TransactionsTab bankTxs={reconH.bankTxs} />}
       </main>
 
-      {/* === PROPH3T Drawer === */}
       <ProphetDrawer
         open={prophet.open}
         onClose={prophet.closeDrawer}
@@ -291,7 +303,7 @@ const TAB_DEFS: Array<{ key: TabKey; label: string; Icon: typeof FileText }> = [
   { key: 'synthesis',      label: 'Synthèse',       Icon: BarChart3 },
   { key: 'transactions',   label: 'Transactions',   Icon: BookOpen },
   { key: 'anomalies',      label: 'Anomalies',      Icon: AlertTriangle },
-  { key: 'reconciliation', label: 'Rapprochement',  Icon: FileText },
+  { key: 'reconciliation', label: 'Rapprochement',  Icon: Scale },
   { key: 'report',         label: 'Rapport',        Icon: FileBadge },
 ];
 
@@ -301,7 +313,6 @@ const TAB_KEYS: TabKey[] = TAB_DEFS.map((t) => t.key);
 // Helpers
 // ============================================================================
 
-
 function useAuthUserId(): string | null {
   return useAuthStore((s) => s.user?.id ?? null);
 }
@@ -309,34 +320,24 @@ function useAuthUserId(): string | null {
 function buildHandle(profile: { full_name?: string | null } | null, email?: string | null): string {
   if (profile?.full_name) {
     const parts = profile.full_name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return parts[0] + parts[1][0].toUpperCase();
-    }
+    if (parts.length >= 2) return parts[0] + parts[1][0].toUpperCase();
     return parts[0];
   }
   if (email) return email.split('@')[0];
   return 'user';
 }
 
-function formatPeriodLong(start: string, end: string): string {
+function formatPeriodTitle(start: string, end: string): string {
+  // "10 fév → 08 mai 2026"
+  const months = ['janv', 'fév', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
   const ds = new Date(start);
   const de = new Date(end);
-  return `du ${formatFr(ds)} au ${formatFr(de)}`;
+  return `${ds.getDate()} ${months[ds.getMonth()]} → ${String(de.getDate()).padStart(2, '0')} ${months[de.getMonth()]} ${de.getFullYear()}`;
 }
 
 function formatPeriodShort(start: string, end: string): string {
-  const months = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+  const months = ['janv', 'fév', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
   const ds = new Date(start);
   const de = new Date(end);
-  return `${months[ds.getMonth()]}-${months[de.getMonth()]} ${de.getFullYear()}`;
+  return `${months[ds.getMonth()]} → ${months[de.getMonth()]} ${de.getFullYear()}`;
 }
-
-function formatFr(d: Date): string {
-  const months = [
-    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
-  ];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-void RoleGuard;

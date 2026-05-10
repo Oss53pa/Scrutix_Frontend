@@ -32,7 +32,7 @@ const ADVIST_TSA_URL = Deno.env.get('ADVIST_TSA_URL') ?? '';
 // Resend — service mail Atlas Studio. La clé est déjà provisionnée côté
 // Supabase Vault. Le `from` doit être un domaine vérifié sur Resend.
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
-const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'AtlasBanx <noreply@atlasstudio.app>';
+const RESEND_FROM = Deno.env.get('RESEND_FROM_EMAIL') ?? 'AtlasBanx <notifications@atlas-studio.org>';
 const RESEND_REPLY_TO = Deno.env.get('RESEND_REPLY_TO') ?? '';
 
 const CORS = {

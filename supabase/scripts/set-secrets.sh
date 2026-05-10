@@ -51,8 +51,8 @@ ADVIST_TSA_URL="${ADVIST_TSA_URL:-https://api.advist.example/timestamp}"
 # ============================================================================
 # Si tu utilises encore le sandbox Resend, garde 'onboarding@resend.dev'.
 # Une fois ton domaine vérifié sur Resend, mets 'noreply@atlasbanx.com'.
-RESEND_FROM_EMAIL="${RESEND_FROM_EMAIL:-AtlasBanx <noreply@atlasstudio.app>}"
-RESEND_REPLY_TO="${RESEND_REPLY_TO:-support@atlasstudio.app}"
+RESEND_FROM_EMAIL="${RESEND_FROM_EMAIL:-AtlasBanx <notifications@atlas-studio.org>}"
+RESEND_REPLY_TO="${RESEND_REPLY_TO:-notifications@atlas-studio.org}"
 
 # ============================================================================
 # 4. Ollama (LLM principal pour PROPH3T)
