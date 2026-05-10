@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { Button, Badge } from '../ui';
 import type { Bank, BankConditions, ArchivedDocument } from '../../types';
+import { ValidationTabContent } from './ValidationTabContent';
 import { AFRICAN_COUNTRIES, ZONE_CURRENCIES } from '../../types';
 import { getDocumentEngine, type ExtractionReport } from '../../extraction';
 import { extractConditions } from '../../extraction/conditions';
@@ -210,7 +211,7 @@ const REGISTRY_TO_FORM_PATH: Record<string, string> = {
   'miscFees.tvaServices':           'divers.tvaServices',
 };
 
-type TabId = 'compte' | 'guichet' | 'cartes' | 'virements' | 'cheques' | 'credits' | 'ebanking' | 'divers' | 'documents';
+type TabId = 'compte' | 'guichet' | 'cartes' | 'virements' | 'cheques' | 'credits' | 'ebanking' | 'divers' | 'documents' | 'validation';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'compte', label: 'Compte', icon: <Building2 className="w-4 h-4" /> },
@@ -222,6 +223,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'ebanking', label: 'E-Banking', icon: <Smartphone className="w-4 h-4" /> },
   { id: 'divers', label: 'Divers', icon: <Settings className="w-4 h-4" /> },
   { id: 'documents', label: 'Documents', icon: <FileUp className="w-4 h-4" /> },
+  { id: 'validation', label: 'Validation IA', icon: <Sparkles className="w-4 h-4" /> },
 ];
 
 // Structure complète des conditions bancaires africaines
@@ -2155,6 +2157,11 @@ export function BankConditionsModal({
                 )}
               </div>
             </div>
+          )}
+
+          {/* Onglet Validation IA — split-screen PDF↔champ via SplitScreenValidator */}
+          {activeTab === 'validation' && (
+            <ValidationTabContent bank={bank} archivedDocuments={archivedDocuments} />
           )}
         </div>
 

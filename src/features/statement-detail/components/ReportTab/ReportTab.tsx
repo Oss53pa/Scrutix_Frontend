@@ -20,8 +20,10 @@ import type {
   SignatureType,
   SignedReport,
   ReportRecipient,
+  BankReconciliation,
 } from '../../types/statement.types';
 import { formatComplaintLetter } from '../../reports/formatComplaintLetter';
+import { ForensicExportButton } from './ForensicExportButton';
 
 interface ReportTabProps {
   statement: {
@@ -31,9 +33,14 @@ interface ReportTabProps {
     bankLegalName: string;
     period: { start: string; end: string };
     clientLegalName: string;
+    /** Pour ForensicExportButton — IDs internes. */
+    accountId?: string;
+    tenantId?: string;
+    organizationId?: string;
   };
   anomalies: Anomaly[];
   convention?: AccountConvention | null;
+  reconciliation?: BankReconciliation | null;
   currentUser: { handle: string; displayName: string; role: 'dg' | 'senior' | 'junior' | 'consultation' };
   cabinet: { name: string; addressLines: string[] };
   /** Aperçu PDF généré (URL Blob ou Storage). */
@@ -70,6 +77,22 @@ export function ReportTab(props: ReportTabProps) {
           report={props.generatedReport}
           currentUser={props.currentUser}
           onSignAndSend={props.onSignAndSend}
+        />
+      )}
+
+      {/* Export forensique — apparait quand le rapport est signé */}
+      {props.generatedReport && (props.generatedReport.status === 'sent' || props.generatedReport.status === 'signed') && (
+        <ForensicExportButton
+          signedReport={props.generatedReport}
+          statementId={props.statement.id}
+          tenantId={props.statement.tenantId ?? 'default'}
+          organizationId={props.statement.organizationId ?? 'default'}
+          accountId={props.statement.accountId ?? 'default'}
+          periodStart={props.statement.period.start}
+          periodEnd={props.statement.period.end}
+          anomalies={props.anomalies}
+          reconciliation={props.reconciliation ?? null}
+          convention={props.convention ?? null}
         />
       )}
 

@@ -13,12 +13,15 @@ import { useStatement } from '../hooks/useStatement';
 import { useAnomalies } from '../hooks/useAnomalies';
 import { useReconciliation } from '../hooks/useReconciliation';
 import { useReportGeneration } from '../hooks/useReportGeneration';
+import { useStatementContext } from '../hooks/useStatementContext';
 import { useProphet } from '../../prophet-copilot/hooks/useProphet';
 import { AnomaliesTab } from './AnomaliesTab/AnomaliesTab';
 import { ReconciliationTab } from './ReconciliationTab/ReconciliationTab';
 import { ReportTab } from './ReportTab/ReportTab';
+import { SynthesisTab } from './SynthesisTab';
+import { TransactionsTab } from './TransactionsTab';
 import { ProphetDrawer } from '../../prophet-copilot/components/ProphetDrawer';
-import { MOCK_TEAM, MOCK_PROPHET_SUGGESTIONS, MOCK_CONVENTION } from '../mock-data';
+import { MOCK_PROPHET_SUGGESTIONS } from '../mock-data';
 import { useRole } from '../../../workspace/useWorkspace';
 import { AmountFCFA, RoleGuard } from '../../../components/shared';
 
@@ -53,6 +56,7 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
 
   // === Données chargées en réel depuis Supabase ===
   const { meta, loading: metaLoading } = useStatement(props.statementId);
+  const { team, convention } = useStatementContext(meta?.accountId);
 
   const anomaliesH = useAnomalies(props.statementId);
   const reconH = useReconciliation(props.statementId);
@@ -85,16 +89,20 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
   const conventionByAnomaly = useMemo(() => {
     const map: Record<string, { id: string; label: string; signedDate: string }> = {};
     for (const a of anomaliesH.anomalies) {
-      if (a.conventionId) {
+      // L'anomalie peut référencer une convention dédiée OU on retombe sur la convention courante du compte
+      const fallbackConvId = convention?.id;
+      const fallbackLabel = convention ? `Convention compte · ${convention.signedDate}` : null;
+      const fallbackSigned = convention?.signedDate ?? '';
+      if (a.conventionId || fallbackConvId) {
         map[a.id] = {
-          id: a.conventionId,
-          label: a.conventionLabel ?? `Convention ${a.conventionId}`,
-          signedDate: MOCK_CONVENTION.signedDate,
+          id: a.conventionId ?? fallbackConvId!,
+          label: a.conventionLabel ?? fallbackLabel ?? `Convention ${a.conventionId}`,
+          signedDate: fallbackSigned,
         };
       }
     }
     return map;
-  }, [anomaliesH.anomalies]);
+  }, [anomaliesH.anomalies, convention]);
 
   // ============================================================================
   // Rendu
@@ -184,7 +192,7 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             anomalies={anomaliesH.anomalies}
             comments={anomaliesH.comments}
             auditTrail={anomaliesH.auditTrail}
-            team={MOCK_TEAM /* TODO: charger team réel via cabinet_members */}
+            team={team}
             conventionByAnomaly={conventionByAnomaly}
             onAnomalyAction={async (kind, anomaly, comment) => {
               if (!role || !userId) return;
@@ -229,9 +237,13 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
               bankLegalName: meta.bankLegalName,
               clientLegalName: meta.clientLegalName,
               period: { start: meta.periodStart, end: meta.periodEnd },
+              accountId: meta.accountId,
+              tenantId: meta.clientId,
+              organizationId: meta.clientId,
             }}
             anomalies={anomaliesH.anomalies}
-            convention={MOCK_CONVENTION /* TODO: charger account_conventions réel */}
+            convention={convention}
+            reconciliation={reconH.reconciliation}
             cabinet={{ name: 'CRMC · Atlas Studio', addressLines: ['Abidjan, Cocody', 'BP 1234'] }}
             currentUser={{
               handle: userHandle,
@@ -247,7 +259,15 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
           />
         )}
 
-        {(tab === 'synthesis' || tab === 'transactions') && <PlaceholderTab tabKey={tab} />}
+        {tab === 'synthesis' && (
+          <SynthesisTab
+            bankTxs={reconH.bankTxs}
+            anomalies={anomaliesH.anomalies}
+            reconciliation={reconH.reconciliation}
+            finalBalanceCentimes={meta.finalBalanceCentimes}
+          />
+        )}
+        {tab === 'transactions' && <TransactionsTab bankTxs={reconH.bankTxs} />}
       </main>
 
       {/* === PROPH3T Drawer === */}
@@ -281,24 +301,6 @@ const TAB_KEYS: TabKey[] = TAB_DEFS.map((t) => t.key);
 // Helpers
 // ============================================================================
 
-function PlaceholderTab({ tabKey }: { tabKey: TabKey }) {
-  const messages: Record<string, { title: string; body: string }> = {
-    synthesis:    { title: 'Synthèse',    body: 'Onglet Synthèse — KPIs + cards (couvert par la spec page relevé V1).' },
-    transactions: { title: 'Transactions', body: 'Onglet Transactions — table virtualisée du journal complet.' },
-  };
-  const m = messages[tabKey];
-  return (
-    <div className="flex items-center justify-center h-full text-center p-8">
-      <div className="max-w-md">
-        <h3 className="text-base font-semibold text-ink-900">{m.title}</h3>
-        <p className="text-sm text-ink-600 mt-2">{m.body}</p>
-        <p className="text-xs text-ink-500 mt-4 italic">
-          À brancher au composant existant (couvert par la spec V1 de la page relevé).
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function useAuthUserId(): string | null {
   return useAuthStore((s) => s.user?.id ?? null);
