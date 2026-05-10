@@ -53,7 +53,7 @@ export function ReportTab(props: ReportTabProps) {
   const [chosenTemplate, setChosenTemplate] = useState<ReportTemplate | null>(null);
 
   return (
-    <div className="flex flex-col gap-4 p-4 max-w-5xl mx-auto">
+    <div className="flex flex-col gap-4 p-4 sm:p-6">
       <TemplateChooser
         chosen={chosenTemplate}
         onChoose={(t) => {

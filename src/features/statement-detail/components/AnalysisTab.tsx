@@ -36,7 +36,7 @@ export function AnalysisTab({ statementId, bankTxs, meta, statementStatus }: Ana
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+    <div className="p-4 sm:p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
