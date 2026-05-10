@@ -341,6 +341,7 @@ export function ClientDetailPage() {
           clientTransactions={clientTransactions}
           banks={banks}
           navigate={navigate}
+          onOpenStatement={(id) => navigate(`/statements/${id}`)}
         />
       )}
 

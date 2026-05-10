@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import {
-  FileText, Upload, Clock, Landmark, Eye, Download,
+  FileText, Upload, Clock, Landmark, Eye, Download, ExternalLink,
   ChevronDown, ChevronRight, ArrowDownCircle, ArrowUpCircle,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardBody, Button, Badge } from '../../ui';
@@ -12,12 +12,14 @@ interface StatementsTabProps {
   clientTransactions: Transaction[];
   banks: Bank[];
   navigate: (path: string) => void;
+  onOpenStatement?: (statementId: string) => void;
 }
 
 export const StatementsTab = memo(function StatementsTab({
   clientStatements,
   clientTransactions,
   navigate,
+  onOpenStatement,
 }: StatementsTabProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -71,6 +73,7 @@ export const StatementsTab = memo(function StatementsTab({
                       isExpanded={isExpanded}
                       onToggle={() => setExpandedId(isExpanded ? null : statement.id)}
                       transactions={clientTransactions}
+                      onOpen={() => onOpenStatement?.(statement.id)}
                     />
                   );
                 })
@@ -92,11 +95,13 @@ function StatementRow({
   isExpanded,
   onToggle,
   transactions,
+  onOpen,
 }: {
   statement: BankStatement;
   isExpanded: boolean;
   onToggle: () => void;
   transactions: Transaction[];
+  onOpen?: () => void;
 }) {
   return (
     <>
@@ -144,19 +149,26 @@ function StatementRow({
         <td className="px-6 py-4 text-right">
           <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
             <button
+              onClick={onOpen}
+              className="p-1.5 hover:bg-amber-100 rounded text-amber-600 hover:text-amber-800 transition-colors"
+              title="Ouvrir le releve (analyse detaillee)"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
+            <button
               onClick={onToggle}
               className={`p-1.5 rounded transition-colors ${
                 isExpanded
                   ? 'bg-primary-100 text-primary-700'
                   : 'hover:bg-primary-100 text-primary-500 hover:text-primary-700'
               }`}
-              title={isExpanded ? 'Masquer le détail' : 'Voir le détail des écritures'}
+              title={isExpanded ? 'Masquer le detail' : 'Voir le detail des ecritures'}
             >
               <Eye className="w-4 h-4" />
             </button>
             <button
               className="p-1.5 hover:bg-primary-100 rounded text-primary-500 hover:text-primary-700"
-              title="Télécharger"
+              title="Telecharger"
             >
               <Download className="w-4 h-4" />
             </button>

@@ -3,11 +3,9 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Upload,
-  Search,
   Users,
   Landmark,
   FileBarChart,
-  FileText,
   Receipt,
   Settings,
   Home,
@@ -41,8 +39,6 @@ type NavSection = {
 const QUICK_ITEMS: NavItem[] = [
   { name: 'Accueil',         href: '/',          icon: Home },
   { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Analyses',        href: '/analyses',  icon: Search },
-  { name: 'Releves',         href: '/statements', icon: FileText },
   { name: 'Rapports',        href: '/reports',   icon: FileBarChart },
 ];
 
