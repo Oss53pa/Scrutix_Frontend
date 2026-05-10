@@ -86,10 +86,24 @@ export function ImportPage() {
     const bankCode = selectedAccount?.bankCode || selectedBankCode;
     const bank = banks.find(b => b.code === bankCode);
 
+    // If no account selected, auto-create one
+    let accountId = selectedAccountId;
+    if (!accountId) {
+      const autoAcc = addAccount(selectedClientId, {
+        accountNumber: info.transactions[0]?.accountNumber || bankCode,
+        bankCode,
+        bankName: bank?.name || bankCode,
+        currency: 'XAF',
+        isActive: true,
+      });
+      accountId = autoAcc.id;
+      setSelectedAccountId(accountId);
+    }
+
     // Register the bank statement in the client store
     addStatement(selectedClientId, {
-      accountId: selectedAccountId || 'new-account',
-      bankCode: bankCode,
+      accountId,
+      bankCode,
       bankName: bank?.name || bankCode,
       fileName: info.fileName,
       fileType: info.fileType,
@@ -161,8 +175,22 @@ export function ImportPage() {
     const periodStart = period?.start ?? new Date();
     const periodEnd = period?.end ?? new Date();
 
+    // If no account selected, auto-create one
+    let accountId = selectedAccountId;
+    if (!accountId) {
+      const autoAcc = addAccount(selectedClientId, {
+        accountNumber: stamped[0]?.accountNumber || bankCode,
+        bankCode,
+        bankName: bank?.name || bankCode,
+        currency: 'XAF',
+        isActive: true,
+      });
+      accountId = autoAcc.id;
+      setSelectedAccountId(accountId);
+    }
+
     addStatement(selectedClientId, {
-      accountId: selectedAccountId || 'new-account',
+      accountId,
       bankCode,
       bankName: bank?.name || bankCode,
       fileName: verification?.payload.fileName ?? 'import.pdf',
@@ -179,13 +207,15 @@ export function ImportPage() {
   const handleAddAccount = () => {
     if (selectedClientId && newAccountNumber && selectedBankCode) {
       const bank = banks.find(b => b.code === selectedBankCode);
-      addAccount(selectedClientId, {
+      const newAcc = addAccount(selectedClientId, {
         accountNumber: newAccountNumber,
         bankCode: selectedBankCode,
         bankName: bank?.name || selectedBankCode,
         currency: 'XAF',
         isActive: true,
       });
+      // Capture the new account ID so the next import uses it
+      if (newAcc?.id) setSelectedAccountId(newAcc.id);
       setNewAccountNumber('');
       setShowNewAccount(false);
     }

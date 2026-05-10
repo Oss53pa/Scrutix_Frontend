@@ -369,6 +369,7 @@ export const MOCK_RECONCILIATION: BankReconciliation = {
   totalLedgerCentimes:  1_261_232_000,
   gapCentimes:            -12_500_000,
   matchRate: 86,
+  reconciliationStateUrl: null,
   generatedAt: null,
 };
 

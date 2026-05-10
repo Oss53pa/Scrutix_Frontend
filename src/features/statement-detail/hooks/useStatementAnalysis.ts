@@ -1,15 +1,32 @@
 // ============================================================================
-// useStatementAnalysis — lance/relance l'analyse client-side (19 détecteurs)
+// useStatementAnalysis — lance/relance l'analyse client-side (19 detecteurs)
 // ============================================================================
-// L'analyse tourne intégralement côté client via AnalysisService + WorkerPool.
-// L'Edge Function analyze-statement reste disponible comme point d'entrée pour
-// un futur mode serveur, mais n'est plus appelée par défaut.
+// L'analyse tourne integralement cote client via AnalysisService + WorkerPool.
+// Les resultats (anomalies detectees, statistiques) sont stockes dans le hook
+// et exposes au composant pour affichage + relay vers l'onglet Anomalies.
 // ============================================================================
 
 import { useCallback, useState } from 'react';
 import { getAnalysisService } from '../../../services/AnalysisService';
-import { AnomalyType, type AnalysisConfig, type Transaction, type BankConditions } from '../../../types';
+import {
+  AnomalyType,
+  TransactionType,
+  type AnalysisConfig,
+  type AnalysisResult,
+  type Transaction,
+  type BankConditions,
+  type Anomaly as CoreAnomaly,
+} from '../../../types';
 import type { BankTransaction } from '../types/statement.types';
+
+export interface AnalysisResultSummary {
+  totalAnomalies: number;
+  totalAmount: number;
+  status: 'OK' | 'WARNING' | 'CRITICAL';
+  message: string;
+  keyFindings: string[];
+  recommendations: string[];
+}
 
 export interface UseStatementAnalysisResult {
   running: boolean;
@@ -17,11 +34,15 @@ export interface UseStatementAnalysisResult {
   progressStep: string;
   error: string | null;
   lastRunAt: string | null;
+  /** Anomalies detectees par la derniere analyse. */
+  detectedAnomalies: CoreAnomaly[];
+  /** Resume de la derniere analyse. */
+  summary: AnalysisResultSummary | null;
   /** Lance l'analyse sur les transactions fournies. */
   run: (bankTxs: BankTransaction[], bankConditions?: BankConditions) => Promise<void>;
 }
 
-/** Convertit BankTransaction (page relevé) → Transaction (AnalysisService). */
+/** Convertit BankTransaction (page releve) -> Transaction (AnalysisService). */
 function toAnalysisTransaction(tx: BankTransaction, meta: { clientId: string; accountNumber: string; bankCode: string }): Transaction {
   const amount = tx.creditCentimes > 0
     ? tx.creditCentimes / 100
@@ -38,7 +59,7 @@ function toAnalysisTransaction(tx: BankTransaction, meta: { clientId: string; ac
     balance: tx.runningBalanceCentimes / 100,
     description: tx.label,
     reference: tx.reference ?? undefined,
-    type: amount < 0 ? 'debit' as never : 'credit' as never,
+    type: amount < 0 ? TransactionType.DEBIT : TransactionType.CREDIT,
     createdAt: d,
     updatedAt: d,
   };
@@ -76,11 +97,13 @@ export function useStatementAnalysis(
   const [progressStep, setProgressStep] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+  const [detectedAnomalies, setDetectedAnomalies] = useState<CoreAnomaly[]>([]);
+  const [summary, setSummary] = useState<AnalysisResultSummary | null>(null);
 
   const run = useCallback(
     async (bankTxs: BankTransaction[], bankConditions?: BankConditions) => {
       if (bankTxs.length === 0) {
-        setError('Aucune transaction à analyser');
+        setError('Aucune transaction a analyser');
         return;
       }
 
@@ -116,6 +139,21 @@ export function useStatementAnalysis(
 
         setLastRunAt(new Date().toISOString());
 
+        // Store detected anomalies
+        setDetectedAnomalies(result.anomalies);
+
+        // Store summary
+        if (result.summary) {
+          setSummary({
+            totalAnomalies: result.anomalies.length,
+            totalAmount: result.statistics.totalAnomalyAmount,
+            status: result.summary.status,
+            message: result.summary.message,
+            keyFindings: result.summary.keyFindings,
+            recommendations: result.summary.recommendations,
+          });
+        }
+
         if (result.error) {
           setError(result.error);
         }
@@ -125,11 +163,11 @@ export function useStatementAnalysis(
       } finally {
         setRunning(false);
         setProgress(100);
-        setProgressStep('Terminé');
+        setProgressStep('Termine');
       }
     },
     [statementId, meta],
   );
 
-  return { running, progress, progressStep, error, lastRunAt, run };
+  return { running, progress, progressStep, error, lastRunAt, detectedAnomalies, summary, run };
 }

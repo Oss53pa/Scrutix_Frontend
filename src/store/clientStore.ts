@@ -43,7 +43,7 @@ interface ClientState {
   getClient: (id: string) => Client | undefined;
 
   // Account management
-  addAccount: (clientId: string, account: Omit<BankAccount, 'id' | 'clientId'>) => void;
+  addAccount: (clientId: string, account: Omit<BankAccount, 'id' | 'clientId'>) => BankAccount;
   updateAccount: (clientId: string, accountId: string, updates: Partial<BankAccount>) => void;
   removeAccount: (clientId: string, accountId: string) => void;
 
@@ -286,6 +286,8 @@ export const useClientStore = create<ClientState>()((set, get) => ({
         }));
       });
     }
+
+    return account;
   },
 
   updateAccount: (clientId, accountId, updates) => {

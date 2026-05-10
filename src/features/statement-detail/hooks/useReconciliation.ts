@@ -24,6 +24,7 @@ import { computeReconciliationDiscrepancies } from '../reconciliation/computeRec
 import { loadStatementMeta, loadTransactions } from '../api/statementApi';
 import {
   loadLatestReconciliation,
+  loadLedgerEntries,
   saveReconciliation,
   markReconciliationGenerated,
 } from '../api/reconciliationApi';
@@ -68,14 +69,13 @@ export function useReconciliation(statementId: string): UseReconciliationResult 
           const rec = await loadLatestReconciliation(statementId);
           if (rec) {
             setReconciliation(rec);
-            // Les ledger_entries sont stockées dans la jsonb de la reconciliation
-            // (chargées avec `loadLatestReconciliation`)
-            // Ici, on n'a pas la propriété directement — il faudrait un getter dédié.
-            // Pour simplifier, on laisse vide jusqu'à un import explicite.
+            // Load ledger entries from the reconciliation's jsonb column
+            const entries = await loadLedgerEntries(rec.id);
+            if (!cancelled) setLedgerEntries(entries);
           } else {
             setReconciliation(null);
+            setLedgerEntries([]);
           }
-          setLedgerEntries([]);
         } else {
           // Fallback mock
           setBankTxs(MOCK_BANK_TRANSACTIONS);

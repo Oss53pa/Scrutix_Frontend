@@ -123,9 +123,29 @@ export function AnalysisTab({ statementId, bankTxs, meta, statementStatus }: Ana
               </div>
             </div>
 
-            <p className="text-xs text-ink-500 mb-4">
-              Consultez les onglets Anomalies et Synthese pour voir les resultats detailles.
-            </p>
+            {/* Summary card */}
+            {analysis.summary && (
+              <div className="bg-canvas-50 border border-canvas-200 rounded-lg p-3 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    analysis.summary.status === 'CRITICAL' ? 'bg-rose-100 text-rose-700' :
+                    analysis.summary.status === 'WARNING' ? 'bg-amber-100 text-amber-700' :
+                    'bg-emerald-100 text-emerald-700'
+                  }`}>{analysis.summary.status}</span>
+                  <span className="text-sm font-medium text-ink-900">
+                    {analysis.summary.totalAnomalies} anomalie{analysis.summary.totalAnomalies > 1 ? 's' : ''} detectee{analysis.summary.totalAnomalies > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <p className="text-xs text-ink-600">{analysis.summary.message}</p>
+                {analysis.summary.keyFindings.length > 0 && (
+                  <ul className="mt-2 space-y-0.5">
+                    {analysis.summary.keyFindings.map((f, i) => (
+                      <li key={i} className="text-xs text-ink-500">• {f}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
 
             <button
               onClick={handleRun}
