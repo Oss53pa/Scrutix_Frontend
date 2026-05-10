@@ -249,7 +249,7 @@ export function DashboardPage() {
           <p className="text-sm text-ink-500 mt-1">Activité, anomalies et performance du cabinet</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={() => navigate('/analyses')}>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/clients')}>
             <Search className="w-4 h-4" />
             Nouvelle analyse
           </Button>
@@ -340,7 +340,7 @@ export function DashboardPage() {
                 <p className="text-xs text-red-700">Action immédiate requise</p>
               </div>
             </div>
-            <Button variant="danger" size="sm" onClick={() => navigate('/analyses')}>
+            <Button variant="danger" size="sm" onClick={() => navigate('/clients')}>
               Voir
               <ArrowRight className="w-3 h-3" />
             </Button>
@@ -561,7 +561,7 @@ export function DashboardPage() {
                 <p className="text-xs text-blue-700">Lancer l'analyse pour découvrir les anomalies</p>
               </div>
             </div>
-            <Button variant="primary" size="sm" onClick={() => navigate('/analyses')}>
+            <Button variant="primary" size="sm" onClick={() => navigate('/clients')}>
               Analyser
               <ArrowRight className="w-3 h-3" />
             </Button>
