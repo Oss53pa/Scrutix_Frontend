@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { useParams } from 'react-router-dom';
-import { StatementDetailPage } from './StatementDetailPage';
+import { StatementDetailPage } from '../pages/StatementDetailPage';
 
 export default function StatementDetailRoute() {
   const { id } = useParams<{ id: string }>();

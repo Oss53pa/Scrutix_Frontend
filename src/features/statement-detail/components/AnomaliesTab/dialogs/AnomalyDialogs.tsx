@@ -1,12 +1,16 @@
 // ============================================================================
-// AnomalyDialogs — wrappers ConfirmDialog spécialisés pour chaque action
+// AnomalyDialogs — router des 6 dialogs spécialisés
 // ============================================================================
-// Spec §1.5 : récap action en langage naturel, hash futur, anti-double-clic.
-// Tous les dialogs réutilisent <ConfirmDialog />.
+// Chaque dialog vit dans son propre fichier (spec §7).
 // ============================================================================
 
-import { ConfirmDialog, AmountFCFA } from '../../../../../components/shared';
 import type { Anomaly, DialogKind } from '../../../types/statement.types';
+import { QualifyDialog } from './QualifyDialog';
+import { ValidateDialog } from './ValidateDialog';
+import { SignDialog } from './SignDialog';
+import { RejectDialog } from './RejectDialog';
+import { FalsePositiveDialog } from './FalsePositiveDialog';
+import { CloseDialog } from './CloseDialog';
 
 interface AnomalyDialogsProps {
   anomaly: Anomaly | null;
@@ -18,127 +22,21 @@ interface AnomalyDialogsProps {
 
 export function AnomalyDialogs({ anomaly, openDialog, futureHash, onClose, onConfirm }: AnomalyDialogsProps) {
   if (!anomaly || !openDialog) return null;
-
-  const props = {
-    open: true,
-    onClose,
-    futureHash,
-    onConfirm: (comment: string) => onConfirm(openDialog, anomaly, comment),
-  };
+  const handle = (comment: string) => onConfirm(openDialog, anomaly, comment);
 
   switch (openDialog) {
     case 'qualifyDialog':
-      return (
-        <ConfirmDialog
-          {...props}
-          title="Qualifier cette anomalie"
-          variant="default"
-          confirmLabel="Qualifier"
-          description={
-            <span>
-              Vous confirmez que l'anomalie <b>{anomaly.title}</b> est <b>réelle</b> et nécessite traitement
-              {anomaly.severity === 'high' || anomaly.severity === 'critical' ? (
-                <> (passera en attente de validation par un senior).</>
-              ) : (
-                <> (sera prête à clôturer).</>
-              )}
-            </span>
-          }
-          commentHelp="Optionnel — précisez les éléments vérifiés."
-        />
-      );
-
+      return <QualifyDialog anomaly={anomaly} futureHash={futureHash} onClose={onClose} onConfirm={handle} />;
     case 'validateDialog':
-      return (
-        <ConfirmDialog
-          {...props}
-          title="Valider cette anomalie"
-          variant="default"
-          confirmLabel="Valider"
-          description={
-            <span>
-              Vous validez la qualification de <b>{anomaly.title}</b>
-              {anomaly.severity === 'critical' ? (
-                <>. Cette anomalie passera en attente de signature DG.</>
-              ) : (
-                <> et la rendez prête à clôturer.</>
-              )}
-            </span>
-          }
-        />
-      );
-
+      return <ValidateDialog anomaly={anomaly} futureHash={futureHash} onClose={onClose} onConfirm={handle} />;
     case 'signDialog':
-      return (
-        <ConfirmDialog
-          {...props}
-          title="Signer et clôturer cette anomalie"
-          variant="success"
-          confirmLabel="Signer et clôturer"
-          requireComment
-          commentLabel="Commentaire de signature"
-          description={
-            <span>
-              Vous allez signer électroniquement la clôture de <b>{anomaly.title}</b>
-              {' '}(montant <AmountFCFA value={Math.abs(anomaly.transaction.amountCentimes)} />).
-              {' '}Cette signature sera transmise à ADVIST et incluse dans le rapport final
-              du relevé. Elle est légalement opposable.
-            </span>
-          }
-        />
-      );
-
+      return <SignDialog anomaly={anomaly} futureHash={futureHash} onClose={onClose} onConfirm={handle} />;
     case 'rejectDialog':
-      return (
-        <ConfirmDialog
-          {...props}
-          title="Rejeter / renvoyer pour revue"
-          variant="danger"
-          confirmLabel="Rejeter"
-          requireComment
-          commentLabel="Motif du rejet"
-          description={
-            <span>
-              L'anomalie <b>{anomaly.title}</b> sera renvoyée à l'étape précédente avec ce motif.
-            </span>
-          }
-        />
-      );
-
+      return <RejectDialog anomaly={anomaly} futureHash={futureHash} onClose={onClose} onConfirm={handle} />;
     case 'falsePositiveDialog':
-      return (
-        <ConfirmDialog
-          {...props}
-          title="Marquer comme faux positif"
-          variant="danger"
-          confirmLabel="Marquer faux positif"
-          requireComment
-          commentLabel="Justification"
-          description={
-            <span>
-              Vous indiquez que <b>{anomaly.title}</b> n'est <b>pas</b> une anomalie réelle.
-              Elle sera retirée des indicateurs et des rapports.
-            </span>
-          }
-        />
-      );
-
+      return <FalsePositiveDialog anomaly={anomaly} futureHash={futureHash} onClose={onClose} onConfirm={handle} />;
     case 'closeDialog':
-      return (
-        <ConfirmDialog
-          {...props}
-          title="Clôturer cette anomalie"
-          variant="success"
-          confirmLabel="Clôturer"
-          description={
-            <span>
-              <b>{anomaly.title}</b> sera marquée comme clôturée. Cette action est traçable
-              mais peut être réouverte ultérieurement par un senior+.
-            </span>
-          }
-        />
-      );
-
+      return <CloseDialog anomaly={anomaly} futureHash={futureHash} onClose={onClose} onConfirm={handle} />;
     default:
       return null;
   }

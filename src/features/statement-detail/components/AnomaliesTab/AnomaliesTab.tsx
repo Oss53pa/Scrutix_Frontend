@@ -1,19 +1,19 @@
 // ============================================================================
-// AnomaliesTab — onglet principal "Anomalies" du statement detail
+// AnomaliesTab — orchestrateur de l'onglet Anomalies
 // ============================================================================
-// Spec §1 : 3 zones (filtres + statsBar / liste virtualisée / drawer détail).
-// Pas de pagination, virtualisation @tanstack/react-virtual.
+// Spec §1 : 3 zones (filtres + statsBar / liste virtualisée / drawer détail)
+// Composé de AnomaliesFilters + AnomaliesStatsBar + AnomaliesList +
+// AnomalyDetailDrawer + AnomalyDialogs (chaque dialog dans son fichier).
 // ============================================================================
 
-import { useMemo, useRef, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useMemo, useState } from 'react';
 import {
   AnomaliesFilters,
   DEFAULT_FILTERS,
   type AnomaliesFilterState,
 } from './AnomaliesFilters';
 import { AnomaliesStatsBar } from './AnomaliesStatsBar';
-import { AnomalyRow } from './AnomalyRow';
+import { AnomaliesList } from './AnomaliesList';
 import { AnomalyDetailDrawer } from './AnomalyDetailDrawer';
 import { AnomalyDialogs } from './dialogs/AnomalyDialogs';
 import type { Anomaly, AnomalyComment, AuditEntry, DialogAction, DialogKind } from '../../types/statement.types';
@@ -25,9 +25,7 @@ interface AnomaliesTabProps {
   auditTrail: AuditEntry[];
   team: MentionableUser[];
   conventionByAnomaly?: Record<string, { id: string; label: string; signedDate: string }>;
-  /** Appelé après confirmation d'un dialog. */
   onAnomalyAction: (kind: DialogKind, anomaly: Anomaly, comment: string) => Promise<void> | void;
-  /** Ajout d'un commentaire. */
   onSubmitComment: (anomalyId: string, text: string, mentions: string[]) => void;
   onOpenPdfAt?: (page: number | undefined) => void;
   onOpenConvention?: (conventionId: string) => void;
@@ -39,9 +37,7 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogKind | null>(null);
   const [dialogAnomaly, setDialogAnomaly] = useState<Anomaly | null>(null);
-  const parentRef = useRef<HTMLDivElement | null>(null);
 
-  // ===== Filtrage =====
   const filtered = useMemo(() => {
     return anomalies.filter((a) => {
       if (filters.severity !== 'all' && a.severity !== filters.severity) return false;
@@ -58,14 +54,6 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
     });
   }, [anomalies, filters]);
 
-  // ===== Virtualisation =====
-  const virtualizer = useVirtualizer({
-    count: filtered.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 168,
-    overscan: 6,
-  });
-
   const activeAnomaly = filtered.find((a) => a.id === activeId) ?? null;
   const activeIdx = activeAnomaly ? filtered.findIndex((a) => a.id === activeAnomaly.id) : -1;
 
@@ -76,7 +64,6 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Bande filtres + stats */}
       <div className="flex flex-col gap-2 px-4 py-3 border-b border-canvas-200 bg-white sticky top-0 z-10">
         <AnomaliesFilters filters={filters} onChange={setFilters} assignees={team} />
         <AnomaliesStatsBar
@@ -86,42 +73,13 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
         />
       </div>
 
-      {/* Liste virtualisée */}
-      <div ref={parentRef} className="flex-1 overflow-y-auto px-4 py-3">
-        {filtered.length === 0 ? (
-          <div className="text-center py-12 text-sm text-ink-500">
-            Aucune anomalie ne correspond aux filtres actifs.
-          </div>
-        ) : (
-          <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-            {virtualizer.getVirtualItems().map((vi) => {
-              const a = filtered[vi.index];
-              return (
-                <div
-                  key={a.id}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    transform: `translateY(${vi.start}px)`,
-                    paddingBottom: 12,
-                  }}
-                >
-                  <AnomalyRow
-                    anomaly={a}
-                    isActive={a.id === activeId}
-                    onSelect={() => setActiveId(a.id)}
-                    onAction={handleAction}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <AnomaliesList
+        anomalies={filtered}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onAction={handleAction}
+      />
 
-      {/* Drawer détail */}
       {activeAnomaly && (
         <AnomalyDetailDrawer
           anomaly={activeAnomaly}
@@ -139,7 +97,6 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
         />
       )}
 
-      {/* Dialogs */}
       <AnomalyDialogs
         anomaly={dialogAnomaly}
         openDialog={dialog}

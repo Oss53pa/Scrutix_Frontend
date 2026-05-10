@@ -10,28 +10,28 @@
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, BookOpen, FileBadge, AlertTriangle, BarChart3, Scale } from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useStatement } from '../hooks/useStatement';
 import { useAnomalies } from '../hooks/useAnomalies';
 import { useReconciliation } from '../hooks/useReconciliation';
 import { useReportGeneration } from '../hooks/useReportGeneration';
 import { useStatementContext } from '../hooks/useStatementContext';
-import { useProphet } from '../../prophet-copilot/hooks/useProphet';
-import { useWorkspace } from '../../../workspace/useWorkspace';
-import { AnomaliesTab } from './AnomaliesTab/AnomaliesTab';
-import { ReconciliationTab } from './ReconciliationTab/ReconciliationTab';
-import { ReportTab } from './ReportTab/ReportTab';
-import { SynthesisTab } from './SynthesisTab';
-import { TransactionsTab } from './TransactionsTab';
+import { useProphetChat } from '../hooks/useProphetChat';
+import { useStatementAnalysis } from '../hooks/useStatementAnalysis';
+import { useWorkspace, useRole } from '../../../workspace/useWorkspace';
+import { AnomaliesTab } from '../components/AnomaliesTab/AnomaliesTab';
+import { ReconciliationTab } from '../components/ReconciliationTab/ReconciliationTab';
+import { ReportTab } from '../components/ReportTab/ReportTab';
+import { SynthesisTab } from '../components/SynthesisTab';
+import { TransactionsTab } from '../components/TransactionsTab';
 import { ProphetDrawer } from '../../prophet-copilot/components/ProphetDrawer';
 import { MOCK_PROPHET_SUGGESTIONS } from '../mock-data';
-import { useRole } from '../../../workspace/useWorkspace';
-import { StatementBreadcrumb } from './StatementBreadcrumb';
-import { StatementHeader } from './StatementHeader';
-import { StatementStatusBanner } from './StatementStatusBanner';
+import { StatementBreadcrumb } from '../components/StatementBreadcrumb';
+import { StatementHeader } from '../components/StatementHeader';
+import { StatementStatusBanner } from '../components/StatementStatusBanner';
+import { TabsBar, type StatementTabKey, STATEMENT_TAB_KEYS } from '../components/TabsBar';
 
-type TabKey = 'synthesis' | 'transactions' | 'anomalies' | 'reconciliation' | 'report';
+type TabKey = StatementTabKey;
 
 export interface StatementDetailPageProps {
   statementId: string;
@@ -46,7 +46,7 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
   useEffect(() => {
     const url = new URL(window.location.href);
     const t = url.searchParams.get('tab') as TabKey | null;
-    if (t && TAB_KEYS.includes(t)) setTab(t);
+    if (t && (STATEMENT_TAB_KEYS as TabKey[]).includes(t)) setTab(t);
   }, []);
 
   function changeTab(next: TabKey) {
@@ -82,7 +82,7 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
   const userDisplayName = profile?.full_name ?? authUser?.email?.split('@')[0] ?? 'Utilisateur';
 
   // === PROPH3T ===
-  const prophet = useProphet({
+  const prophet = useProphetChat({
     statementId: props.statementId,
     userId,
     contextLabel: meta
@@ -91,6 +91,9 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
     transactions: reconH.bankTxs,
     anomalies: anomaliesH.anomalies,
   });
+
+  // === Analyse ===
+  const analysis = useStatementAnalysis(props.statementId);
 
   const conventionByAnomaly = useMemo(() => {
     const map: Record<string, { id: string; label: string; signedDate: string }> = {};
@@ -155,45 +158,24 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             status={meta.status === 'imported' ? 'analyzed' : meta.status}
             anomalies={anomaliesH.anomalies}
             onSeeAnomalies={() => changeTab('anomalies')}
-            onRefreshAnalysis={() => alert('Relancer l\'analyse à implémenter')}
-            onRunAnalysis={() => alert('Lancer l\'analyse à implémenter')}
+            onRefreshAnalysis={() => void analysis.run()}
+            onRunAnalysis={() => void analysis.run()}
           />
         </div>
-        <nav className="mt-3 -mb-px">
-          <ul className="flex items-center gap-1 overflow-x-auto">
-            {TAB_DEFS.map((t) => {
-              const isActive = tab === t.key;
-              const badgeCount = t.key === 'transactions'
-                ? reconH.bankTxs.length
-                : t.key === 'anomalies'
-                  ? anomaliesH.anomalies.filter((a) => a.status !== 'closed' && a.status !== 'false_positive').length
-                  : 0;
-              return (
-                <li key={t.key}>
-                  <button
-                    onClick={() => changeTab(t.key)}
-                    className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-sm transition-colors ${
-                      isActive ? 'text-ink-900 font-semibold' : 'text-ink-500 hover:text-ink-900'
-                    }`}
-                  >
-                    <t.Icon className="w-4 h-4" />
-                    {t.label}
-                    {badgeCount > 0 && (
-                      <span className={`px-1.5 py-0 rounded-full text-[10px] font-bold ${
-                        t.key === 'anomalies' && anomaliesH.anomalies.some((a) => a.severity === 'critical' && a.status !== 'closed')
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                          : 'bg-canvas-100 text-ink-600 border border-canvas-200'
-                      }`}>
-                        {badgeCount}
-                      </span>
-                    )}
-                    {isActive && <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-amber-600" />}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        <div className="mt-3 -mb-px">
+          <TabsBar
+            active={tab}
+            onChange={changeTab}
+            badges={{
+              transactions: { count: reconH.bankTxs.length, variant: 'neutral' },
+              anomalies: {
+                count: anomaliesH.anomalies.filter((a) => a.status !== 'closed' && a.status !== 'false_positive').length,
+                variant: anomaliesH.anomalies.some((a) => a.severity === 'critical' && a.status !== 'closed')
+                  ? 'danger' : 'neutral',
+              },
+            }}
+          />
+        </div>
       </header>
 
       {/* === Content === */}
@@ -294,20 +276,6 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
     </div>
   );
 }
-
-// ============================================================================
-// Tabs config
-// ============================================================================
-
-const TAB_DEFS: Array<{ key: TabKey; label: string; Icon: typeof FileText }> = [
-  { key: 'synthesis',      label: 'Synthèse',       Icon: BarChart3 },
-  { key: 'transactions',   label: 'Transactions',   Icon: BookOpen },
-  { key: 'anomalies',      label: 'Anomalies',      Icon: AlertTriangle },
-  { key: 'reconciliation', label: 'Rapprochement',  Icon: Scale },
-  { key: 'report',         label: 'Rapport',        Icon: FileBadge },
-];
-
-const TAB_KEYS: TabKey[] = TAB_DEFS.map((t) => t.key);
 
 // ============================================================================
 // Helpers
