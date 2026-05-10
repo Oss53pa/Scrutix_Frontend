@@ -2161,7 +2161,7 @@ export function BankConditionsModal({
 
           {/* Onglet Validation IA — split-screen PDF↔champ via SplitScreenValidator */}
           {activeTab === 'validation' && (
-            <ValidationTabContent bank={bank} archivedDocuments={archivedDocuments} />
+            <ValidationTabContent bank={bank} archivedDocuments={conditions.documents} />
           )}
         </div>
 
