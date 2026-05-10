@@ -19,6 +19,7 @@ import { useStatementContext } from '../hooks/useStatementContext';
 import { useProphetChat } from '../hooks/useProphetChat';
 import { useStatementAnalysis } from '../hooks/useStatementAnalysis';
 import { useWorkspace, useRole } from '../../../workspace/useWorkspace';
+import { AnalysisTab } from '../components/AnalysisTab';
 import { AnomaliesTab } from '../components/AnomaliesTab/AnomaliesTab';
 import { ReconciliationTab } from '../components/ReconciliationTab/ReconciliationTab';
 import { ReportTab } from '../components/ReportTab/ReportTab';
@@ -204,6 +205,15 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
         )}
 
         {tab === 'transactions' && <TransactionsTab bankTxs={reconH.bankTxs} />}
+
+        {tab === 'analysis' && (
+          <AnalysisTab
+            statementId={props.statementId}
+            bankTxs={reconH.bankTxs}
+            meta={analysisMeta}
+            statementStatus={meta.status}
+          />
+        )}
 
         {tab === 'anomalies' && (
           <AnomaliesTab

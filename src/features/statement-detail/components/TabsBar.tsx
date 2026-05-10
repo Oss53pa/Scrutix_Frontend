@@ -5,9 +5,9 @@
 // et Anomalies (rouge si > 0 critique sur Anomalies).
 // ============================================================================
 
-import { LayoutDashboard, List, AlertTriangle, Scale, FileCheck, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, List, AlertTriangle, Scale, FileCheck, Search, type LucideIcon } from 'lucide-react';
 
-export type StatementTabKey = 'synthesis' | 'transactions' | 'anomalies' | 'reconciliation' | 'report';
+export type StatementTabKey = 'synthesis' | 'transactions' | 'analysis' | 'anomalies' | 'reconciliation' | 'report';
 
 export interface TabBadge {
   count: number;
@@ -27,8 +27,9 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { key: 'synthesis',      label: 'Synthèse',       Icon: LayoutDashboard },
+  { key: 'synthesis',      label: 'Synthese',       Icon: LayoutDashboard },
   { key: 'transactions',   label: 'Transactions',   Icon: List },
+  { key: 'analysis',       label: 'Analyse',        Icon: Search },
   { key: 'anomalies',      label: 'Anomalies',      Icon: AlertTriangle },
   { key: 'reconciliation', label: 'Rapprochement',  Icon: Scale },
   { key: 'report',         label: 'Rapport',        Icon: FileCheck },
