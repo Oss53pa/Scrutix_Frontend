@@ -82,10 +82,59 @@ interface BankConditionsModalProps {
  * (accountFees / cardFees / …) while this editor uses a richer
  * FullBankConditions shape (tenueCompte / fraisCartes / …).
  *
+ * A mapping entry can be either :
+ *   - a dot-path string  → used directly by setByPath()
+ *   - a Patcher function → invoked with (conditions, value) to mutate in place
+ *
+ * The Patcher form is required for fields that target arrays-by-criterion
+ * (e.g. cartes[reseau='VISA' && nom contains 'Gold'].cotisationAnnuelle)
+ * which setByPath cannot navigate.
+ *
  * Any FieldRegistry key not listed here falls through verbatim — that's the
  * desired behaviour for keys that already match the form (e.g. cheques.*).
  */
-const REGISTRY_TO_FORM_PATH: Record<string, string> = {
+type ConditionsPatcher = (conditions: FullBankConditions, value: number | string | boolean) => void;
+
+/**
+ * Upsert a card entry by reseau+nom in the cartes[] array.
+ * Updates `cotisationAnnuelle` on the existing card if a match is found,
+ * otherwise pushes a fresh card with sensible defaults.
+ */
+function upsertCardCotisation(
+  reseau: FullBankConditions['cartes'][number]['reseau'],
+  nomKeyword: string,
+  defaultNom: string,
+): ConditionsPatcher {
+  return (conditions, value) => {
+    const cotisation = Number(value);
+    if (!Number.isFinite(cotisation)) return;
+    const kw = nomKeyword.toLowerCase();
+    const existing = conditions.cartes.find(
+      (c) => c.reseau === reseau && c.nom.toLowerCase().includes(kw),
+    );
+    if (existing) {
+      existing.cotisationAnnuelle = cotisation;
+    } else {
+      conditions.cartes.push({
+        id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `card-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        nom: defaultNom,
+        type: 'debit',
+        reseau,
+        cotisationAnnuelle: cotisation,
+        fraisEmission: 0,
+        plafondRetraitJour: 0,
+        plafondPaiementJour: 0,
+        plafondRetraitMois: 0,
+        plafondPaiementMois: 0,
+        validiteAnnees: 2,
+      });
+    }
+  };
+}
+
+const REGISTRY_TO_FORM_PATH: Record<string, string | ConditionsPatcher> = {
   // Tenue de compte
   'accountFees.tenueCompte.particulier':     'tenueCompte.particulierLocal',
   'accountFees.tenueCompte.professionnel':   'tenueCompte.professionnel',
@@ -209,6 +258,15 @@ const REGISTRY_TO_FORM_PATH: Record<string, string> = {
   'miscFees.successionCommission':  'divers.successionCommission',
   'miscFees.avoirInactif':          'divers.avoirInactif',
   'miscFees.tvaServices':           'divers.tvaServices',
+
+  // ─── CARTES — cotisations annuelles par type ───
+  // La structure FullBankConditions.cartes est un Array<{reseau, nom, cotisationAnnuelle, …}>.
+  // setByPath ne sait pas naviguer un tableau par critère, donc on utilise un Patcher
+  // qui upsert l'entrée correspondante.
+  'cardFees.visaClassic':  upsertCardCotisation('VISA',  'classic',  'Visa Classic'),
+  'cardFees.visaGold':     upsertCardCotisation('VISA',  'gold',     'Visa Gold'),
+  'cardFees.visaPlatinum': upsertCardCotisation('VISA',  'platinum', 'Visa Platinum'),
+  'cardFees.gimac':        upsertCardCotisation('GIMAC', 'gimac',    'Carte GIMAC'),
 };
 
 type TabId = 'compte' | 'guichet' | 'cartes' | 'virements' | 'cheques' | 'credits' | 'ebanking' | 'divers' | 'documents' | 'validation';
@@ -933,18 +991,23 @@ export function BankConditionsModal({
    */
   const handleApplyExtraction = (values: Record<string, number | string | boolean | null>) => {
     setConditions(prev => {
-      // Deep clone — we use setByPath which mutates
-      const next = JSON.parse(JSON.stringify(prev)) as Record<string, unknown>;
+      // Deep clone — we use setByPath / patchers which mutate
+      const next = JSON.parse(JSON.stringify(prev)) as FullBankConditions;
       for (const [rawKey, value] of Object.entries(values)) {
         if (value === null || value === undefined) continue;
         // Translate FieldRegistry keys (e.g. accountFees.tenueCompte.particulier)
         // into the modal's form-state paths (e.g. tenueCompte.particulierLocal).
         // Without this step, setByPath wrote to a parallel object structure
         // that no form field reads from — values silently disappeared.
-        const formPath = REGISTRY_TO_FORM_PATH[rawKey] ?? rawKey;
-        setByPath(next, formPath, value);
+        const target = REGISTRY_TO_FORM_PATH[rawKey] ?? rawKey;
+        if (typeof target === 'function') {
+          // Patcher form — used for array-by-criterion targets like cartes[]
+          target(next, value);
+        } else {
+          setByPath(next as unknown as Record<string, unknown>, target, value);
+        }
       }
-      return next as typeof prev;
+      return next;
     });
     setHasChanges(true);
   };
