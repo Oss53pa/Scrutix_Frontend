@@ -2201,12 +2201,24 @@ export function BankConditionsModal({
                 />
               )}
 
-              {/* Liste des documents avec selection "en vigueur" */}
+              {/* Liste des documents avec sélection "en vigueur" */}
               <div>
-                <h3 className="font-semibold text-primary-900 mb-2">Documents archivés</h3>
-                <p className="text-xs text-primary-500 mb-4">
-                  Cochez un document pour l'appliquer comme conditions en vigueur. Le formulaire se met à jour automatiquement.
-                </p>
+                <div className="flex items-baseline justify-between mb-2">
+                  <h3 className="font-semibold text-primary-900">Documents archivés</h3>
+                  {conditions.documents.length > 0 && (
+                    <span className="text-[11px] text-primary-500">
+                      {conditions.documents.filter((d) => d.isActive).length} en vigueur / {conditions.documents.length}
+                    </span>
+                  )}
+                </div>
+                <div className="mb-4 p-3 rounded-lg border border-amber-200 bg-amber-50/60 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-900">
+                    Cliquez sur <strong>« Appliquer »</strong> pour qu'un document devienne la grille de conditions en vigueur.
+                    Un seul document peut être appliqué à la fois — sélectionner un nouveau remplace l'ancien.
+                    Le formulaire se met à jour automatiquement avec les valeurs extraites.
+                  </p>
+                </div>
                 {conditions.documents.length === 0 ? (
                   <div className="text-center py-8 text-primary-500">
                     <FileUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -2219,50 +2231,67 @@ export function BankConditionsModal({
                       return (
                         <div
                           key={doc.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                          className={`flex items-center justify-between gap-3 p-3 rounded-lg border-2 transition-colors ${
                             doc.isActive
-                              ? 'bg-emerald-50 border-emerald-300'
-                              : 'bg-primary-50 border-primary-200'
+                              ? 'bg-emerald-50 border-emerald-400 shadow-sm'
+                              : 'bg-white border-primary-200 hover:border-primary-300'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={doc.isActive}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setConditions(prev => ({
-                                    ...prev,
-                                    documents: prev.documents.map(d =>
-                                      d.id === doc.id ? { ...d, isActive: checked } : d,
-                                    ),
-                                  }));
-                                  // Si on coche et qu'il y a des valeurs extraites, les appliquer
-                                  if (checked && doc.extractedValues && Object.keys(doc.extractedValues).length > 0) {
-                                    handleApplyExtraction(doc.extractedValues as Record<string, number | string | boolean | null>);
-                                  }
-                                  setHasChanges(true);
-                                }}
-                                className="accent-emerald-600 w-4 h-4"
-                              />
-                              <FileText className={`w-5 h-5 ${doc.isActive ? 'text-emerald-600' : 'text-primary-600'}`} />
-                            </label>
-                            <div>
-                              <p className="font-medium text-primary-900">{doc.name}</p>
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className={`w-6 h-6 shrink-0 ${doc.isActive ? 'text-emerald-600' : 'text-primary-500'}`} />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-primary-900 truncate" title={doc.name}>{doc.name}</p>
                               <p className="text-xs text-primary-500">
-                                {new Date(doc.uploadDate).toLocaleDateString('fr-FR')} •{' '}
-                                {(doc.fileSize / 1024).toFixed(0)} Ko
+                                {(() => {
+                                  const d = new Date(doc.uploadDate);
+                                  return isNaN(d.getTime())
+                                    ? '—'
+                                    : `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+                                })()}
+                                {' • '}{(doc.fileSize / 1024).toFixed(0)} Ko
                                 {doc.extractedAt && ` • ${hasValues ? Object.keys(doc.extractedValues!).length + ' champs extraits' : 'Données extraites'}`}
                               </p>
-                              {doc.isActive && (
-                                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
-                                  ✓ En vigueur
-                                </span>
-                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* Toggle prominent « Appliquer » / « ✓ En vigueur ».
+                                Comportement radio : sélectionner un autre document
+                                désactive tous les autres pour respecter l'invariant
+                                « une seule grille en vigueur à la fois ». */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const willActivate = !doc.isActive;
+                                setConditions(prev => ({
+                                  ...prev,
+                                  documents: prev.documents.map(d =>
+                                    d.id === doc.id
+                                      ? { ...d, isActive: willActivate }
+                                      : willActivate ? { ...d, isActive: false } : d,
+                                  ),
+                                }));
+                                if (willActivate && doc.extractedValues && Object.keys(doc.extractedValues).length > 0) {
+                                  handleApplyExtraction(doc.extractedValues as Record<string, number | string | boolean | null>);
+                                }
+                                setHasChanges(true);
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                                doc.isActive
+                                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                  : 'bg-primary-100 text-primary-700 hover:bg-accent-100 hover:text-accent-800 border border-primary-300'
+                              }`}
+                              aria-pressed={doc.isActive}
+                              title={doc.isActive ? 'Conditions en vigueur — cliquer pour désactiver' : 'Appliquer ces conditions'}
+                            >
+                              {doc.isActive ? (
+                                <>
+                                  <span aria-hidden="true">✓</span>
+                                  En vigueur
+                                </>
+                              ) : (
+                                'Appliquer'
+                              )}
+                            </button>
                             <a
                               href={doc.fileData}
                               download={doc.name}
