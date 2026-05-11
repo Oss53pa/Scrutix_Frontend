@@ -22,7 +22,7 @@ interface TransactionsTabProps {
 export function TransactionsTab({ bankTxs, flaggedTxIds }: TransactionsTabProps) {
   const [filters, setFilters] = useState<TransactionsFiltersState>({ q: '', side: 'all' });
   const [sortKey, setSortKey] = useState<TransactionsSortKey>('date');
-  const [sortDir, setSortDir] = useState<TransactionsSortDir>('asc');
+  const [sortDir, setSortDir] = useState<TransactionsSortDir>('desc');
 
   const filtered = useMemo(() => {
     let xs = bankTxs;
@@ -43,7 +43,7 @@ export function TransactionsTab({ bankTxs, flaggedTxIds }: TransactionsTabProps)
 
   function toggleSort(k: TransactionsSortKey) {
     if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(k); setSortDir('asc'); }
+    else { setSortKey(k); setSortDir('desc'); }
   }
 
   const counter = (

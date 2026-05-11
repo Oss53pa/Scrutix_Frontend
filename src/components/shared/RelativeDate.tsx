@@ -4,17 +4,18 @@
 
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { parseAnyDate } from '../../lib/dateFormat';
 
 interface RelativeDateProps {
-  date: string | Date;
+  date: string | Date | number | null | undefined;
   /** Affiche aussi la date absolue en tooltip. */
   absolute?: boolean;
   className?: string;
 }
 
 export function RelativeDate({ date, absolute = true, className = '' }: RelativeDateProps) {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  if (isNaN(d.getTime())) return <span className={className}>—</span>;
+  const d = parseAnyDate(date);
+  if (!d) return <span className={className}>—</span>;
 
   const rel = formatDistanceToNow(d, { addSuffix: true, locale: fr });
   // date-fns français produit "il y a 2 jours" — on compacte

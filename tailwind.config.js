@@ -103,6 +103,10 @@ export default {
         '18': '4.5rem',
         '88': '22rem',
       },
+      gridTemplateColumns: {
+        // 16-column grid for fine-grained table layouts (e.g. SYSCOHADA ledger)
+        '16': 'repeat(16, minmax(0, 1fr))',
+      },
       boxShadow: {
         // Multi-layer premium shadows
         'card': '0 1px 2px 0 rgb(15 14 10 / 0.04), 0 1px 3px 0 rgb(15 14 10 / 0.06)',

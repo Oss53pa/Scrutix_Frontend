@@ -8,6 +8,7 @@
 // ============================================================================
 
 import { FileText, ArrowLeftRight, Sparkles } from 'lucide-react';
+import { formatDateDDMMYYYY } from '../../../lib/dateFormat';
 
 interface StatementHeaderProps {
   bankCode: string;
@@ -24,7 +25,7 @@ interface StatementHeaderProps {
 
 export function StatementHeader(props: StatementHeaderProps) {
   const isAnalyzed = props.status === 'analyzed' || props.status === 'imported';
-  const importedFr = formatFrDate(props.importedAt);
+  const importedFr = formatDateDDMMYYYY(props.importedAt);
 
   return (
     <div className="flex flex-col gap-2">
@@ -76,9 +77,3 @@ export function StatementHeader(props: StatementHeaderProps) {
   );
 }
 
-function formatFrDate(iso: string): string {
-  // Force UTC to avoid timezone-shift (date-only strings like "2026-02-10")
-  const d = new Date(iso.includes('T') ? iso : iso + 'T00:00:00Z');
-  if (isNaN(d.getTime())) return '—';
-  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
-}
