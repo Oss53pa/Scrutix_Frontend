@@ -104,7 +104,8 @@ export class ComplianceAudit {
   private findMatchingFee(transaction: Transaction): FeeSchedule | null {
     const description = transaction.description.toLowerCase();
 
-    for (const fee of this.bankConditions.fees) {
+    const fees = this.bankConditions.fees ?? [];
+    for (const fee of fees) {
       const feeName = fee.name.toLowerCase();
       if (description.includes(feeName) || feeName.includes(description.split(' ')[0])) {
         return fee;
@@ -134,8 +135,8 @@ export class ComplianceAudit {
         expectedAmount = fee.amount;
         break;
       case 'percentage':
-        // On ne peut pas calculer sans la base, utiliser le montant comme référence
-        expectedAmount = fee.amount;
+        // Use min/max bounds if available; otherwise fall back to fixed amount
+        expectedAmount = fee.maxAmount ?? fee.amount;
         break;
       case 'tiered':
         expectedAmount = fee.amount; // Simplification

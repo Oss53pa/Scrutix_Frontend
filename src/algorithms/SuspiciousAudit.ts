@@ -289,7 +289,7 @@ export class SuspiciousAudit {
       // Ou montants ronds > 500k avec beaucoup de zéros
       else if (amount >= 500000 && amount % 100000 === 0) {
         const zeroCount = (amount.toString().match(/0/g) || []).length;
-        if (zeroCount >= 4) {
+        if (zeroCount >= 5) {
           roundTransactions.push(transaction);
         }
       }
