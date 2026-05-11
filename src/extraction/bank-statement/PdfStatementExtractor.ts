@@ -293,7 +293,10 @@ function parseDateLoose(s: string): Date | null {
   if (mm > 12 && dd <= 12) [dd, mm] = [mm, dd];
   if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
   const d = new Date(Date.UTC(yy, mm - 1, dd));
-  return isNaN(d.getTime()) ? null : d;
+  if (isNaN(d.getTime())) return null;
+  // Validate the date didn't roll over (e.g., Feb 31 → Mar 3)
+  if (d.getUTCMonth() !== mm - 1 || d.getUTCDate() !== dd) return null;
+  return d;
 }
 
 // ============================================================================

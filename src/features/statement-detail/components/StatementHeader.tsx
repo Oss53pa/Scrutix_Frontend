@@ -77,7 +77,8 @@ export function StatementHeader(props: StatementHeaderProps) {
 }
 
 function formatFrDate(iso: string): string {
-  const d = new Date(iso);
+  // Force UTC to avoid timezone-shift (date-only strings like "2026-02-10")
+  const d = new Date(iso.includes('T') ? iso : iso + 'T00:00:00Z');
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
 }

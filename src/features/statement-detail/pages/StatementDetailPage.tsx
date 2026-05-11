@@ -372,17 +372,24 @@ async function openPdfSource(statementId: string): Promise<void> {
   }
 }
 
+/** Parse ISO date string as UTC to avoid timezone shifts. */
+function parseUTC(iso: string): Date {
+  // "2026-02-10" → force UTC interpretation (avoid local-time shift)
+  const d = new Date(iso + (iso.includes('T') ? '' : 'T00:00:00Z'));
+  return isNaN(d.getTime()) ? new Date(iso) : d;
+}
+
 function formatPeriodTitle(start: string, end: string): string {
-  // "10 fév → 08 mai 2026"
-  const months = ['janv', 'fév', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
-  const ds = new Date(start);
-  const de = new Date(end);
-  return `${ds.getDate()} ${months[ds.getMonth()]} → ${String(de.getDate()).padStart(2, '0')} ${months[de.getMonth()]} ${de.getFullYear()}`;
+  // "10 fev → 08 mai 2026"
+  const months = ['janv', 'fev', 'mars', 'avr', 'mai', 'juin', 'juil', 'aout', 'sept', 'oct', 'nov', 'dec'];
+  const ds = parseUTC(start);
+  const de = parseUTC(end);
+  return `${ds.getUTCDate()} ${months[ds.getUTCMonth()]} → ${String(de.getUTCDate()).padStart(2, '0')} ${months[de.getUTCMonth()]} ${de.getUTCFullYear()}`;
 }
 
 function formatPeriodShort(start: string, end: string): string {
-  const months = ['janv', 'fév', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
-  const ds = new Date(start);
-  const de = new Date(end);
-  return `${months[ds.getMonth()]} → ${months[de.getMonth()]} ${de.getFullYear()}`;
+  const months = ['janv', 'fev', 'mars', 'avr', 'mai', 'juin', 'juil', 'aout', 'sept', 'oct', 'nov', 'dec'];
+  const ds = parseUTC(start);
+  const de = parseUTC(end);
+  return `${months[ds.getUTCMonth()]} → ${months[de.getUTCMonth()]} ${de.getUTCFullYear()}`;
 }

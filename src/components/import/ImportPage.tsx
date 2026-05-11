@@ -172,8 +172,11 @@ export function ImportPage() {
     // Trimmed period (5th–95th percentile) — defends against balance-forward
     // entries from the previous month that pollute the min/max calc.
     const period = computeStatementPeriod(stamped.map((t) => t.date));
-    const periodStart = period?.start ?? new Date();
-    const periodEnd = period?.end ?? new Date();
+    // Use first/last transaction date as fallback, not today
+    const fallbackStart = stamped.length > 0 ? new Date(stamped[0].date) : new Date();
+    const fallbackEnd = stamped.length > 0 ? new Date(stamped[stamped.length - 1].date) : new Date();
+    const periodStart = period?.start ?? fallbackStart;
+    const periodEnd = period?.end ?? fallbackEnd;
 
     // If no account selected, auto-create one
     let accountId = selectedAccountId;

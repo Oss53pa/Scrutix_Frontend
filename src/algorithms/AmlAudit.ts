@@ -199,7 +199,9 @@ export class AmlAudit {
       const description = t.description.toUpperCase();
 
       for (const country of this.config.highRiskCountries) {
-        if (description.includes(country)) {
+        // Word boundary check to avoid "IRAN" matching "IRANIEN RESTAURANT"
+        const re = new RegExp(`\\b${country}\\b`);
+        if (re.test(description)) {
           highRiskTransactions.push(t);
           break;
         }

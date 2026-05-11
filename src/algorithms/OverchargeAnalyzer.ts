@@ -66,7 +66,7 @@ export class OverchargeAnalyzer {
     const fees = transactions.filter((t) => t.amount < 0);
 
     for (const fee of fees) {
-      const analysis = this.analyzeFee(fee, bankConditions, historicalData);
+      const analysis = this.analyzeFee(fee, bankConditions, historicalData, transactions);
 
       if (analysis.isOvercharge) {
         anomalies.push(this.createAnomaly(analysis, bankConditions));
@@ -82,7 +82,8 @@ export class OverchargeAnalyzer {
   private analyzeFee(
     fee: Transaction,
     bankConditions: BankConditions,
-    historicalData?: HistoricalFeeData
+    historicalData?: HistoricalFeeData,
+    allTransactions?: Transaction[]
   ): OverchargeAnalysis {
     const serviceType = this.detectServiceType(fee);
     const chargedAmount = Math.abs(fee.amount);
@@ -95,7 +96,12 @@ export class OverchargeAnalyzer {
     let isOvercharge = false;
 
     if (matchedFee) {
-      expectedAmount = this.calculateExpectedAmount(matchedFee, chargedAmount);
+      // For percentage fees, find the base transaction that triggered this fee
+      let baseAmount: number | undefined;
+      if (matchedFee.type === 'percentage' && allTransactions) {
+        baseAmount = this.findBaseTransactionAmount(fee, allTransactions);
+      }
+      expectedAmount = this.calculateExpectedAmount(matchedFee, chargedAmount, baseAmount);
 
       // Compare with official rate
       const tolerance = expectedAmount * this.thresholds.tolerancePercentage;
@@ -236,6 +242,28 @@ export class OverchargeAnalyzer {
       default:
         return fee.amount;
     }
+  }
+
+  /**
+   * Find the base transaction amount for percentage-based fees.
+   * Heuristic: look for the most recent non-fee transaction before this fee
+   * on the same day or previous day that could have triggered it.
+   */
+  private findBaseTransactionAmount(fee: Transaction, transactions: Transaction[]): number | undefined {
+    const feeDate = new Date(fee.date).getTime();
+    const oneDayMs = 86_400_000;
+    const candidates = transactions
+      .filter((t) =>
+        t.id !== fee.id &&
+        Math.abs(t.amount) > Math.abs(fee.amount) &&
+        t.amount !== 0 &&
+        Math.abs(new Date(t.date).getTime() - feeDate) <= oneDayMs,
+      )
+      .sort((a, b) =>
+        Math.abs(new Date(b.date).getTime() - feeDate) -
+        Math.abs(new Date(a.date).getTime() - feeDate),
+      );
+    return candidates.length > 0 ? Math.abs(candidates[0].amount) : undefined;
   }
 
   /**
