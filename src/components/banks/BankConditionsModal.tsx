@@ -272,6 +272,7 @@ const REGISTRY_TO_FORM_PATH: Record<string, string | ConditionsPatcher> = {
 type TabId = 'compte' | 'guichet' | 'cartes' | 'virements' | 'cheques' | 'credits' | 'ebanking' | 'divers' | 'documents' | 'validation';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: 'documents', label: 'Documents', icon: <FileUp className="w-4 h-4" /> },
   { id: 'compte', label: 'Compte', icon: <Building2 className="w-4 h-4" /> },
   { id: 'guichet', label: 'Opérations guichet', icon: <Banknote className="w-4 h-4" /> },
   { id: 'cartes', label: 'Cartes', icon: <CreditCard className="w-4 h-4" /> },
@@ -280,7 +281,6 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'credits', label: 'Crédits & Agios', icon: <Percent className="w-4 h-4" /> },
   { id: 'ebanking', label: 'E-Banking', icon: <Smartphone className="w-4 h-4" /> },
   { id: 'divers', label: 'Divers', icon: <Settings className="w-4 h-4" /> },
-  { id: 'documents', label: 'Documents', icon: <FileUp className="w-4 h-4" /> },
   { id: 'validation', label: 'Validation IA', icon: <Sparkles className="w-4 h-4" /> },
 ];
 
@@ -438,178 +438,180 @@ interface FullBankConditions {
   documents: ArchivedDocument[];
 }
 
-// Valeurs par défaut
-function getDefaultFullConditions(): FullBankConditions {
+// ---------------------------------------------------------------------------
+// Squelette vide — TOUS LES FRAIS À 0
+// ---------------------------------------------------------------------------
+// Aucune valeur ne doit jamais être pré-remplie : les conditions bancaires
+// PROVIENNENT soit d'un import (PDF tarification) soit d'une saisie manuelle.
+// Tout chiffre hardcodé serait potentiellement faux et trompeur pour l'auditeur.
+// Le squelette définit uniquement la STRUCTURE des sections — les valeurs
+// numériques sont à zéro et les flags booléens à `false`.
+function getEmptyFullConditions(): FullBankConditions {
   return {
     tenueCompte: {
-      particulierLocal: 2500,
-      particulierEtranger: 5000,
-      professionnel: 7500,
-      entreprise: 15000,
-      association: 5000,
+      particulierLocal: 0,
+      particulierEtranger: 0,
+      professionnel: 0,
+      entreprise: 0,
+      association: 0,
       compteEpargne: 0,
-      compteDevises: 10000,
+      compteDevises: 0,
     },
     ouvertureCompte: {
       particulier: 0,
-      entreprise: 25000,
-      minimumDepot: 50000,
+      entreprise: 0,
+      minimumDepot: 0,
     },
     clotureCompte: {
-      particulier: 5000,
-      entreprise: 10000,
+      particulier: 0,
+      entreprise: 0,
     },
     releves: {
-      mensuelPapier: 1000,
+      mensuelPapier: 0,
       mensuelEmail: 0,
-      duplicata: 2500,
-      releveAnnuel: 5000,
-      attestationSolde: 5000,
-      certificatNonEngagement: 10000,
-      rib: 500,
+      duplicata: 0,
+      releveAnnuel: 0,
+      attestationSolde: 0,
+      certificatNonEngagement: 0,
+      rib: 0,
     },
     guichet: {
       versementEspeces: 0,
       versementEspecesCommission: 0,
       retraitEspeces: 0,
-      retraitEspecesCommission: 0.1,
-      changeManuel: 2500,
-      achatDevises: 0.5,
-      venteDevises: 0.5,
+      retraitEspecesCommission: 0,
+      changeManuel: 0,
+      achatDevises: 0,
+      venteDevises: 0,
     },
-    cartes: [
-      {
-        id: uuidv4(),
-        nom: 'VISA Classic',
-        type: 'debit',
-        reseau: 'VISA',
-        cotisationAnnuelle: 25000,
-        fraisEmission: 5000,
-        plafondRetraitJour: 500000,
-        plafondPaiementJour: 1000000,
-        plafondRetraitMois: 5000000,
-        plafondPaiementMois: 10000000,
-        validiteAnnees: 3,
-      },
-      {
-        id: uuidv4(),
-        nom: 'VISA Gold',
-        type: 'debit',
-        reseau: 'VISA',
-        cotisationAnnuelle: 75000,
-        fraisEmission: 10000,
-        plafondRetraitJour: 1000000,
-        plafondPaiementJour: 3000000,
-        plafondRetraitMois: 10000000,
-        plafondPaiementMois: 30000000,
-        validiteAnnees: 3,
-      },
-      {
-        id: uuidv4(),
-        nom: 'Carte GIMAC',
-        type: 'debit',
-        reseau: 'GIMAC',
-        cotisationAnnuelle: 10000,
-        fraisEmission: 2500,
-        plafondRetraitJour: 300000,
-        plafondPaiementJour: 500000,
-        plafondRetraitMois: 3000000,
-        plafondPaiementMois: 5000000,
-        validiteAnnees: 2,
-      },
-    ],
+    // Aucune carte par défaut : c'est à l'utilisateur d'ajouter celles que
+    // la banque propose (visa classic / gold / mastercard / GIMAC…).
+    cartes: [],
     fraisCartes: {
       retraitDabPropre: 0,
-      retraitDabAutre: 500,
-      retraitDabInternational: 3000,
+      retraitDabAutre: 0,
+      retraitDabInternational: 0,
       paiementTpePropre: 0,
-      paiementTpeAutre: 250,
-      paiementTpeInternational: 1.5,
-      paiementInternet: 1,
-      oppositionCarte: 5000,
-      renouvellementAnticipe: 10000,
-      codeOublie: 2500,
-      carteCaptee: 5000,
-      consultationSolde: 200,
+      paiementTpeAutre: 0,
+      paiementTpeInternational: 0,
+      paiementInternet: 0,
+      oppositionCarte: 0,
+      renouvellementAnticipe: 0,
+      codeOublie: 0,
+      carteCaptee: 0,
+      consultationSolde: 0,
     },
     virements: {
-      interneGratuit: true,
+      interneGratuit: false,
       interneFrais: 0,
       nationalMemeBank: 0,
-      nationalAutreBank: 2500,
-      nationalAutreBankCommission: 0.1,
-      zoneMonetaire: 5000,
-      zoneMonetaireCommission: 0.25,
-      international: 15000,
-      internationalCommission: 0.5,
-      swift: 25000,
-      instantane: 500,
-      permanent: 2500,
-      rejetVirement: 5000,
+      nationalAutreBank: 0,
+      nationalAutreBankCommission: 0,
+      zoneMonetaire: 0,
+      zoneMonetaireCommission: 0,
+      international: 0,
+      internationalCommission: 0,
+      swift: 0,
+      instantane: 0,
+      permanent: 0,
+      rejetVirement: 0,
       recuVirement: 0,
     },
     cheques: {
-      carnet25: 5000,
-      carnet50: 8000,
-      carnet100: 15000,
-      chequeGuichet: 500,
-      chequeCertifie: 5000,
-      chequeBanque: 10000,
-      oppositionCheque: 10000,
-      chequeImpaye: 25000,
-      chequeRetourne: 15000,
+      carnet25: 0,
+      carnet50: 0,
+      carnet100: 0,
+      chequeGuichet: 0,
+      chequeCertifie: 0,
+      chequeBanque: 0,
+      oppositionCheque: 0,
+      chequeImpaye: 0,
+      chequeRetourne: 0,
       encaissementPlace: 0,
-      encaissementDeplacement: 2500,
-      encaissementEtranger: 10000,
-      encaissementEtrangerCommission: 0.5,
+      encaissementDeplacement: 0,
+      encaissementEtranger: 0,
+      encaissementEtrangerCommission: 0,
     },
     credits: {
-      decouvertAutorise: 14.5,
-      decouvertNonAutorise: 18,
-      commissionMouvement: 0.025,
-      commissionPlusForte: 0.05,
-      tauxUsure: 27,
-      fraisDossierCredit: 1,
-      creditConsommationMin: 12,
-      creditConsommationMax: 18,
-      creditImmobilierMin: 8,
-      creditImmobilierMax: 12,
-      creditPME: 14,
-      penaliteRetard: 2,
+      decouvertAutorise: 0,
+      decouvertNonAutorise: 0,
+      commissionMouvement: 0,
+      commissionPlusForte: 0,
+      tauxUsure: 0,
+      fraisDossierCredit: 0,
+      creditConsommationMin: 0,
+      creditConsommationMax: 0,
+      creditImmobilierMin: 0,
+      creditImmobilierMax: 0,
+      creditPME: 0,
+      penaliteRetard: 0,
     },
     ebanking: {
       abonnementMensuel: 0,
       abonnementAnnuel: 0,
       parOperation: 0,
-      virementEnLigne: 250,
-      consultationGratuite: true,
-      smsAlerte: 50,
-      smsAlerteAbonnement: 1000,
+      virementEnLigne: 0,
+      consultationGratuite: false,
+      smsAlerte: 0,
+      smsAlerteAbonnement: 0,
       mobileBanking: 0,
-      ussd: 100,
+      ussd: 0,
     },
     divers: {
-      coffrePetit: 50000,
-      coffreMoyen: 100000,
-      coffreGrand: 200000,
-      assuranceCompte: 2500,
-      garantieBancaire: 1,
-      garantieLocative: 25000,
-      cautionMarche: 1,
-      lettreInjonction: 15000,
-      saisieAttribution: 25000,
-      mainLevee: 15000,
-      procuration: 5000,
-      successionFrais: 50000,
-      successionCommission: 0.5,
-      avoirInactif: 10000,
-      fraisInactivite: 5000,
+      coffrePetit: 0,
+      coffreMoyen: 0,
+      coffreGrand: 0,
+      assuranceCompte: 0,
+      garantieBancaire: 0,
+      garantieLocative: 0,
+      cautionMarche: 0,
+      lettreInjonction: 0,
+      saisieAttribution: 0,
+      mainLevee: 0,
+      procuration: 0,
+      successionFrais: 0,
+      successionCommission: 0,
+      avoirInactif: 0,
+      fraisInactivite: 0,
       droitTimbre: 0,
-      tvaServices: 19.25,
+      tvaServices: 0,
     },
     customFees: [],
     documents: [],
   };
+}
+
+/**
+ * Deep-merge des conditions chargées depuis la base par-dessus le squelette
+ * vide. Garantit que toutes les sous-clés requises par le formulaire existent
+ * (sinon les <input> recevraient `undefined` et React jetterait un warning),
+ * tout en préservant CHAQUE champ saisi par l'utilisateur ou extrait du PDF.
+ *
+ * - Sections objet (tenueCompte, releves, …) : merge clé-à-clé
+ * - Tableaux (cartes, customFees, documents)  : copie de l'array DB tel quel
+ */
+function mergeBankConditions(
+  empty: FullBankConditions,
+  bankData: Partial<FullBankConditions> | null | undefined,
+): FullBankConditions {
+  if (!bankData) return empty;
+  const merged: FullBankConditions = { ...empty };
+  const objectSectionKeys: Array<keyof FullBankConditions> = [
+    'tenueCompte', 'ouvertureCompte', 'clotureCompte', 'releves',
+    'guichet', 'fraisCartes', 'virements', 'cheques', 'credits',
+    'ebanking', 'divers',
+  ];
+  for (const k of objectSectionKeys) {
+    const fromDb = bankData[k] as Record<string, unknown> | undefined;
+    if (fromDb && typeof fromDb === 'object') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (merged as any)[k] = { ...(empty[k] as object), ...fromDb };
+    }
+  }
+  if (Array.isArray(bankData.cartes))    merged.cartes    = bankData.cartes;
+  if (Array.isArray(bankData.customFees)) merged.customFees = bankData.customFees;
+  if (Array.isArray(bankData.documents))  merged.documents  = bankData.documents;
+  return merged;
 }
 
 export function BankConditionsModal({
@@ -618,7 +620,7 @@ export function BankConditionsModal({
   bank,
   onSaveConditions,
 }: BankConditionsModalProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('compte');
+  const [activeTab, setActiveTab] = useState<TabId>('documents');
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionReport, setExtractionReport] = useState<ExtractionReport | null>(null);
@@ -644,8 +646,10 @@ export function BankConditionsModal({
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // État local pour les conditions éditables
-  const [conditions, setConditions] = useState<FullBankConditions>(getDefaultFullConditions());
+  // État local pour les conditions éditables — squelette vide à l'initialisation.
+  // Les valeurs réelles sont chargées dans le useEffect ci-dessous, soit depuis
+  // bank.conditions (import PDF / saisie précédente), soit zéro partout.
+  const [conditions, setConditions] = useState<FullBankConditions>(getEmptyFullConditions());
 
   // ⚠ Approche définitive : la baseline est un state, le dirty flag est
   // computed à chaque render via useMemo. Aucun useEffect, aucun
@@ -661,16 +665,15 @@ export function BankConditionsModal({
     if (lastInitBankIdRef.current === bank.id) return;
     lastInitBankIdRef.current = bank.id;
 
-    let initial: FullBankConditions;
-    if (bank.conditions) {
-      initial = {
-        ...getDefaultFullConditions(),
-        ...bank.conditions,
-        documents: bank.conditions.documents || [],
-      } as FullBankConditions;
-    } else {
-      initial = getDefaultFullConditions();
-    }
+    // Le squelette vide définit la STRUCTURE attendue par le formulaire.
+    // bank.conditions (= données réelles importées ou saisies) est mergé
+    // par-dessus, section par section, pour qu'aucune sous-clé ne soit
+    // `undefined`. Pas de valeurs hardcodées : si la banque n'a pas de
+    // données, tous les frais s'affichent à 0 et l'utilisateur les remplit.
+    const initial = mergeBankConditions(
+      getEmptyFullConditions(),
+      bank.conditions as Partial<FullBankConditions> | null | undefined,
+    );
     setConditions(initial);
     setBaseline(serializeForDiff(initial));
   }, [bank, isOpen]);

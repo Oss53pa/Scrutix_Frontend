@@ -5,7 +5,7 @@
       "gh-pages": false
     }
   },
-  "ignoreCommand": "bash scripts/vercel-ignore.sh",
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"gh-pages\" ]; then exit 0; else exit 1; fi",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
