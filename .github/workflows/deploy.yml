@@ -48,4 +48,9 @@ jobs:
           publish_dir: ./dist
           publish_branch: gh-pages
           force_orphan: true
-          commit_message: 'deploy: ${{ github.event.head_commit.message }}'
+          # [skip ci] tells Vercel (and any other CI watching gh-pages)
+          # to not trigger a build on this commit. gh-pages contains only
+          # the pre-built dist/ output — no Vite, no package.json — so a
+          # downstream Vercel build would always fail with "vite: command
+          # not found".
+          commit_message: '[skip ci] deploy: ${{ github.event.head_commit.message }}'
