@@ -33,13 +33,17 @@ export async function createGeneratedReport(args: {
   const sb = getSupabaseClient();
   if (!sb) throw new Error('Supabase non configuré');
 
+  const { data: { user } = {} } = await sb.auth.getUser();
+
   const { data, error } = await sb
     .schema('atlasbanx' as never)
     .from('generated_reports' as never)
     .insert({
+      user_id: user?.id,
       client_id: args.clientId,
+      client_name: args.title ?? 'Client',
       title: args.title ?? `Rapport ${args.template}`,
-      type: args.template,
+      type: args.template === 'valeur_probante' ? 'detailed' : args.template === 'export' ? 'summary' : 'audit',
       format: 'pdf',
       anomaly_count: args.anomalyCount,
       total_amount: args.totalAmountCentimes / 100,
