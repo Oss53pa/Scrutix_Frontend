@@ -4,6 +4,13 @@
 // Embarque le moteur d'analyse (19 detecteurs + WorkerPool) directement
 // dans la page releve. Affiche la progression, les resultats et permet
 // de relancer l'analyse.
+//
+// ⚠ INVARIANT : le compteur user-facing affiché ici est TOUJOURS le nombre
+//   d'anomalies persistees dans Supabase (= identique a l'onglet Anomalies
+//   et au header de la page). Les detecteurs client-side produisent des
+//   signaux bruts (souvent plus nombreux) qui ne sont pas exposes a l'audit
+//   tant qu'ils n'ont pas ete qualifies / persistes. Le nombre brut est
+//   affiche uniquement comme info diagnostique « X signaux bruts ».
 // ============================================================================
 
 import { useState } from 'react';
@@ -15,25 +22,58 @@ import {
   AlertTriangle,
   Clock,
   Cpu,
+  Info,
 } from 'lucide-react';
-import type { BankTransaction } from '../types/statement.types';
+import type { BankTransaction, Anomaly } from '../types/statement.types';
 import { useStatementAnalysis } from '../hooks/useStatementAnalysis';
+import { computeRiskScore } from '../utils/riskScore';
 
 interface AnalysisTabProps {
   statementId: string;
   bankTxs: BankTransaction[];
   meta?: { clientId: string; accountNumber: string; bankCode: string };
   statementStatus: string;
+  /** Anomalies réellement persistees (source de vérité pour les chiffres user-facing). */
+  persistedAnomalies?: Anomaly[];
+  /** Permet de rafraichir la liste persistee après une relance. */
+  onRefreshPersisted?: () => Promise<void> | void;
 }
 
-export function AnalysisTab({ statementId, bankTxs, meta, statementStatus }: AnalysisTabProps) {
+export function AnalysisTab({
+  statementId,
+  bankTxs,
+  meta,
+  statementStatus,
+  persistedAnomalies = [],
+  onRefreshPersisted,
+}: AnalysisTabProps) {
   const analysis = useStatementAnalysis(statementId, meta);
   const [hasRun, setHasRun] = useState(statementStatus === 'analyzed' || statementStatus === 'imported');
 
   const handleRun = async () => {
     await analysis.run(bankTxs);
     setHasRun(true);
+    // Recharge la liste persistee pour synchroniser les compteurs partout.
+    if (onRefreshPersisted) await onRefreshPersisted();
   };
+
+  // ── Compteurs user-facing : TOUJOURS les anomalies persistees ──────────────
+  // Garantit que ce panneau, le header (score) et l'onglet Anomalies
+  // affichent le MEME chiffre.
+  const persistedActive = persistedAnomalies.filter(
+    (a) => a.status !== 'closed' && a.status !== 'false_positive',
+  );
+  const persistedBySev = {
+    critical: persistedActive.filter((a) => a.severity === 'critical').length,
+    high:     persistedActive.filter((a) => a.severity === 'high').length,
+    medium:   persistedActive.filter((a) => a.severity === 'medium').length,
+    low:      persistedActive.filter((a) => a.severity === 'low').length,
+  };
+  const persistedScore = computeRiskScore(persistedAnomalies);
+
+  // Le nombre brut detecte (avant deduplication / qualification) sert
+  // uniquement à l'auditeur curieux. Pas un chiffre operationnel.
+  const rawDetectedCount = analysis.summary?.totalAnomalies ?? null;
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
@@ -123,27 +163,69 @@ export function AnalysisTab({ statementId, bankTxs, meta, statementStatus }: Ana
               </div>
             </div>
 
-            {/* Summary card */}
-            {analysis.summary && (
-              <div className="bg-canvas-50 border border-canvas-200 rounded-lg p-3 mb-4">
-                <div className="flex items-center gap-2 mb-2">
+            {/* ── Summary card — ANOMALIES PERSISTEES (chiffre officiel) ──── */}
+            <div className={`border rounded-lg p-3 mb-4 ${
+              persistedBySev.critical > 0 ? 'bg-rose-50/60 border-rose-200' :
+              persistedActive.length > 0   ? 'bg-amber-50/60 border-amber-200' :
+                                              'bg-emerald-50/60 border-emerald-200'
+            }`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    analysis.summary.status === 'CRITICAL' ? 'bg-rose-100 text-rose-700' :
-                    analysis.summary.status === 'WARNING' ? 'bg-amber-100 text-amber-700' :
-                    'bg-emerald-100 text-emerald-700'
-                  }`}>{analysis.summary.status}</span>
-                  <span className="text-sm font-medium text-ink-900">
-                    {analysis.summary.totalAnomalies} anomalie{analysis.summary.totalAnomalies > 1 ? 's' : ''} detectee{analysis.summary.totalAnomalies > 1 ? 's' : ''}
+                    persistedBySev.critical > 0 ? 'bg-rose-100 text-rose-700' :
+                    persistedActive.length > 0  ? 'bg-amber-100 text-amber-700' :
+                                                   'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {persistedBySev.critical > 0 ? 'CRITICAL' :
+                     persistedActive.length > 0  ? 'WARNING' : 'OK'}
                   </span>
+                  <span className="text-sm font-medium text-ink-900">
+                    {persistedActive.length} anomalie{persistedActive.length > 1 ? 's' : ''} detectee{persistedActive.length > 1 ? 's' : ''}
+                  </span>
+                  <span className="text-xs text-ink-500">· score {persistedScore}/100</span>
                 </div>
-                <p className="text-xs text-ink-600">{analysis.summary.message}</p>
-                {analysis.summary.keyFindings.length > 0 && (
-                  <ul className="mt-2 space-y-0.5">
-                    {analysis.summary.keyFindings.map((f, i) => (
-                      <li key={i} className="text-xs text-ink-500">• {f}</li>
-                    ))}
-                  </ul>
-                )}
+              </div>
+              {persistedActive.length > 0 && (
+                <ul className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-0.5">
+                  {persistedBySev.critical > 0 && (
+                    <li className="text-xs text-rose-700">
+                      <strong>{persistedBySev.critical}</strong> critique{persistedBySev.critical > 1 ? 's' : ''}
+                    </li>
+                  )}
+                  {persistedBySev.high > 0 && (
+                    <li className="text-xs text-amber-700">
+                      <strong>{persistedBySev.high}</strong> haute{persistedBySev.high > 1 ? 's' : ''}
+                    </li>
+                  )}
+                  {persistedBySev.medium > 0 && (
+                    <li className="text-xs text-amber-600">
+                      <strong>{persistedBySev.medium}</strong> moyenne{persistedBySev.medium > 1 ? 's' : ''}
+                    </li>
+                  )}
+                  {persistedBySev.low > 0 && (
+                    <li className="text-xs text-ink-500">
+                      <strong>{persistedBySev.low}</strong> faible{persistedBySev.low > 1 ? 's' : ''}
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+
+            {/* ── Note diagnostique — signaux bruts (info uniquement) ──────── */}
+            {rawDetectedCount !== null && rawDetectedCount !== persistedActive.length && (
+              <div className="bg-canvas-50 border border-canvas-200 rounded-lg p-3 mb-4 flex items-start gap-2">
+                <Info className="w-4 h-4 text-ink-500 shrink-0 mt-0.5" />
+                <div className="text-xs text-ink-600">
+                  <p>
+                    <strong>{rawDetectedCount} signaux bruts</strong> ont ete leves par les 19 detecteurs,
+                    dont <strong>{persistedActive.length}</strong> ont ete consolides comme anomalies actionnables
+                    (apres deduplication, seuils de severite et qualification).
+                  </p>
+                  <p className="mt-1 text-ink-500">
+                    Les signaux non consolides restent visibles dans la trace audit mais ne pesent
+                    pas sur le score de risque.
+                  </p>
+                </div>
               </div>
             )}
 

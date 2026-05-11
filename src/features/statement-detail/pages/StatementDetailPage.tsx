@@ -212,6 +212,8 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             bankTxs={reconH.bankTxs}
             meta={analysisMeta}
             statementStatus={meta.status}
+            persistedAnomalies={anomaliesH.anomalies}
+            onRefreshPersisted={anomaliesH.refresh}
           />
         )}
 

@@ -8,6 +8,7 @@
 
 import { Sparkles, RefreshCw, AlertTriangle, ListChecks } from 'lucide-react';
 import type { Anomaly } from '../types/statement.types';
+import { computeRiskScore } from '../utils/riskScore';
 
 interface StatementStatusBannerProps {
   status: 'pending' | 'analyzed' | string;
@@ -25,7 +26,7 @@ export function StatementStatusBanner(props: StatementStatusBannerProps) {
   }
   return (
     <AnalyzedBanner
-      riskScore={props.riskScore ?? deriveScore(props.anomalies)}
+      riskScore={props.riskScore ?? computeRiskScore(props.anomalies)}
       anomalies={props.anomalies}
       onSeeAnomalies={props.onSeeAnomalies}
       onRefreshAnalysis={props.onRefreshAnalysis}
@@ -138,17 +139,6 @@ function AnalyzedBanner({
 // ============================================================================
 // Helpers
 // ============================================================================
-
-function deriveScore(anomalies: Anomaly[]): number {
-  // Heuristique simple : 100 - 25 par critique - 12 par high - 6 par medium - 2 par low
-  const w = { critical: 25, high: 12, medium: 6, low: 2 } as const;
-  let s = 100;
-  for (const a of anomalies) {
-    if (a.status === 'false_positive' || a.status === 'closed') continue;
-    s -= w[a.severity];
-  }
-  return Math.max(0, Math.min(100, s));
-}
 
 function buildSummary(anomalies: Anomaly[]): string {
   if (anomalies.length === 0) return 'Aucune anomalie détectée — relevé conforme.';

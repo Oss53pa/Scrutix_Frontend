@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { FileText, CheckCircle2, Pencil, Eye } from 'lucide-react';
 import { ReportOptions } from './ReportOptions';
 import type { SignedReport, Anomaly, BankReconciliation } from '../../types/statement.types';
+import { computeRiskScore } from '../../utils/riskScore';
 
 export interface ReportPreviewProps {
   report: SignedReport;
@@ -99,8 +100,9 @@ function ReportDocument({ report, statement, anomalies, reconciliation, cabinet,
   const lows = anomalies.filter((a) => a.severity === 'low');
   const totalRecovery = anomalies.reduce((s, a) => s + (a.potentialRecoveryCentimes ?? 0), 0);
 
-  const score = anomalies.length === 0 ? 100
-    : Math.max(0, 100 - criticals.length * 25 - highs.length * 15 - mediums.length * 8 - lows.length * 3);
+  // Score calculé via le helper centralisé (mêmes pondérations partout dans
+  // l'app : header de la page relevé, ce rapport, exports comptables, etc.).
+  const score = computeRiskScore(anomalies);
 
   const periodLabel = statement
     ? `${fmtDate(statement.period.start)} au ${fmtDate(statement.period.end)}`
@@ -176,30 +178,54 @@ function ReportDocument({ report, statement, anomalies, reconciliation, cabinet,
           {anomalies.length === 0 ? (
             <p className="italic text-ink-500">Aucune anomalie detectee.</p>
           ) : (
-            <table className="w-full text-xs border-collapse mt-2">
-              <thead>
-                <tr className="border-b border-ink-200 text-left">
-                  <th className="py-1 pr-2 font-semibold">Severite</th>
-                  <th className="py-1 pr-2 font-semibold">Type</th>
-                  <th className="py-1 pr-2 font-semibold">Description</th>
-                  <th className="py-1 text-right font-semibold">Montant</th>
-                </tr>
-              </thead>
-              <tbody>
-                {anomalies.map((a) => (
-                  <tr key={a.id} className="border-b border-canvas-100">
-                    <td className="py-1.5 pr-2">
-                      <SeverityDot severity={a.severity} />
+            <>
+              <table className="w-full text-xs border-collapse mt-2">
+                <thead>
+                  <tr className="border-b border-ink-200 text-left">
+                    <th className="py-1 pr-2 font-semibold">Severite</th>
+                    <th className="py-1 pr-2 font-semibold">Type</th>
+                    <th className="py-1 pr-2 font-semibold">Description</th>
+                    <th className="py-1 pr-2 text-right font-semibold">Transaction</th>
+                    <th className="py-1 text-right font-semibold">Recuperable</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {anomalies.map((a) => {
+                    const txAmount = Math.abs(a.transaction.amountCentimes);
+                    const recovery = a.potentialRecoveryCentimes ?? 0;
+                    return (
+                      <tr key={a.id} className="border-b border-canvas-100">
+                        <td className="py-1.5 pr-2">
+                          <SeverityDot severity={a.severity} />
+                        </td>
+                        <td className="py-1.5 pr-2">{a.type}</td>
+                        <td className="py-1.5 pr-2">{a.title}</td>
+                        <td className="py-1.5 pr-2 text-right font-mono text-ink-500">
+                          {fcfa(txAmount)} FCFA
+                        </td>
+                        <td className="py-1.5 text-right font-mono font-semibold text-ink-900">
+                          {recovery > 0 ? `${fcfa(recovery)} FCFA` : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Ligne de totaux pour rappeler la convention */}
+                  <tr className="border-t-2 border-ink-300 font-semibold">
+                    <td className="py-1.5 pr-2" colSpan={3}>Total</td>
+                    <td className="py-1.5 pr-2 text-right font-mono text-ink-500">
+                      {fcfa(anomalies.reduce((s, a) => s + Math.abs(a.transaction.amountCentimes), 0))} FCFA
                     </td>
-                    <td className="py-1.5 pr-2">{a.type}</td>
-                    <td className="py-1.5 pr-2">{a.title}</td>
-                    <td className="py-1.5 text-right font-mono">
-                      {fcfa(Math.abs(a.transaction.amountCentimes))} FCFA
+                    <td className="py-1.5 text-right font-mono text-ink-900">
+                      {fcfa(totalRecovery)} FCFA
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+              <p className="text-[10px] text-ink-500 mt-2 italic">
+                « Transaction » = montant total de l'operation signalee. « Recuperable » = part jugee
+                indue (sur-facturation, doublon, frais sans contrepartie) reclamable a la banque.
+              </p>
+            </>
           )}
         </ReportSection>
 
