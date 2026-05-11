@@ -325,8 +325,8 @@ export const useBankStore = create<BankState>()(
       updateConditions: (bankId, updates) => {
         set((state) => ({
           banks: state.banks.map((b) =>
-            b.id === bankId && b.conditions
-              ? { ...b, conditions: { ...b.conditions, ...updates }, updatedAt: new Date() }
+            b.id === bankId
+              ? { ...b, conditions: { ...(b.conditions ?? {}), ...updates } as typeof b.conditions, updatedAt: new Date() }
               : b
           ),
         }));
