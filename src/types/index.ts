@@ -500,6 +500,8 @@ export interface ArchivedDocument {
   fileData: string; // Base64 encoded PDF
   fileSize: number;
   extractedAt?: Date;
+  /** Valeurs extraites du document (cles = chemins du formulaire, valeurs = montants/taux). */
+  extractedValues?: Record<string, number | string | boolean | null>;
   isActive: boolean;
 }
 

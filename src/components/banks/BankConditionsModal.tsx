@@ -883,6 +883,16 @@ export function BankConditionsModal({
       });
       setExtractionReport(report);
 
+      // Collect extracted values from the report to store on the document
+      const legacyValues: Record<string, number | string | boolean | null> = {};
+      if (report.success) {
+        for (const [key, field] of Object.entries(report.fields)) {
+          if (field.value !== null && field.value !== undefined) {
+            legacyValues[key] = field.value as number | string | boolean;
+          }
+        }
+      }
+
       const document: ArchivedDocument = {
         id: `doc-${Date.now()}`,
         name: file.name,
@@ -892,6 +902,7 @@ export function BankConditionsModal({
         fileData: base64,
         fileSize: file.size,
         extractedAt: report.success && report.stats.extracted > 0 ? new Date() : undefined,
+        extractedValues: Object.keys(legacyValues).length > 0 ? legacyValues : undefined,
         isActive: true,
       };
 
@@ -951,6 +962,7 @@ export function BankConditionsModal({
         fileData: base64,
         fileSize: file.size,
         extractedAt: new Date(),
+        extractedValues: mappedCount > 0 ? values : undefined,
         isActive: true,
       };
       setConditions(prev => ({
@@ -2179,9 +2191,12 @@ export function BankConditionsModal({
                 />
               )}
 
-              {/* Liste des documents */}
+              {/* Liste des documents avec selection "en vigueur" */}
               <div>
-                <h3 className="font-semibold text-primary-900 mb-4">Documents archivés</h3>
+                <h3 className="font-semibold text-primary-900 mb-2">Documents archivés</h3>
+                <p className="text-xs text-primary-500 mb-4">
+                  Cochez un document pour l'appliquer comme conditions en vigueur. Le formulaire se met à jour automatiquement.
+                </p>
                 {conditions.documents.length === 0 ? (
                   <div className="text-center py-8 text-primary-500">
                     <FileUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -2189,36 +2204,74 @@ export function BankConditionsModal({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {conditions.documents.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 bg-primary-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <FileText className="w-5 h-5 text-primary-600" />
-                          <div>
-                            <p className="font-medium text-primary-900">{doc.name}</p>
-                            <p className="text-xs text-primary-500">
-                              {new Date(doc.uploadDate).toLocaleDateString('fr-FR')} •{' '}
-                              {(doc.fileSize / 1024).toFixed(0)} Ko
-                              {doc.extractedAt && ' • Données extraites'}
-                            </p>
+                    {conditions.documents.map(doc => {
+                      const hasValues = doc.extractedValues && Object.keys(doc.extractedValues).length > 0;
+                      return (
+                        <div
+                          key={doc.id}
+                          className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                            doc.isActive
+                              ? 'bg-emerald-50 border-emerald-300'
+                              : 'bg-primary-50 border-primary-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={doc.isActive}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setConditions(prev => ({
+                                    ...prev,
+                                    documents: prev.documents.map(d =>
+                                      d.id === doc.id ? { ...d, isActive: checked } : d,
+                                    ),
+                                  }));
+                                  // Si on coche et qu'il y a des valeurs extraites, les appliquer
+                                  if (checked && doc.extractedValues && Object.keys(doc.extractedValues).length > 0) {
+                                    handleApplyExtraction(doc.extractedValues as Record<string, number | string | boolean | null>);
+                                  }
+                                  setHasChanges(true);
+                                }}
+                                className="accent-emerald-600 w-4 h-4"
+                              />
+                              <FileText className={`w-5 h-5 ${doc.isActive ? 'text-emerald-600' : 'text-primary-600'}`} />
+                            </label>
+                            <div>
+                              <p className="font-medium text-primary-900">{doc.name}</p>
+                              <p className="text-xs text-primary-500">
+                                {new Date(doc.uploadDate).toLocaleDateString('fr-FR')} •{' '}
+                                {(doc.fileSize / 1024).toFixed(0)} Ko
+                                {doc.extractedAt && ` • ${hasValues ? Object.keys(doc.extractedValues!).length + ' champs extraits' : 'Données extraites'}`}
+                              </p>
+                              {doc.isActive && (
+                                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
+                                  ✓ En vigueur
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={doc.fileData}
+                              download={doc.name}
+                              className="p-2 text-primary-600 hover:bg-primary-100 rounded"
+                              title="Télécharger"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </a>
+                            <button
+                              onClick={() => removeDocument(doc.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={doc.fileData}
-                            download={doc.name}
-                            className="p-2 text-primary-600 hover:bg-primary-100 rounded"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </a>
-                          <button
-                            onClick={() => removeDocument(doc.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
