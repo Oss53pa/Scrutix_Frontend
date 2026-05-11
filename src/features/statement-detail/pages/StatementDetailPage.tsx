@@ -285,6 +285,8 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
               role: role ?? 'consultation',
             }}
             generatedReport={reportH.generatedReport}
+            loading={reportH.loading}
+            error={reportH.error}
             onGenerateReport={(t) => void reportH.generateReport(t)}
             onSignAndSend={async (args) => { await reportH.signAndSend(args); }}
             onGenerateComplaintLetter={(ids) => void reportH.generateComplaintLetter(ids)}

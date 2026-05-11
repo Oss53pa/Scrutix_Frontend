@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { useState } from 'react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import type {
   Anomaly,
   AccountConvention,
@@ -39,6 +40,8 @@ interface ReportTabProps {
   currentUser: { handle: string; displayName: string; role: 'dg' | 'senior' | 'junior' | 'consultation' };
   cabinet: { name: string; addressLines: string[] };
   generatedReport?: SignedReport | null;
+  loading?: boolean;
+  error?: string | null;
   onGenerateReport?: (template: ReportTemplate) => void;
   onSignAndSend?: (args: {
     reportId: string;
@@ -61,6 +64,36 @@ export function ReportTab(props: ReportTabProps) {
           props.onGenerateReport?.(t);
         }}
       />
+
+      {/* Loading state pendant la génération */}
+      {chosenTemplate && props.loading && !props.generatedReport && (
+        <div className="bg-white border border-canvas-200 rounded-lg p-6 flex items-center gap-3 text-sm text-ink-700">
+          <Loader2 className="w-4 h-4 animate-spin text-amber-700" />
+          <div>
+            <div className="font-semibold">Génération du rapport en cours…</div>
+            <div className="text-xs text-ink-500 mt-0.5">
+              Edge Function <code className="font-mono">generate-report</code> · jsPDF + Storage upload
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Erreur de génération — toujours visible si présente */}
+      {props.error && (
+        <div className="bg-rose-50 border border-rose-200 rounded-lg p-4 flex items-start gap-3 text-sm">
+          <AlertTriangle className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-rose-900">Erreur lors de la génération</div>
+            <div className="font-mono text-[11px] text-rose-800 mt-1 break-all">{props.error}</div>
+            <div className="text-xs text-rose-800 mt-2">
+              La preview ci-dessous est affichée en mode dégradé (HTML)
+              pour permettre la suite du flux. Vérifie les logs de l'Edge
+              Function <code className="font-mono">generate-report</code> côté Supabase
+              si tu attendais un PDF complet.
+            </div>
+          </div>
+        </div>
+      )}
 
       {chosenTemplate && props.generatedReport && (
         <ReportPreview report={props.generatedReport} />
