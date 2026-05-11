@@ -17,6 +17,7 @@ interface ProphetDrawerProps {
   contextLabel: string;
   suggestions: string[];
   messages: ProphetMessageType[];
+  isDeterministic?: boolean;
   onAsk: (question: string) => Promise<ProphetMessageType>;
   onCitationClick?: (c: ProphetCitation) => void;
   onOpenHistory?: () => void;
@@ -91,7 +92,14 @@ export function ProphetDrawer(props: ProphetDrawerProps) {
           <span className="text-sm font-semibold text-ink-900">PROPH3T</span>
           <span className="text-xs text-ink-500">· copilote</span>
         </div>
-        <div className="text-[10px] text-ink-500 mt-0.5">Contexte : {contextLabel}</div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] text-ink-500">Contexte : {contextLabel}</span>
+          {props.isDeterministic && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
+              Mode deterministe
+            </span>
+          )}
+        </div>
       </div>
 
       <div ref={scrollerRef} className="flex-1 overflow-y-auto p-3 space-y-3">

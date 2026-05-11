@@ -300,6 +300,7 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
         contextLabel={prophet.contextLabel}
         suggestions={MOCK_PROPHET_SUGGESTIONS}
         messages={prophet.messages}
+        isDeterministic={prophet.isDeterministic}
         onAsk={prophet.ask}
       />
 
