@@ -659,7 +659,10 @@ export function BankConditionsModal({
 
   useEffect(() => {
     if (!isOpen || !bank) {
-      if (!isOpen) lastInitBankIdRef.current = null;
+      if (!isOpen) {
+        lastInitBankIdRef.current = null;
+        setBaseline('');
+      }
       return;
     }
     if (lastInitBankIdRef.current === bank.id) return;
@@ -679,10 +682,17 @@ export function BankConditionsModal({
   }, [bank, isOpen]);
 
   // hasChanges est COMPUTED, pas un state. Rien ne peut l'écraser.
+  // Si baseline est vide (modale jamais initialisée), on considère qu'il
+  // y a des changements dès que conditions n'est pas le squelette vide
+  // — sinon le bouton Enregistrer reste bloqué à jamais.
   const hasChanges = useMemo(() => {
     if (!isOpen || !bank) return false;
-    if (!baseline) return false;
-    return serializeForDiff(conditions) !== baseline;
+    const current = serializeForDiff(conditions);
+    if (!baseline) {
+      // Baseline pas encore défini — comparer au squelette vide
+      return current !== serializeForDiff(getEmptyFullConditions());
+    }
+    return current !== baseline;
   }, [conditions, baseline, isOpen, bank]);
 
   // Diagnostic — expose state to window for debugging.
