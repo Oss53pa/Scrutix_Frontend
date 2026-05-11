@@ -283,6 +283,7 @@ export const useBankStore = create<BankState>()(
         set((state) => ({
           banks: [...state.banks, bank],
         }));
+        persistBank(bank);
         return bank;
       },
 
@@ -292,6 +293,7 @@ export const useBankStore = create<BankState>()(
             b.id === id ? { ...b, ...updates, updatedAt: new Date() } : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === id));
       },
 
       deleteBank: (id) => {
@@ -320,6 +322,7 @@ export const useBankStore = create<BankState>()(
             b.id === bankId ? { ...b, conditions, updatedAt: new Date() } : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       updateConditions: (bankId, updates) => {
@@ -330,6 +333,10 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        // Persist en arrière-plan vers Supabase : indispensable pour que les
+        // données saisies dans BankConditionsModal soient réellement
+        // sauvegardées et rechargées sur d'autres sessions/devices.
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       addFee: (bankId, fee) => {
@@ -347,6 +354,7 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       updateFee: (bankId, feeCode, updates) => {
@@ -366,6 +374,7 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       removeFee: (bankId, feeCode) => {
@@ -383,6 +392,7 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       addInterestRate: (bankId, rate) => {
@@ -400,6 +410,7 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       updateInterestRate: (bankId, rateType, updates) => {
@@ -419,6 +430,7 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       removeInterestRate: (bankId, rateType) => {
@@ -436,6 +448,7 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       addDocument: (bankId, document) => {
@@ -467,6 +480,7 @@ export const useBankStore = create<BankState>()(
             };
           }),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       removeDocument: (bankId, documentId) => {
@@ -484,6 +498,7 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       setDocumentActive: (bankId, documentId, isActive) => {
@@ -503,6 +518,7 @@ export const useBankStore = create<BankState>()(
               : b
           ),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       // ============================================
@@ -538,6 +554,7 @@ export const useBankStore = create<BankState>()(
             };
           }),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
 
         return grid;
       },
@@ -564,6 +581,7 @@ export const useBankStore = create<BankState>()(
             };
           }),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       archiveConditionGrid: (bankId, gridId) => {
@@ -599,6 +617,7 @@ export const useBankStore = create<BankState>()(
             };
           }),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       deleteConditionGrid: (bankId, gridId) => {
@@ -628,6 +647,7 @@ export const useBankStore = create<BankState>()(
             };
           }),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       setActiveGrid: (bankId, gridId) => {
@@ -657,6 +677,7 @@ export const useBankStore = create<BankState>()(
             };
           }),
         }));
+        persistBank(get().banks.find((b) => b.id === bankId));
       },
 
       getGridForDate: (bankId, date) => {
