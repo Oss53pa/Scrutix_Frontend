@@ -96,7 +96,13 @@ export function ReportTab(props: ReportTabProps) {
       )}
 
       {chosenTemplate && props.generatedReport && (
-        <ReportPreview report={props.generatedReport} />
+        <ReportPreview
+          report={props.generatedReport}
+          statement={props.statement}
+          anomalies={props.anomalies}
+          reconciliation={props.reconciliation}
+          cabinet={props.cabinet}
+        />
       )}
 
       {chosenTemplate && props.generatedReport && (
