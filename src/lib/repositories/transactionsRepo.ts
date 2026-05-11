@@ -49,18 +49,52 @@ export const transactionsRepo = {
   /**
    * Bulk insert transactions (used during statement import).
    * Chunks to keep requests under the Supabase payload limit.
+   *
+   * Si `accountId` n'est pas fourni explicitement, on résout automatiquement
+   * la FK pour CHAQUE transaction en groupant par (bank_code, account_number)
+   * et en interrogeant atlasbanx.bank_accounts. Sans cette résolution, les
+   * transactions seraient orphelines et n'apparaîtraient dans aucune vue
+   * filtrée par account_id (page relevé, reconciliation, agios…).
    */
   async bulkInsert(
     userId: string,
     clientId: string,
     transactions: Transaction[],
+    accountId?: string | null,
   ): Promise<void> {
     if (transactions.length === 0) return;
     const supabase = requireClient();
 
+    // Résolution automatique : map (bank_code|account_number) -> account_id
+    const accountIdByKey = new Map<string, string>();
+    if (!accountId) {
+      const pairs = new Set<string>();
+      for (const t of transactions) {
+        if (t.bankCode && t.accountNumber) {
+          pairs.add(`${t.bankCode}|${t.accountNumber.trim()}`);
+        }
+      }
+      if (pairs.size > 0) {
+        const { data: accounts } = await supabase
+          .schema(SCHEMA)
+          .from('bank_accounts')
+          .select('id, bank_code, account_number')
+          .eq('user_id', userId);
+        for (const row of (accounts ?? []) as Array<{ id: string; bank_code: string; account_number: string }>) {
+          const key = `${row.bank_code}|${row.account_number.trim()}`;
+          if (pairs.has(key)) accountIdByKey.set(key, row.id);
+        }
+      }
+    }
+
     for (let i = 0; i < transactions.length; i += INSERT_BATCH_SIZE) {
       const batch = transactions.slice(i, i + INSERT_BATCH_SIZE);
-      const payload = batch.map((t) => transactionToDb(t, userId, clientId));
+      const payload = batch.map((t) => {
+        const resolved = accountId
+          ?? accountIdByKey.get(`${t.bankCode}|${(t.accountNumber ?? '').trim()}`)
+          ?? null;
+        return transactionToDb(t, userId, clientId, resolved);
+      });
       const { error } = await supabase.schema(SCHEMA).from('transactions').insert(payload);
       if (error) throw error;
     }

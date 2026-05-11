@@ -217,12 +217,16 @@ export function transactionToDb(
   transaction: Transaction,
   userId: string,
   clientId?: string,
+  accountId?: string | null,
 ): DbTransactionInsert {
   return {
     id: transaction.id,
     user_id: userId,
     client_id: clientId ?? transaction.clientId,
-    account_id: null,
+    // ⚠️ Important : la FK account_id DOIT être renseignée pour que les
+    // requêtes filtrées par account_id (page relevé, reconciliation…)
+    // remontent les transactions. Sinon elles deviennent orphelines.
+    account_id: accountId ?? null,
     account_number: transaction.accountNumber || null,
     bank_code: transaction.bankCode,
     bank_name: transaction.bankName ?? null,

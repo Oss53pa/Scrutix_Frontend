@@ -118,6 +118,7 @@ export async function loadTransactions(
   const sb = getSupabaseClient();
   if (!sb) throw new Error('Supabase non configuré');
 
+  // 1. Première tentative : filtrage strict par account_id (FK uuid)
   let q = sb
     .schema('atlasbanx' as never)
     .from('transactions' as never)
@@ -133,7 +134,46 @@ export async function loadTransactions(
   const { data, error } = await q;
   if (error) throw new Error(`Erreur transactions: ${error.message}`);
 
-  return (data ?? []).map(mapTransactionRow);
+  if (data && data.length > 0) return data.map(mapTransactionRow);
+
+  // 2. Fallback : si aucune transaction n'a account_id renseigné (data legacy
+  // ou import qui n'a pas réassocié la FK), on tente par account_number +
+  // bank_code lus depuis le bank_account parent.
+  //
+  // Ce fallback résout le bug "Aucune transaction ne correspond" sur les
+  // statements importés avant le fix d'association account_id.
+  const { data: acc } = await sb
+    .schema('atlasbanx' as never)
+    .from('bank_accounts' as never)
+    .select('account_number, bank_code')
+    .eq('id', accountId)
+    .single();
+  const accountNumber = (acc as { account_number?: string } | null)?.account_number;
+  const bankCode = (acc as { bank_code?: string } | null)?.bank_code;
+  if (!accountNumber || !bankCode) return [];
+
+  // Match par account_number (TRIM pour absorber les espaces parasites
+  // observés en prod, type ' 01281-86315802001-03')
+  let fallback = sb
+    .schema('atlasbanx' as never)
+    .from('transactions' as never)
+    .select('*')
+    .eq('bank_code', bankCode)
+    .order('date', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (opts.from) fallback = fallback.gte('date', opts.from);
+  if (opts.to)   fallback = fallback.lte('date', opts.to);
+  if (opts.limit) fallback = fallback.limit(opts.limit);
+
+  const { data: byBank, error: fbErr } = await fallback;
+  if (fbErr) return [];
+
+  const trimmed = accountNumber.trim();
+  const matched = (byBank ?? []).filter((row) => {
+    const r = row as { account_number?: string };
+    return typeof r.account_number === 'string' && r.account_number.trim() === trimmed;
+  });
+  return matched.map(mapTransactionRow);
 }
 
 // ============================================================================
