@@ -504,7 +504,7 @@ function buildToc(
       { number: '1.', label: 'Écritures de redressement', anchor: 'section-1' },
     ];
     if (!isSyn) items.push({ number: '2.', label: 'Mapping plan comptable', anchor: 'section-2' });
-    if (isExh)  items.push({ number: '3.', label: 'Données structurées (JSON/CSV)', anchor: 'section-3' });
+    if (isExh)  items.push({ number: '3.', label: 'Totaux par compte SYSCOHADA', anchor: 'section-3' });
     return items;
   }
 

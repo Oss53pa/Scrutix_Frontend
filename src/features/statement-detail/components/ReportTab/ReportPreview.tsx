@@ -585,27 +585,56 @@ export function ExportComptableDocument({ report, statement, anomalies, cabinet,
           </ReportSection>
         )}
 
-        {/* === 3. Format exportable === */}
-        {isExhaustif && (
-          <ReportSection title="3. Données structurées (JSON / CSV)" editable={false}>
-            <pre className="bg-canvas-50 border border-canvas-200 rounded p-2 text-[10px] overflow-x-auto font-mono">
-{JSON.stringify({
-  statement_id: report.statementId,
-  period: statement?.period,
-  anomalies: anomalies.slice(0, 3).map((a) => ({
-    type: a.type,
-    severity: a.severity,
-    syscohada_account: SYSCOHADA_MAP[a.type] ?? '486000',
-    recovery_centimes: a.potentialRecoveryCentimes ?? 0,
-  })),
-  total_recovery_centimes: anomalies.reduce((s, a) => s + (a.potentialRecoveryCentimes ?? 0), 0),
-}, null, 2)}
-            </pre>
-            <p className="mt-2 text-[10px] text-ink-500 italic">
-              Format identique à celui qui sera téléchargé en Excel / JSON.
-            </p>
-          </ReportSection>
-        )}
+        {/* === 3. Totaux par compte SYSCOHADA — utile pour vérifier
+                  l'équilibre débit/crédit avant import en compta. === */}
+        {isExhaustif && (() => {
+          // Agrège les montants récupérables par compte SYSCOHADA cible.
+          const byAccount = new Map<string, number>();
+          for (const a of anomalies) {
+            const compte = SYSCOHADA_MAP[a.type] ?? '486000 — Comptes d\'attente';
+            const cur = byAccount.get(compte) ?? 0;
+            byAccount.set(compte, cur + (a.potentialRecoveryCentimes ?? 0));
+          }
+          const rows = Array.from(byAccount.entries())
+            .filter(([, amt]) => amt > 0)
+            .sort((a, b) => b[1] - a[1]);
+          const grandTotal = rows.reduce((s, [, amt]) => s + amt, 0);
+          return (
+            <ReportSection title="3. Totaux par compte SYSCOHADA" editable={editable}>
+              {rows.length === 0 ? (
+                <p className="italic text-ink-500 text-[11px]">Aucun montant à régulariser sur ce relevé.</p>
+              ) : (
+                <table className="w-full text-[11px] border-collapse mt-2">
+                  <thead>
+                    <tr className="border-b-2 border-ink-300 text-left bg-canvas-50">
+                      <th className="py-1 px-1.5 font-semibold">Compte</th>
+                      <th className="py-1 px-1.5 text-right font-semibold">Débit (FCFA)</th>
+                      <th className="py-1 px-1.5 text-right font-semibold">Crédit (FCFA)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(([compte, amt]) => (
+                      <tr key={compte} className="border-b border-canvas-100">
+                        <td className="py-1.5 px-1.5 font-mono text-[10px]">{compte}</td>
+                        <td className="py-1.5 px-1.5 text-right font-mono">{fcfa(amt)}</td>
+                        <td className="py-1.5 px-1.5 text-right font-mono">{fcfa(amt)}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-ink-300 font-semibold bg-canvas-50">
+                      <td className="py-1.5 px-1.5">Total général</td>
+                      <td className="py-1.5 px-1.5 text-right font-mono">{fcfa(grandTotal)}</td>
+                      <td className="py-1.5 px-1.5 text-right font-mono">{fcfa(grandTotal)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+              <p className="mt-2 text-[10px] text-ink-500 italic">
+                Vérification d'équilibre : total débit = total crédit (principe de la partie double SYSCOHADA).
+                Le fichier Excel téléchargé contient les écritures détaillées prêtes à importer.
+              </p>
+            </ReportSection>
+          );
+        })()}
 
         <div className="mt-6 pt-3 border-t border-canvas-100 text-center">
           <p className="text-[9px] text-ink-400">Export comptable AtlasBanx · destiné à Atlas Finance / logiciel de comptabilité tiers.</p>
