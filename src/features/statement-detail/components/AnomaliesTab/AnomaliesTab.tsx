@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { useMemo, useState } from 'react';
+import { FileSpreadsheet, FileText, FileDown, Loader2 } from 'lucide-react';
 import {
   AnomaliesFilters,
   DEFAULT_FILTERS,
@@ -18,6 +19,11 @@ import { AnomalyDetailDrawer } from './AnomalyDetailDrawer';
 import { AnomalyDialogs } from './dialogs/AnomalyDialogs';
 import type { Anomaly, AnomalyComment, AuditEntry, DialogAction, DialogKind } from '../../types/statement.types';
 import type { MentionableUser } from '../../../../components/shared';
+import {
+  exportAnomaliesExcel,
+  exportAnomaliesPdf,
+  exportAnomaliesWord,
+} from '../../utils/exportAnomalies';
 
 interface AnomaliesTabProps {
   anomalies: Anomaly[];
@@ -25,6 +31,13 @@ interface AnomaliesTabProps {
   auditTrail: AuditEntry[];
   team: MentionableUser[];
   conventionByAnomaly?: Record<string, { id: string; label: string; signedDate: string }>;
+  /** Métadonnées du relevé — utilisées pour l'en-tête des exports. */
+  exportContext?: {
+    statementLabel?: string;
+    periodLabel?: string;
+    clientLabel?: string;
+    bankLabel?: string;
+  };
   onAnomalyAction: (kind: DialogKind, anomaly: Anomaly, comment: string) => Promise<void> | void;
   onSubmitComment: (anomalyId: string, text: string, mentions: string[]) => void;
   onOpenPdfAt?: (page: number | undefined) => void;
@@ -37,6 +50,7 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogKind | null>(null);
   const [dialogAnomaly, setDialogAnomaly] = useState<Anomaly | null>(null);
+  const [exporting, setExporting] = useState<null | 'excel' | 'word' | 'pdf'>(null);
 
   const filtered = useMemo(() => {
     return anomalies.filter((a) => {
@@ -62,6 +76,22 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
     setDialogAnomaly(anomaly);
   }
 
+  async function handleExport(kind: 'excel' | 'word' | 'pdf') {
+    if (filtered.length === 0) return;
+    setExporting(kind);
+    try {
+      const ctx = props.exportContext ?? {};
+      if (kind === 'excel') await exportAnomaliesExcel(filtered, ctx);
+      else if (kind === 'word') await exportAnomaliesWord(filtered, ctx);
+      else exportAnomaliesPdf(filtered, ctx);
+    } catch (err) {
+      // Échec silencieux côté UI — log console pour diagnostic
+      console.error('[AnomaliesTab] export failed:', err);
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex flex-col gap-2 px-4 py-3 border-b border-canvas-200 bg-white sticky top-0 z-10">
@@ -71,6 +101,44 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
           filters={filters}
           onApplyFilter={(patch) => setFilters((f) => ({ ...f, ...patch }))}
         />
+        {/* Barre d'export — applique les filtres actuels au document produit */}
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <p className="text-[11px] text-ink-500">
+            Export : <strong>{filtered.length}</strong> anomalie{filtered.length > 1 ? 's' : ''}
+            {filtered.length !== anomalies.length && (
+              <span className="text-ink-400"> (sur {anomalies.length} après filtres)</span>
+            )}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleExport('excel')}
+              disabled={filtered.length === 0 || exporting !== null}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-canvas-300 bg-white hover:bg-emerald-50 hover:border-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Exporter en Excel (.xlsx)"
+            >
+              {exporting === 'excel' ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileSpreadsheet className="w-3 h-3 text-emerald-700" />}
+              Excel
+            </button>
+            <button
+              onClick={() => handleExport('word')}
+              disabled={filtered.length === 0 || exporting !== null}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-canvas-300 bg-white hover:bg-sky-50 hover:border-sky-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Exporter en Word (.doc)"
+            >
+              {exporting === 'word' ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3 text-sky-700" />}
+              Word
+            </button>
+            <button
+              onClick={() => handleExport('pdf')}
+              disabled={filtered.length === 0 || exporting !== null}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-canvas-300 bg-white hover:bg-rose-50 hover:border-rose-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Exporter en PDF"
+            >
+              {exporting === 'pdf' ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileDown className="w-3 h-3 text-rose-700" />}
+              PDF
+            </button>
+          </div>
+        </div>
       </div>
 
       <AnomaliesList

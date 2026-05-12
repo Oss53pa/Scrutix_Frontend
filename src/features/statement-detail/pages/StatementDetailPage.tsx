@@ -224,6 +224,12 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             auditTrail={anomaliesH.auditTrail}
             team={team}
             conventionByAnomaly={conventionByAnomaly}
+            exportContext={{
+              statementLabel: `${meta.bankCode} · ${meta.accountNumber}`,
+              periodLabel: `${meta.periodStart} → ${meta.periodEnd}`,
+              clientLabel: meta.clientLegalName,
+              bankLabel: meta.bankLegalName,
+            }}
             onAnomalyAction={async (kind, anomaly, comment) => {
               if (!role || !userId) return;
               await anomaliesH.performAction(kind, anomaly.id, userHandle, userId, role, comment);
