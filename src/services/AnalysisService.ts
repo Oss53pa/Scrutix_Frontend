@@ -610,6 +610,27 @@ export class AnalysisService {
     const totalAnomalies = anomalies.length;
     const totalAnomalyAmount = anomalies.reduce((sum, a) => sum + a.amount, 0);
 
+    // « Économies potentielles » = montants RÉELLEMENT récupérables auprès
+    // de la banque. On exclut les types pour lesquels le montant flagué
+    // n'est PAS reclaimable :
+    //   - AML_ALERT / SUSPICIOUS_TRANSACTION : signalement LCB-FT, argent
+    //     déjà parti vers un tiers (ce n'est pas la banque qui doit rembourser)
+    //   - CASHFLOW_ANOMALY : info trésorerie, pas un litige
+    //   - RECONCILIATION_GAP : écart compta vs banque, à traiter en interne
+    //   - MULTI_BANK_ISSUE : comparatif inter-banques, pas un dû
+    // Sans ce filtre, un virement GAFI de 3,2 M FCFA gonflait artificiellement
+    // les « économies détectées » alors que rien n'est récupérable de la banque.
+    const NON_RECOVERABLE_TYPES = new Set<AnomalyType>([
+      AnomalyType.AML_ALERT,
+      AnomalyType.SUSPICIOUS_TRANSACTION,
+      AnomalyType.CASHFLOW_ANOMALY,
+      AnomalyType.RECONCILIATION_GAP,
+      AnomalyType.MULTI_BANK_ISSUE,
+    ]);
+    const potentialSavings = anomalies
+      .filter((a) => !NON_RECOVERABLE_TYPES.has(a.type))
+      .reduce((sum, a) => sum + a.amount, 0);
+
     // Count by type
     const anomaliesByType: Record<AnomalyType, number> = {
       // Modules existants
@@ -653,7 +674,8 @@ export class AnalysisService {
       anomaliesByType,
       anomaliesBySeverity,
       anomalyRate: totalTransactions > 0 ? (totalAnomalies / totalTransactions) * 100 : 0,
-      potentialSavings: totalAnomalyAmount,
+      // Recoverable amount only — see filter above (excludes LCB-FT / cashflow / etc.)
+      potentialSavings,
     };
   }
 

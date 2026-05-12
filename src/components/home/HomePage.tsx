@@ -177,10 +177,10 @@ export function HomePage() {
       {/* ─── KPI ROW ─── */}
       <div className="px-6 sm:px-10 lg:px-14 mt-12 sm:mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          eyebrow="Économies détectées"
+          eyebrow="Récupérable estimé"
           value={savings > 0 ? formatCurrency(savings, 'XAF') : '—'}
           subline={savings > 0
-            ? `Sur ${anomalies.length} anomalie${anomalies.length > 1 ? 's' : ''}`
+            ? `Sur ${anomalies.length} anomalie${anomalies.length > 1 ? 's' : ''} (hors LCB-FT)`
             : 'Lance une analyse pour voir les écarts'}
           accent
           delay={140}
