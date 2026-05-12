@@ -7,8 +7,9 @@
 //    [PDF source] [Comparer] [PROPH3T]"
 // ============================================================================
 
-import { FileText, ArrowLeftRight, Sparkles } from 'lucide-react';
+import { FileText, ArrowLeftRight, Sparkles, User, Building2, Building, Briefcase } from 'lucide-react';
 import { formatDateDDMMYYYY } from '../../../lib/dateFormat';
+import { CLIENT_TYPE_LABEL, type ClientType } from '../../../types';
 
 interface StatementHeaderProps {
   bankCode: string;
@@ -18,10 +19,30 @@ interface StatementHeaderProps {
   importedAt: string;        // ISO
   importedBy?: string | null;
   fileName?: string | null;
+  /** Catégorie tarifaire applicable (particulier / entreprise…). */
+  clientType?: ClientType;
+  /** Nom légal du client — affiché à côté de la catégorie. */
+  clientLegalName?: string;
   onPdfSource?: () => void;
   onCompare?: () => void;
   onOpenProphet?: () => void;
 }
+
+const CLIENT_TYPE_ICON: Record<ClientType, React.ReactNode> = {
+  particulier_resident:     <User className="w-3 h-3" />,
+  particulier_non_resident: <User className="w-3 h-3" />,
+  professionnel:            <Briefcase className="w-3 h-3" />,
+  entreprise:               <Building2 className="w-3 h-3" />,
+  association:              <Building className="w-3 h-3" />,
+};
+
+const CLIENT_TYPE_COLOR: Record<ClientType, string> = {
+  particulier_resident:     'bg-sky-50 text-sky-700 border-sky-200',
+  particulier_non_resident: 'bg-sky-50 text-sky-700 border-sky-200',
+  professionnel:            'bg-violet-50 text-violet-700 border-violet-200',
+  entreprise:               'bg-indigo-50 text-indigo-700 border-indigo-200',
+  association:              'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
 
 export function StatementHeader(props: StatementHeaderProps) {
   const isAnalyzed = props.status === 'analyzed' || props.status === 'imported';
@@ -50,6 +71,25 @@ export function StatementHeader(props: StatementHeaderProps) {
         {props.importedBy && <><span>·</span><span>par {props.importedBy}</span></>}
         {props.fileName && <><span>·</span><span className="font-mono truncate max-w-xs">fichier {props.fileName}</span></>}
       </p>
+      {/* Catégorie tarifaire client — détermine quel barème est appliqué.
+          Sans ce signal, impossible pour l'auditeur de savoir si les frais
+          relevés sont confrontés au bon tarif (particulier vs entreprise). */}
+      {props.clientType && (
+        <div className="flex flex-wrap items-center gap-2 mt-0.5">
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${CLIENT_TYPE_COLOR[props.clientType]}`}>
+            {CLIENT_TYPE_ICON[props.clientType]}
+            Catégorie tarifaire : {CLIENT_TYPE_LABEL[props.clientType]}
+          </span>
+          {props.clientLegalName && (
+            <span className="text-[10px] text-ink-500">
+              Client : <strong className="text-ink-700">{props.clientLegalName}</strong>
+            </span>
+          )}
+          <span className="text-[10px] text-ink-400 italic">
+            (le barème {CLIENT_TYPE_LABEL[props.clientType].toLowerCase()} est appliqué pour la détection d'anomalies tarifaires)
+          </span>
+        </div>
+      )}
       <div className="flex items-center gap-2 mt-1">
         <button
           onClick={props.onPdfSource}

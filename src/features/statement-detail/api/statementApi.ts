@@ -16,6 +16,7 @@
 
 import { getSupabaseClient } from '../../../lib/supabase';
 import type { BankTransaction } from '../types/statement.types';
+import { deriveClientType, type ClientType } from '../../../types';
 
 // ============================================================================
 // Types adaptés à la page
@@ -29,6 +30,10 @@ export interface StatementHeaderMeta {
   bankLegalName: string;
   accountNumber: string;
   clientLegalName: string;
+  /** Catégorie tarifaire applicable (déduit du legalForm si non explicite). */
+  clientType: ClientType;
+  /** Forme légale brute (« SARL », « EI », « Particulier »…). */
+  clientLegalForm?: string | null;
   periodStart: string;          // ISO date
   periodEnd: string;            // ISO date
   transactionCount: number;
@@ -70,17 +75,29 @@ export async function loadStatementMeta(statementId: string): Promise<StatementH
     accountNumber = ((acc as { account_number?: string } | null)?.account_number) ?? '';
   }
 
-  // Client
+  // Client : nom légal + catégorie tarifaire (clientType ou dérivée de legalForm)
   let clientLegalName = '';
+  let clientLegalForm: string | null = null;
+  let clientType: ClientType = 'entreprise';
   if (clientId) {
     const { data: cli } = await sb
       .schema('atlasbanx' as never)
       .from('clients' as never)
-      .select('name, legal_name')
+      .select('name, legal_name, legal_form, client_type, metadata')
       .eq('id', clientId)
       .single();
-    const c = (cli ?? {}) as { name?: string; legal_name?: string };
+    const c = (cli ?? {}) as {
+      name?: string;
+      legal_name?: string;
+      legal_form?: string | null;
+      client_type?: string | null;
+      metadata?: Record<string, unknown> | null;
+    };
     clientLegalName = c.legal_name || c.name || '';
+    clientLegalForm = c.legal_form ?? (c.metadata?.legalForm as string | undefined) ?? null;
+    // Priorité au champ explicite client_type ; sinon dérivation depuis legalForm.
+    const explicitType = (c.client_type ?? (c.metadata?.clientType as string | undefined)) as ClientType | undefined;
+    clientType = explicitType ?? deriveClientType(clientLegalForm);
   }
 
   // Final balance — dernière transaction par date (running balance)
@@ -102,6 +119,8 @@ export async function loadStatementMeta(statementId: string): Promise<StatementH
     bankLegalName: (s.bank_name as string) ?? '',
     accountNumber,
     clientLegalName,
+    clientType,
+    clientLegalForm,
     periodStart: (s.period_start as string) ?? '',
     periodEnd: (s.period_end as string) ?? '',
     transactionCount: (s.transaction_count as number) ?? 0,

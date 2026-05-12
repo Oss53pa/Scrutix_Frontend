@@ -31,6 +31,8 @@ export interface ExportContext {
   periodLabel?: string;
   clientLabel?: string;
   bankLabel?: string;
+  /** Catégorie tarifaire du client (« Particulier résident », « Entreprise PM »…). */
+  clientTypeLabel?: string;
   /** Cabinet auditeur — pour signer le rapport. */
   cabinetName?: string;
   /** Trace audit (chaîne de hash). */
@@ -221,6 +223,9 @@ export function exportAnomaliesPdf(anomalies: Anomaly[], ctx: ExportContext = {}
   doc.text(`Relevé        : ${ctx.statementLabel ?? '—'}`, 14, y); y += 5;
   doc.text(`Période       : ${ctx.periodLabel ?? '—'}`, 14, y); y += 5;
   doc.text(`Client        : ${ctx.clientLabel ?? '—'}`, 14, y); y += 5;
+  if (ctx.clientTypeLabel) {
+    doc.text(`Catégorie tarifaire : ${ctx.clientTypeLabel}`, 14, y); y += 5;
+  }
   doc.text(`Banque        : ${ctx.bankLabel ?? '—'}`, 14, y); y += 5;
   doc.text(`Anomalies     : ${anomalies.length}`, 14, y); y += 5;
 
@@ -396,6 +401,41 @@ function renderAnomalyPdfCard(
   });
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 
+  // 3 bis. PREUVE TARIFAIRE (si disponible) — confrontation convention/facturé
+  if (a.conventionEvidence) {
+    if (y > 230) { doc.addPage(); y = 20; }
+    y = section(doc, y, '3 bis. Preuve tarifaire (convention vs facturé)');
+    const ce = a.conventionEvidence;
+    autoTable(doc, {
+      startY: y,
+      body: [
+        ['Barème applicable',     ce.tierAppliedLabel],
+        ['Tarif conventionnel',   `${new Intl.NumberFormat('fr-FR').format(Math.round(ce.conventionAmount))} FCFA`],
+        ['Tarif appliqué',        `${new Intl.NumberFormat('fr-FR').format(Math.round(ce.actualAmount))} FCFA`],
+        ['Écart (récupérable)',   `+${new Intl.NumberFormat('fr-FR').format(Math.round(ce.excessAmount))} FCFA`],
+        ...(ce.note ? [['Note', ce.note]] : []),
+        ...(ce.tierAppliedKey ? [['Référence interne', ce.tierAppliedKey]] : []),
+      ],
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      headStyles: { fillColor: [254, 243, 199], textColor: [161, 98, 7], fontStyle: 'bold' },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 }, 1: { cellWidth: 'auto' } },
+      theme: 'striped',
+      margin: { left: 14, right: 14 },
+      didParseCell: (data) => {
+        if (data.section === 'body') {
+          // Coloriser les lignes clés
+          if (data.row.index === 1) data.cell.styles.textColor = [22, 101, 52];   // convention vert
+          if (data.row.index === 2) data.cell.styles.textColor = [185, 28, 28];   // appliqué rouge
+          if (data.row.index === 3) {
+            data.cell.styles.textColor = [185, 28, 28];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+  }
+
   // 4. CADRE RÉGLEMENTAIRE
   const refs = REGULATORY_FRAMEWORK[a.type] ?? REGULATORY_FRAMEWORK.autre;
   y = section(doc, y, '4. Cadre réglementaire applicable');
@@ -498,6 +538,7 @@ export async function exportAnomaliesWord(anomalies: Anomaly[], ctx: ExportConte
       <p><b>Relevé :</b> ${escapeHtml(ctx.statementLabel ?? '—')}</p>
       <p><b>Période :</b> ${escapeHtml(ctx.periodLabel ?? '—')}</p>
       <p><b>Client :</b> ${escapeHtml(ctx.clientLabel ?? '—')} · <b>Banque :</b> ${escapeHtml(ctx.bankLabel ?? '—')}</p>
+      ${ctx.clientTypeLabel ? `<p><b>Catégorie tarifaire :</b> <span style="background:#fef3c7;padding:2px 6px;border-radius:3px;">${escapeHtml(ctx.clientTypeLabel)}</span> <span style="color:#888;font-size:9pt;">(barème applicable pour la détection)</span></p>` : ''}
       <p><b>Anomalies :</b> ${anomalies.length} (${sev.critical} critique, ${sev.high} haute, ${sev.medium} moyenne, ${sev.low} faible)</p>
       <p><b>Récupérable estimé :</b> ${fcfa(totalRecovery)} FCFA</p>
     </div>
@@ -544,6 +585,18 @@ export async function exportAnomaliesWord(anomalies: Anomaly[], ctx: ExportConte
           <tr><td><b>Récupérable estimé</b></td><td>${a.potentialRecoveryCentimes ? `<b>${fcfa(a.potentialRecoveryCentimes)} FCFA</b>` : 'Non quantifiable (signalement)'}</td></tr>
           ${a.conventionLabel ? `<tr><td><b>Convention référencée</b></td><td>${escapeHtml(a.conventionLabel)}</td></tr>` : ''}
         </table>
+
+        ${a.conventionEvidence ? `
+          <h4 style="background:#fef3c7;color:#a16207;">3 bis. Preuve tarifaire (convention vs facturé)</h4>
+          <table style="background:#fffbeb;border:1px solid #fde68a;">
+            <tr><td><b>Barème applicable</b></td><td><b>${escapeHtml(a.conventionEvidence.tierAppliedLabel)}</b></td></tr>
+            <tr><td><b>Tarif conventionnel</b></td><td style="color:#15803d;font-family:monospace;">${new Intl.NumberFormat('fr-FR').format(Math.round(a.conventionEvidence.conventionAmount))} FCFA</td></tr>
+            <tr><td><b>Tarif appliqué</b></td><td style="color:#b91c1c;font-family:monospace;font-weight:bold;">${new Intl.NumberFormat('fr-FR').format(Math.round(a.conventionEvidence.actualAmount))} FCFA</td></tr>
+            <tr style="background:#fef3c7;"><td><b>Écart (récupérable)</b></td><td style="color:#b91c1c;font-family:monospace;font-weight:bold;font-size:11pt;">+${new Intl.NumberFormat('fr-FR').format(Math.round(a.conventionEvidence.excessAmount))} FCFA</td></tr>
+            ${a.conventionEvidence.note ? `<tr><td><b>Note</b></td><td>${escapeHtml(a.conventionEvidence.note)}</td></tr>` : ''}
+            ${a.conventionEvidence.tierAppliedKey ? `<tr><td><b>Référence interne</b></td><td><span style="font-family:monospace;font-size:8pt;color:#888;">${escapeHtml(a.conventionEvidence.tierAppliedKey)}</span></td></tr>` : ''}
+          </table>
+        ` : ''}
 
         <h4>4. Cadre réglementaire applicable</h4>
         <table>
@@ -671,6 +724,8 @@ export async function exportAnomaliesExcel(anomalies: Anomaly[], ctx: ExportCont
     'Date transaction', 'Libellé transaction', 'Montant tx (FCFA)', 'Solde après (FCFA)', 'Page PDF',
     'Algorithme', 'Confiance', 'Règle', 'Convention',
     'Récupérable (FCFA)',
+    // Preuve tarifaire — confrontation convention vs facturé
+    'Barème applicable', 'Tarif conventionnel (FCFA)', 'Tarif appliqué (FCFA)', 'Écart (FCFA)',
     'Qualifiée par', 'Qualifiée le', 'Validée par', 'Validée le', 'Signée par', 'Signée le',
     'Créée le', 'Cadre réglementaire',
   ];
@@ -685,6 +740,7 @@ export async function exportAnomaliesExcel(anomalies: Anomaly[], ctx: ExportCont
   for (const a of anomalies) {
     const refs = (REGULATORY_FRAMEWORK[a.type] ?? REGULATORY_FRAMEWORK.autre)
       .map((r) => `${r.code} (${r.framework})`).join(' · ');
+    const ce = a.conventionEvidence;
     const row = ws.addRow([
       a.id, severityFr(a.severity), a.type, statusFr(a.status), a.title, a.description,
       a.transaction.date, a.transaction.label,
@@ -696,6 +752,10 @@ export async function exportAnomaliesExcel(anomalies: Anomaly[], ctx: ExportCont
       a.detection.rule,
       a.conventionLabel ?? '',
       a.potentialRecoveryCentimes != null ? Math.round(a.potentialRecoveryCentimes / 100) : 0,
+      ce?.tierAppliedLabel ?? '',
+      ce ? Math.round(ce.conventionAmount) : '',
+      ce ? Math.round(ce.actualAmount) : '',
+      ce ? Math.round(ce.excessAmount) : '',
       a.qualifiedBy?.userHandle ?? '',
       a.qualifiedBy ? fmtDateTime(a.qualifiedBy.at) : '',
       a.validatedBy?.userHandle ?? '',
@@ -715,11 +775,22 @@ export async function exportAnomaliesExcel(anomalies: Anomaly[], ctx: ExportCont
     row.getCell(13).numFmt = '0.0%';
     row.getCell(16).numFmt = '#,##0';
     row.getCell(16).font   = { bold: true };
+    // Preuve tarifaire — colorisation pour lisibilité immédiate
+    row.getCell(18).numFmt = '#,##0';
+    row.getCell(18).font   = { color: { argb: 'FF15803D' } };          // convention en vert
+    row.getCell(19).numFmt = '#,##0';
+    row.getCell(19).font   = { color: { argb: 'FFB91C1C' }, bold: true }; // appliqué en rouge
+    row.getCell(20).numFmt = '#,##0';
+    row.getCell(20).font   = { color: { argb: 'FFB91C1C' }, bold: true }; // écart en rouge gras
     row.alignment = { vertical: 'top', wrapText: true };
   }
 
   ws.columns.forEach((c, i) => {
-    const widths = [38, 10, 22, 12, 36, 50, 12, 36, 16, 16, 8, 32, 10, 36, 28, 16, 14, 18, 14, 18, 14, 18, 18, 60];
+    const widths = [
+      38, 10, 22, 12, 36, 50, 12, 36, 16, 16, 8, 32, 10, 36, 28, 16,
+      28, 18, 18, 14, // preuve tarifaire (4 cols)
+      14, 18, 14, 18, 14, 18, 18, 60,
+    ];
     c.width = widths[i] ?? 16;
   });
 

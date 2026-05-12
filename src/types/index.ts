@@ -118,6 +118,60 @@ export interface Anomaly {
   };
 }
 
+/**
+ * Catégorie tarifaire du client. Détermine quel barème des conditions
+ * bancaires lui est appliqué :
+ *   - particulier_resident      → tenueCompte.particulierLocal
+ *   - particulier_non_resident  → tenueCompte.particulierEtranger
+ *   - professionnel             → tenueCompte.professionnel
+ *   - entreprise                → tenueCompte.entreprise
+ *   - association               → tenueCompte.association
+ *
+ * Sans ce champ, l'algorithme ne peut pas distinguer le tarif applicable
+ * et risque de produire des anomalies fausses (ex. flag « excessif » à
+ * 15 000 FCFA pour un particulier alors que le client est entreprise).
+ */
+export type ClientType =
+  | 'particulier_resident'
+  | 'particulier_non_resident'
+  | 'professionnel'
+  | 'entreprise'
+  | 'association';
+
+export const CLIENT_TYPE_LABEL: Record<ClientType, string> = {
+  particulier_resident:     'Particulier résident',
+  particulier_non_resident: 'Particulier non-résident',
+  professionnel:            'Professionnel / Auto-entrepreneur',
+  entreprise:               'Entreprise / Personne morale',
+  association:              'Association / ONG',
+};
+
+/** Catégories légales habituelles → type tarifaire applicable. */
+const LEGAL_FORM_TO_CLIENT_TYPE: Record<string, ClientType> = {
+  'SA':       'entreprise',
+  'SAS':      'entreprise',
+  'SARL':     'entreprise',
+  'SARLU':    'entreprise',
+  'EURL':     'entreprise',
+  'SCI':      'entreprise',
+  'SCS':      'entreprise',
+  'SNC':      'entreprise',
+  'GIE':      'entreprise',
+  'EI':       'professionnel',
+  'EIRL':     'professionnel',
+  'AUTO':     'professionnel',
+  'ASSO':     'association',
+  'ONG':      'association',
+  'PARTICULIER': 'particulier_resident',
+};
+
+/** Déduit le type tarifaire à partir d'un legalForm libre. Fallback : entreprise. */
+export function deriveClientType(legalForm?: string | null): ClientType {
+  if (!legalForm) return 'entreprise';
+  const key = legalForm.trim().toUpperCase();
+  return LEGAL_FORM_TO_CLIENT_TYPE[key] ?? 'entreprise';
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -128,6 +182,8 @@ export interface Client {
   rccm?: string;
   nif?: string;
   legalForm?: string; // SARL, SA, SAS, etc.
+  /** Catégorie tarifaire applicable. Si absent, dérivé de legalForm. */
+  clientType?: ClientType;
   capital?: number;
   currency?: string;
   // Coordonnees

@@ -28,6 +28,7 @@ import { TransactionsTab } from '../components/TransactionsTab';
 import { ProphetDrawer } from '../../prophet-copilot/components/ProphetDrawer';
 import { CompareStatementModal } from '../components/CompareStatementModal';
 import { MOCK_PROPHET_SUGGESTIONS } from '../mock-data';
+import { CLIENT_TYPE_LABEL } from '../../../types';
 import { StatementBreadcrumb } from '../components/StatementBreadcrumb';
 import { StatementHeader } from '../components/StatementHeader';
 import { StatementStatusBanner } from '../components/StatementStatusBanner';
@@ -158,6 +159,8 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
             importedAt={meta.importedAt}
             importedBy={null}
             fileName={null}
+            clientType={meta.clientType}
+            clientLegalName={meta.clientLegalName}
             onPdfSource={() => openPdfSource(meta.id)}
             onCompare={() => setCompareOpen(true)}
             onOpenProphet={prophet.openDrawer}
@@ -229,6 +232,7 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
               periodLabel: `${meta.periodStart} → ${meta.periodEnd}`,
               clientLabel: meta.clientLegalName,
               bankLabel: meta.bankLegalName,
+              clientTypeLabel: CLIENT_TYPE_LABEL[meta.clientType],
               cabinetName: workspace?.name ?? 'AtlasBanx',
             }}
             onAnomalyAction={async (kind, anomaly, comment) => {

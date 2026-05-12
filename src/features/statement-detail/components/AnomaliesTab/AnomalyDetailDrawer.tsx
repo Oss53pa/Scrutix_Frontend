@@ -84,6 +84,47 @@ export function AnomalyDetailDrawer(props: AnomalyDetailDrawerProps) {
           <Row label="Règle"><span className="text-xs text-ink-700">{anomaly.detection.rule}</span></Row>
         </Section>
 
+        {/* Preuve tarifaire : convention vs facturé, mise en avant car c'est
+            l'élément le plus important pour justifier une réclamation banque. */}
+        {anomaly.conventionEvidence && (
+          <Section title="Preuve tarifaire (convention vs facturé)">
+            <div className="rounded-md border border-amber-200 bg-amber-50/40 p-3 space-y-1">
+              <Row label="Barème applicable">
+                <span className="text-xs font-semibold text-ink-800">
+                  {anomaly.conventionEvidence.tierAppliedLabel}
+                </span>
+              </Row>
+              <Row label="Tarif conventionnel">
+                <span className="text-xs font-mono text-emerald-700">
+                  {fmtFcfaSigned(anomaly.conventionEvidence.conventionAmount)} FCFA
+                </span>
+              </Row>
+              <Row label="Tarif appliqué">
+                <span className="text-xs font-mono text-rose-700 font-bold">
+                  {fmtFcfaSigned(anomaly.conventionEvidence.actualAmount)} FCFA
+                </span>
+              </Row>
+              <div className="pt-2 mt-2 border-t border-amber-200">
+                <Row label="Écart (récupérable)">
+                  <span className="text-sm font-mono font-bold text-rose-800">
+                    +{fmtFcfaSigned(anomaly.conventionEvidence.excessAmount)} FCFA
+                  </span>
+                </Row>
+              </div>
+              {anomaly.conventionEvidence.note && (
+                <p className="text-[10px] text-ink-600 italic mt-2 pt-2 border-t border-amber-200">
+                  {anomaly.conventionEvidence.note}
+                </p>
+              )}
+              {anomaly.conventionEvidence.tierAppliedKey && (
+                <p className="text-[9px] text-ink-400 font-mono mt-1">
+                  Réf. interne : {anomaly.conventionEvidence.tierAppliedKey}
+                </p>
+              )}
+            </div>
+          </Section>
+        )}
+
         <Section title="Workflow">
           <WorkflowSteps anomaly={anomaly} className="mb-3" />
           <AnomalyComments
@@ -153,4 +194,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="text-right">{children}</span>
     </div>
   );
+}
+
+/** Format FCFA unités (pas centimes) avec séparateurs milliers. */
+function fmtFcfaSigned(amount: number): string {
+  return new Intl.NumberFormat('fr-FR').format(Math.round(amount)).replace(/ /g, ' ');
 }

@@ -63,6 +63,33 @@ export interface AnomalyDetectionMeta {
   rule: string;                    // explication courte
 }
 
+/**
+ * Confrontation tarif conventionnel ↔ tarif appliqué — la PREUVE objective
+ * d'une anomalie tarifaire. Permet à l'utilisateur (et au juge en cas de
+ * contentieux) de voir noir sur blanc : « la convention dit X, la banque
+ * a prélevé Y, donc Y−X est dû ».
+ *
+ * - tierAppliedLabel : libellé du barème applicable (« Particulier résident »,
+ *   « Entreprise PM »…) — explicite la catégorie client retenue
+ * - tierAppliedKey   : clé technique du barème dans FullBankConditions
+ *   (« tenueCompte.particulierLocal », « cartes[Visa Gold].cotisationAnnuelle »…)
+ * - conventionAmount : montant DÛ selon la grille tarifaire (FCFA, unités)
+ * - actualAmount     : montant RÉELLEMENT prélevé (FCFA, unités)
+ * - excessAmount     : actual − convention (récupérable)
+ * - conventionDocId  : identifiant du document tarifaire utilisé comme source
+ *   (lien vers ArchivedDocument dans la BankConditionsModal)
+ */
+export interface AnomalyConventionEvidence {
+  tierAppliedLabel: string;
+  tierAppliedKey?: string;
+  conventionAmount: number;
+  actualAmount: number;
+  excessAmount: number;
+  conventionDocId?: string | null;
+  /** Note libre — ex. « plafond mensuel dépassé de 32 400 FCFA » */
+  note?: string;
+}
+
 export interface Anomaly {
   id: string;
   statementId: string;
@@ -76,6 +103,8 @@ export interface Anomaly {
   /** Convention référencée si l'anomalie est tarifaire. */
   conventionId?: string | null;
   conventionLabel?: string | null;
+  /** Preuve tarifaire : tarif conventionnel vs tarif appliqué (anomalies tarifaires). */
+  conventionEvidence?: AnomalyConventionEvidence | null;
   /** Acteur ayant qualifié (junior+). */
   qualifiedBy?: { userId: string; userHandle: string; at: string } | null;
   validatedBy?: { userId: string; userHandle: string; at: string } | null;

@@ -304,6 +304,23 @@ function mapAnomalyRow(row: unknown): Anomaly {
     },
     conventionId: ((r.convention_id as string | null) ?? null) as string | null,
     conventionLabel: (meta.convention_label as string) ?? null,
+    // Preuve tarifaire : si l'algorithme a confronté convention vs facturé,
+    // elle est sérialisée dans metadata.convention_evidence (jsonb).
+    conventionEvidence: (() => {
+      const ev = meta.convention_evidence as Record<string, unknown> | undefined;
+      if (!ev || typeof ev !== 'object') return null;
+      const convention = Number(ev.convention_amount ?? ev.conventionAmount ?? 0);
+      const actual = Number(ev.actual_amount ?? ev.actualAmount ?? 0);
+      return {
+        tierAppliedLabel: (ev.tier_label as string) ?? (ev.tierAppliedLabel as string) ?? 'Tarif non précisé',
+        tierAppliedKey:   (ev.tier_key as string) ?? (ev.tierAppliedKey as string) ?? undefined,
+        conventionAmount: convention,
+        actualAmount:     actual,
+        excessAmount:     Number(ev.excess_amount ?? ev.excessAmount ?? Math.max(0, actual - convention)),
+        conventionDocId:  (ev.convention_doc_id as string | null) ?? (ev.conventionDocId as string | null) ?? null,
+        note:             (ev.note as string) ?? undefined,
+      };
+    })(),
     qualifiedBy: r.qualified_by ? {
       userId: r.qualified_by as string,
       userHandle: (meta.qualified_by_handle as string) ?? (r.qualified_by as string).slice(0, 6),
