@@ -184,7 +184,9 @@ export function HomePage() {
             : 'Lance une analyse pour voir les écarts'}
           accent
           delay={140}
-          onClick={() => navigate('/analyses')}
+          // Drill-down vers la liste clients : l'analyse vit dans la page
+          // relevé (Client → Banque → Compte → Relevé → onglet Analyse).
+          onClick={() => navigate('/clients')}
         />
         <KpiCard
           eyebrow="Anomalies"
@@ -194,7 +196,7 @@ export function HomePage() {
             : anomalies.length > 0 ? 'Aucune critique' : 'Conformité totale'}
           tone={criticalAnomalies > 0 ? 'warn' : 'ok'}
           delay={180}
-          onClick={() => navigate('/analyses')}
+          onClick={() => navigate('/clients')}
         />
         <KpiCard
           eyebrow="Banques auditées"
@@ -264,7 +266,7 @@ export function HomePage() {
               )}
             </span>
             <button
-              onClick={() => navigate('/analyses')}
+              onClick={() => navigate('/clients')}
               className="font-medium text-ink-700 hover:text-accent-700 inline-flex items-center gap-1"
               disabled={pendingStatements === 0}
             >
@@ -334,8 +336,8 @@ export function HomePage() {
             icon={<FolderOpen className="w-4 h-4" />}
             iconBg="bg-emerald-50 text-emerald-700"
             title="Analyses"
-            subtitle="Algo · IA · Hybride"
-            onClick={() => navigate('/analyses')}
+            subtitle="Via Clients → Relevé"
+            onClick={() => navigate('/clients')}
           />
           <QuickCard
             icon={<FileBarChart className="w-4 h-4" />}
