@@ -76,32 +76,71 @@ export function ReportPreview({
               className="w-full rounded border border-canvas-200"
               style={{ height: 700 }}
             />
-          ) : report.template === 'export' ? (
-            <ExportComptableDocument
-              report={report}
-              statement={statement}
-              anomalies={anomalies ?? []}
-              cabinet={cabinet}
-              options={options}
-              editable={editMode}
-            />
           ) : (
-            <NarrativeReportDocument
-              report={report}
-              statement={statement}
-              anomalies={anomalies ?? []}
-              reconciliation={reconciliation ?? null}
-              cabinet={cabinet}
-              options={options}
-              sourcePdfUrl={sourcePdfUrl}
-              complaintLetterText={complaintLetterText}
-              editable={editMode}
-            />
+            <div className="border border-canvas-200 rounded-lg bg-white overflow-y-auto" style={{ height: 700 }}>
+              <ReportDocumentBody
+                report={report}
+                statement={statement}
+                anomalies={anomalies ?? []}
+                reconciliation={reconciliation ?? null}
+                cabinet={cabinet}
+                options={options}
+                sourcePdfUrl={sourcePdfUrl}
+                complaintLetterText={complaintLetterText}
+                editable={editMode}
+              />
+            </div>
           )}
         </div>
         <ReportOptions value={options} onChange={setOptions} />
       </div>
     </div>
+  );
+}
+
+// ============================================================================
+// ReportDocumentBody — sélectionne le bon template ; exportable standalone
+// ============================================================================
+// Cet alias permet à `ReportViewerPage` (visualiseur fullscreen avec 2 sidebars)
+// de rendre le document sans le wrapper preview interne.
+
+export interface ReportDocumentBodyProps {
+  report: SignedReport;
+  statement?: ReportPreviewProps['statement'];
+  anomalies: Anomaly[];
+  reconciliation?: BankReconciliation | null;
+  cabinet?: { name: string; addressLines: string[] };
+  options: ReportOptionsState;
+  sourcePdfUrl?: string | null;
+  complaintLetterText?: string | null;
+  editable: boolean;
+}
+
+export function ReportDocumentBody(props: ReportDocumentBodyProps) {
+  if (props.report.template === 'export') {
+    return (
+      <ExportComptableDocument
+        report={props.report}
+        statement={props.statement}
+        anomalies={props.anomalies}
+        cabinet={props.cabinet}
+        options={props.options}
+        editable={props.editable}
+      />
+    );
+  }
+  return (
+    <NarrativeReportDocument
+      report={props.report}
+      statement={props.statement}
+      anomalies={props.anomalies}
+      reconciliation={props.reconciliation ?? null}
+      cabinet={props.cabinet}
+      options={props.options}
+      sourcePdfUrl={props.sourcePdfUrl}
+      complaintLetterText={props.complaintLetterText}
+      editable={props.editable}
+    />
   );
 }
 
@@ -121,7 +160,7 @@ interface NarrativeProps {
   editable: boolean;
 }
 
-function NarrativeReportDocument({
+export function NarrativeReportDocument({
   report, statement, anomalies, reconciliation, cabinet, options,
   sourcePdfUrl, complaintLetterText, editable,
 }: NarrativeProps) {
@@ -160,7 +199,7 @@ function NarrativeReportDocument({
   function s(n: number) { return sections[n - 1] ?? `${n}.`; }
 
   return (
-    <div className="border border-canvas-200 rounded-lg bg-white overflow-y-auto" style={{ height: 700 }}>
+    <div className="bg-white">
       <div className="p-6 sm:p-8 max-w-[680px] mx-auto text-[13px] leading-relaxed text-ink-800">
 
         {/* === Bandeau template === */}
@@ -432,7 +471,7 @@ interface ExportProps {
   editable: boolean;
 }
 
-function ExportComptableDocument({ report, statement, anomalies, cabinet, options, editable }: ExportProps) {
+export function ExportComptableDocument({ report, statement, anomalies, cabinet, options, editable }: ExportProps) {
   const detail = options.detailLevel;
   const isSynthese = detail === 'synthese';
   const isExhaustif = detail === 'exhaustif';
@@ -448,7 +487,7 @@ function ExportComptableDocument({ report, statement, anomalies, cabinet, option
   };
 
   return (
-    <div className="border border-canvas-200 rounded-lg bg-white overflow-y-auto" style={{ height: 700 }}>
+    <div className="bg-white">
       <div className="p-6 sm:p-8 max-w-[760px] mx-auto text-[12px] leading-relaxed text-ink-800">
 
         {/* === Bandeau template === */}
@@ -581,8 +620,13 @@ function ExportComptableDocument({ report, statement, anomalies, cabinet, option
 // ============================================================================
 
 function ReportSection({ title, editable, children }: { title: string; editable: boolean; children: React.ReactNode }) {
+  // Extrait l'index « N » du titre (« 1. Synthèse » → « 1 ») pour générer
+  // un ancrage data-section cliquable depuis la sidebar du visualiseur.
+  const match = title.match(/^(\d+)\./);
+  const anchor = match ? `section-${match[1]}` : undefined;
+  void editable;
   return (
-    <div className="mb-5">
+    <div className="mb-5" data-section={anchor}>
       <h3 className="text-sm font-bold text-ink-900 border-b border-ink-200 pb-1 mb-2">{title}</h3>
       <div className="text-[13px] leading-relaxed">{children}</div>
     </div>
