@@ -541,13 +541,19 @@ const REPORT_CSS = `
   }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; padding: 0; }
+  html { background: #ece7d6; min-height: 100%; }
   body {
     font-family: 'Dosis', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 10.5pt;
     line-height: 1.5;
     color: #070b1f;
-    background: #f5f2e8;
+    background: #ece7d6;
     font-weight: 400;
+    padding: 16mm 16mm;
+    min-height: 100vh;
+  }
+  @media print {
+    html, body { background: #fff !important; padding: 0 !important; }
   }
   code, .hash, .small {
     font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
@@ -564,18 +570,26 @@ const REPORT_CSS = `
      le contenu d'une section est court (ex. couverture). */
   .page {
     width: 210mm;
+    max-width: 100%;
     padding: 14mm;
-    margin: 8mm auto;
+    margin: 0 auto 8mm auto;
     background: #fff;
     box-shadow: 0 4px 20px rgba(15, 14, 10, 0.08);
     page-break-after: always;
     page-break-inside: avoid;
     position: relative;
+    overflow: hidden; /* contient les bandeaux full-bleed (margin négatif) */
+    border-radius: 2px;
   }
-  .page:last-child { page-break-after: auto; }
+  .page:last-child { page-break-after: auto; margin-bottom: 0; }
   @media print {
-    body { background: #fff; }
-    .page { margin: 0 auto; box-shadow: none; padding: 14mm; }
+    .page {
+      margin: 0 auto !important;
+      box-shadow: none !important;
+      padding: 14mm !important;
+      border-radius: 0 !important;
+      overflow: visible !important;
+    }
   }
 
   /* ─── Cover page ──────────────────────────────────────────────────────── */
