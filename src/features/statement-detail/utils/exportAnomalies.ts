@@ -357,6 +357,10 @@ ${autoPrintScript}
       des écarts et revue manuelle par auditeur qualifié. Chaque entrée tracée par chaîne SHA-256.
     </p>
   </div>
+  <footer class="page-footer">
+    <span>AtlasBanx · Dossier d'anomalies bancaires</span>
+    <span class="footer-ref">${escapeHtml(refId)}</span>
+  </footer>
 </section>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
@@ -386,6 +390,10 @@ ${(ctx.auditTrail && ctx.auditTrail.length > 0) ? `
       `).join('')}
     </tbody>
   </table>
+  <footer class="page-footer">
+    <span>Chaîne d'audit immuable</span>
+    <span class="footer-ref">AtlasBanx · ${escapeHtml(refId)}</span>
+  </footer>
 </section>
 ` : ''}
 
@@ -511,6 +519,10 @@ function renderAnomalyCardHtml(
     `).join('')}
   </div>
   ` : ''}
+  <footer class="page-footer">
+    <span>Anomalie ${index} / ${total} — ${severityFr(a.severity)}</span>
+    <span class="footer-ref">AtlasBanx · ${escapeHtml(a.id.slice(0, 8))}</span>
+  </footer>
 </section>`;
 }
 
@@ -519,11 +531,13 @@ function renderAnomalyCardHtml(
 // ============================================================================
 
 const REPORT_CSS = `
+  /* @page n'apporte que les marges d'impression (footer auto-paginé). On
+     gère le padding réel via .page pour que SCREEN et PRINT soient identiques.
+     Si on s'appuyait sur @page margin: 12mm 14mm, l'aperçu écran (avant
+     « Enregistrer en PDF ») afficherait le contenu collé aux bords. */
   @page {
     size: A4 portrait;
-    margin: 12mm 14mm;
-    @bottom-left { content: 'AtlasBanx · Dossier d\\'anomalies'; font-size: 8pt; color: #888; }
-    @bottom-right { content: 'Page ' counter(page) ' / ' counter(pages); font-size: 8pt; color: #888; }
+    margin: 0;
   }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; padding: 0; }
@@ -532,7 +546,7 @@ const REPORT_CSS = `
     font-size: 10.5pt;
     line-height: 1.5;
     color: #070b1f;
-    background: #fff;
+    background: #f5f2e8;
     font-weight: 400;
   }
   code, .hash, .small {
@@ -542,17 +556,31 @@ const REPORT_CSS = `
   }
   .small { font-size: 0.75em; }
 
-  /* ─── Pagination ─── */
-  .page { page-break-after: always; min-height: 100vh; padding: 0 0 14mm 0; }
+  /* ─── Page A4 ── padding intérieur uniforme 14mm partout ────────────── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 14mm;
+    margin: 8mm auto;
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(15, 14, 10, 0.08);
+    page-break-after: always;
+    position: relative;
+  }
   .page:last-child { page-break-after: auto; }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0 auto; box-shadow: none; }
+  }
 
-  /* ─── Cover page ─── */
-  .cover { padding: 0 !important; }
+  /* ─── Cover page ──────────────────────────────────────────────────────── */
   .cover-band {
     background: linear-gradient(135deg, #070b1f 0%, #1e2640 60%, #2f3852 100%);
     color: #fff;
     padding: 16mm 14mm 12mm 14mm;
-    margin: -12mm -14mm 8mm -14mm;
+    /* Full-bleed : la bande dégradée touche les bords du papier en remontant
+       à travers le padding 14mm de .page. */
+    margin: -14mm -14mm 8mm -14mm;
     position: relative;
     overflow: hidden;
   }
@@ -579,7 +607,7 @@ const REPORT_CSS = `
   .ref-value { font-size: 10pt; font-family: 'JetBrains Mono', monospace; color: #fff; }
   .ref-meta { font-size: 8pt; color: rgba(255,255,255,0.7); margin-left: 4mm; }
 
-  .cover-body { padding: 0 0 12mm 0; }
+  .cover-body { padding: 0; }
   .cabinet-block { margin-bottom: 8mm; padding: 4mm 5mm; border-left: 4px solid #c9954a; background: #fbf9f3; }
   .cabinet-name { font-size: 13pt; font-weight: 700; margin: 0; color: #070b1f; }
   .cabinet-sub { font-size: 10pt; margin: 1mm 0 0 0; color: #475066; }
@@ -631,10 +659,13 @@ const REPORT_CSS = `
   }
 
   /* ─── Anomaly card ─── */
-  .anomaly-card { padding-top: 0; }
+  .anomaly-card { padding-top: 14mm; }
   .anomaly-band {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 4mm 5mm; margin: -12mm -14mm 5mm -14mm; color: #fff;
+    padding: 4mm 14mm;
+    /* Full-bleed : bandeau coloré sévérité jusqu'aux bords du papier */
+    margin: -14mm -14mm 6mm -14mm;
+    color: #fff;
   }
   .sev-critical .anomaly-band { background: linear-gradient(90deg, #7f1d1d, #b91c1c); }
   .sev-high .anomaly-band     { background: linear-gradient(90deg, #9a3412, #c2410c); }
@@ -743,6 +774,24 @@ const REPORT_CSS = `
   .audit-table thead th { background: #070b1f; color: #fff; padding: 2mm 3mm; text-align: left; font-weight: 600; font-size: 8.5pt; }
   .audit-table tbody td { padding: 2mm 3mm; border-bottom: 1px solid #f1ede2; vertical-align: top; }
   .audit-table .hash { font-family: 'JetBrains Mono', monospace; font-size: 7.5pt; color: #475066; }
+
+  /* Footer interne sur chaque page (remplace @page footer puisque margin:0).
+     Position en bas du .page, à 4mm du bord intérieur. */
+  .page-footer {
+    position: absolute;
+    bottom: 6mm;
+    left: 14mm;
+    right: 14mm;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.5pt;
+    color: #9ba3b4;
+    padding-top: 2mm;
+    border-top: 1px solid #ece7d6;
+  }
+  .page-footer .footer-ref {
+    font-family: 'JetBrains Mono', monospace;
+  }
 
   /* Print-specific */
   @media print {
