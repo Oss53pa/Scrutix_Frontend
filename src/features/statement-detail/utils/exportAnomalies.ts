@@ -556,21 +556,26 @@ const REPORT_CSS = `
   }
   .small { font-size: 0.75em; }
 
-  /* ─── Page A4 ── padding intérieur uniforme 14mm partout ────────────── */
+  /* ─── Page A4 ── padding intérieur uniforme 14mm partout ──────────────
+     Pas de min-height: chaque page prend la hauteur naturelle de son
+     contenu. La pagination physique reste correcte à l'impression grâce
+     à page-break-after: always (chaque .page démarre sur une nouvelle
+     feuille A4). Évite le vide de plusieurs cm en aperçu écran quand
+     le contenu d'une section est court (ex. couverture). */
   .page {
     width: 210mm;
-    min-height: 297mm;
     padding: 14mm;
     margin: 8mm auto;
     background: #fff;
     box-shadow: 0 4px 20px rgba(15, 14, 10, 0.08);
     page-break-after: always;
+    page-break-inside: avoid;
     position: relative;
   }
   .page:last-child { page-break-after: auto; }
   @media print {
     body { background: #fff; }
-    .page { margin: 0 auto; box-shadow: none; }
+    .page { margin: 0 auto; box-shadow: none; padding: 14mm; }
   }
 
   /* ─── Cover page ──────────────────────────────────────────────────────── */
@@ -775,19 +780,16 @@ const REPORT_CSS = `
   .audit-table tbody td { padding: 2mm 3mm; border-bottom: 1px solid #f1ede2; vertical-align: top; }
   .audit-table .hash { font-family: 'JetBrains Mono', monospace; font-size: 7.5pt; color: #475066; }
 
-  /* Footer interne sur chaque page (remplace @page footer puisque margin:0).
-     Position en bas du .page, à 4mm du bord intérieur. */
+  /* Footer interne sur chaque page — en fin de contenu, pas absolument
+     positionné (sinon dépendrait d'un min-height qui crée des vides). */
   .page-footer {
-    position: absolute;
-    bottom: 6mm;
-    left: 14mm;
-    right: 14mm;
+    margin-top: 10mm;
+    padding-top: 3mm;
+    border-top: 1px solid #ece7d6;
     display: flex;
     justify-content: space-between;
     font-size: 7.5pt;
     color: #9ba3b4;
-    padding-top: 2mm;
-    border-top: 1px solid #ece7d6;
   }
   .page-footer .footer-ref {
     font-family: 'JetBrains Mono', monospace;
