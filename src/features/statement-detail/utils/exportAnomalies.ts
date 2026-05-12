@@ -17,8 +17,6 @@
 // ============================================================================
 
 import ExcelJS from 'exceljs';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type {
   Anomaly,
   AnomalyComment,
@@ -178,321 +176,552 @@ function reportRef(): string {
 }
 
 // ============================================================================
-// PDF — Audit-grade fiche par anomalie (multi-pages)
+// PDF — HTML+browser-print pour rendu premium (Dosis, gradients, encodage OK)
 // ============================================================================
+// La version précédente utilisait jsPDF en mode texte. Limitations rencontrées :
+//   - police helvetica forcée (l'app utilise Dosis)
+//   - encodage WinAnsi cassait les diacritiques (« Période » → « P é r i o d e »)
+//   - aucun support des gradients / ombres / cartes premium
+//   - rendu plat, qualité visuelle inférieure aux autres rapports de l'app
+//
+// Nouvelle approche : on construit un document HTML complet avec la police
+// Dosis (Google Fonts), les couleurs canon de Tailwind, et la pagination
+// pilotée par @page. On l'ouvre dans une fenêtre dédiée et on déclenche
+// window.print() — l'utilisateur enregistre en PDF via le dialog natif du
+// navigateur (qui propose « Enregistrer au format PDF » par défaut).
+//
+// Avantages :
+//   - typographie native (Dosis, kerning correct, ligatures, diacritiques)
+//   - CSS complet (cartes, ombres, dégradés, KPI tiles colorées)
+//   - identique à l'écran (cohérence visuelle parfaite)
+//   - taille de fichier plus légère (texte vectoriel, pas d'embed font)
 
 export function exportAnomaliesPdf(anomalies: Anomaly[], ctx: ExportContext = {}): void {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const REF = reportRef();
-  const PAGE_W = doc.internal.pageSize.getWidth();
-  const PAGE_H = doc.internal.pageSize.getHeight();
+  const html = buildAnomaliesReportHtml(anomalies, ctx, REF);
 
-  // ── COVER PAGE ────────────────────────────────────────────────────────────
-  doc.setFillColor(30, 38, 64);
-  doc.rect(0, 0, PAGE_W, 60, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text('Dossier d\'anomalies bancaires', 14, 28);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.text('Rapport d\'audit — conforme aux standards internationaux', 14, 38);
-  doc.setFontSize(9);
-  doc.text(`Réf. ${REF}`, 14, 50);
-
-  // Bloc cabinet + dates
-  doc.setTextColor(30, 38, 64);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text(ctx.cabinetName ?? 'AtlasBanx', 14, 80);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(`Généré le ${new Date().toLocaleString('fr-FR')}`, 14, 86);
-
-  // Informations relevé
-  let y = 100;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('Informations du relevé', 14, y);
-  y += 6;
-  doc.setLineWidth(0.3);
-  doc.line(14, y, PAGE_W - 14, y);
-  y += 6;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(`Relevé        : ${ctx.statementLabel ?? '—'}`, 14, y); y += 5;
-  doc.text(`Période       : ${ctx.periodLabel ?? '—'}`, 14, y); y += 5;
-  doc.text(`Client        : ${ctx.clientLabel ?? '—'}`, 14, y); y += 5;
-  if (ctx.clientTypeLabel) {
-    doc.text(`Catégorie tarifaire : ${ctx.clientTypeLabel}`, 14, y); y += 5;
+  const win = window.open('', '_blank', 'noopener,width=900,height=1200');
+  if (!win) {
+    // Fallback : pop-up bloquée. On crée un Blob URL et on dirige l'utilisateur.
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return;
   }
-  doc.text(`Banque        : ${ctx.bankLabel ?? '—'}`, 14, y); y += 5;
-  doc.text(`Anomalies     : ${anomalies.length}`, 14, y); y += 5;
+  win.document.write(html);
+  win.document.close();
+  // Déclenche le print dialog après chargement des fonts Google + DOM.
+  win.addEventListener('load', () => {
+    setTimeout(() => {
+      win.focus();
+      win.print();
+      // Ne pas auto-close — laisser l'utilisateur consulter / réimprimer.
+    }, 600);
+  });
+}
 
-  const sevCount = {
+// ============================================================================
+// HTML report builder — pourrait être réutilisé pour le rendu d'aperçu écran
+// ============================================================================
+
+function buildAnomaliesReportHtml(
+  anomalies: Anomaly[],
+  ctx: ExportContext,
+  refId: string,
+): string {
+  const totalRecovery = anomalies.reduce((s, a) => s + (a.potentialRecoveryCentimes ?? 0), 0);
+  const sev = {
     critical: anomalies.filter((a) => a.severity === 'critical').length,
     high:     anomalies.filter((a) => a.severity === 'high').length,
     medium:   anomalies.filter((a) => a.severity === 'medium').length,
     low:      anomalies.filter((a) => a.severity === 'low').length,
   };
-  doc.text(`Sévérités     : ${sevCount.critical} critique(s) · ${sevCount.high} haute(s) · ${sevCount.medium} moyenne(s) · ${sevCount.low} faible(s)`, 14, y); y += 5;
 
-  const totalRecov = anomalies.reduce((s, a) => s + (a.potentialRecoveryCentimes ?? 0), 0);
-  doc.text(`Récupérable   : ${fcfa(totalRecov)} FCFA`, 14, y); y += 12;
+  return `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Dossier d'anomalies bancaires · ${escapeHtml(refId)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dosis:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  ${REPORT_CSS}
+</style>
+</head>
+<body>
 
-  // Méthodologie
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('Méthodologie & cadre normatif', 14, y); y += 6;
-  doc.line(14, y, PAGE_W - 14, y); y += 5;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  const methodLines = [
-    'Le présent dossier a été établi par confrontation automatique des opérations du relevé bancaire',
-    'aux conditions tarifaires conventionnelles et aux indicateurs de risque définis par :',
-    '',
-    '  · ISA 240 — Responsabilités de l\'auditeur relatives aux fraudes',
-    '  · ISA 315 — Identification et évaluation des risques d\'anomalies significatives',
-    '  · Recommandations GAFI/FATF — Lutte contre le blanchiment de capitaux et le financement du terrorisme',
-    '  · Basel Committee on Banking Supervision — Saines pratiques bancaires',
-    '  · OHADA AUDCIF — Acte uniforme relatif au droit comptable et à l\'information financière',
-    '  · Instructions BCEAO (UEMOA) / Règlements COBAC (CEMAC)',
-    '',
-    '19 algorithmes déterministes ont été appliqués à 100 % des opérations, complétés par une',
-    'analyse statistique des écarts et une revue manuelle par auditeur qualifié pour chaque',
-    'anomalie qualifiée. Chaque entrée du dossier est tracée par chaîne de hash SHA-256.',
-  ];
-  for (const line of methodLines) {
-    doc.text(line, 14, y);
-    y += 4.5;
-  }
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PAGE DE COUVERTURE
+═══════════════════════════════════════════════════════════════════════ -->
+<section class="page cover">
+  <header class="cover-band">
+    <p class="eyebrow">AtlasBanx · Audit bancaire UEMOA/CEMAC</p>
+    <h1>Dossier d'anomalies bancaires</h1>
+    <p class="lede">Rapport d'audit — conforme aux standards internationaux</p>
+    <div class="cover-ref">
+      <span class="ref-label">Réf.</span>
+      <span class="ref-value">${escapeHtml(refId)}</span>
+      <span class="ref-meta">Généré le ${new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })} à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+    </div>
+  </header>
 
-  // ── PAGES DE FICHE — une par anomalie ─────────────────────────────────────
-  for (let idx = 0; idx < anomalies.length; idx++) {
-    const a = anomalies[idx];
-    doc.addPage();
-    renderAnomalyPdfCard(doc, a, idx + 1, anomalies.length, REF, ctx);
-  }
+  <div class="cover-body">
 
-  // ── PAGE FINALE — chaîne d'audit + signature ──────────────────────────────
-  doc.addPage();
-  let py = 25;
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 38, 64);
-  doc.setFontSize(14);
-  doc.text('Chaîne d\'audit (hash SHA-256)', 14, py); py += 8;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(80);
-  doc.text('Toute modification d\'une entrée invalide la chaîne en aval. Conservation 10 ans minimum (OHADA).', 14, py); py += 8;
+    <!-- Cabinet -->
+    <div class="cabinet-block">
+      <p class="cabinet-name">${escapeHtml(ctx.cabinetName ?? 'AtlasBanx')}</p>
+      ${ctx.clientLabel ? `<p class="cabinet-sub">Client : <strong>${escapeHtml(ctx.clientLabel)}</strong></p>` : ''}
+    </div>
 
-  if (ctx.auditTrail && ctx.auditTrail.length > 0) {
-    autoTable(doc, {
-      startY: py,
-      head: [['Date/heure', 'Acteur', 'Action', 'Hash (court)']],
-      body: ctx.auditTrail.slice(0, 50).map((e) => [
-        fmtDateTime(e.createdAt),
-        `${e.actor.handle} (${e.actor.role})`,
-        e.action,
-        e.hash.slice(0, 16) + '…',
-      ]),
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [30, 38, 64], textColor: 255 },
-    });
-  } else {
-    doc.text('Aucune trace d\'audit disponible pour ce rapport.', 14, py);
-  }
+    <!-- KPI tiles -->
+    <div class="kpi-row">
+      <div class="kpi-tile">
+        <p class="kpi-label">Anomalies</p>
+        <p class="kpi-value">${anomalies.length}</p>
+      </div>
+      <div class="kpi-tile critical">
+        <p class="kpi-label">Critiques</p>
+        <p class="kpi-value">${sev.critical}</p>
+      </div>
+      <div class="kpi-tile high">
+        <p class="kpi-label">Hautes</p>
+        <p class="kpi-value">${sev.high}</p>
+      </div>
+      <div class="kpi-tile gold">
+        <p class="kpi-label">Récupérable</p>
+        <p class="kpi-value">${fcfa(totalRecovery)}</p>
+        <p class="kpi-unit">FCFA</p>
+      </div>
+    </div>
 
-  // Pied de page sur toutes les pages
-  const total = doc.getNumberOfPages();
-  for (let i = 1; i <= total; i++) {
-    doc.setPage(i);
-    doc.setFontSize(7);
-    doc.setTextColor(150);
-    doc.text(`AtlasBanx · Réf. ${REF}`, 14, PAGE_H - 6);
-    doc.text(`Page ${i} / ${total}`, PAGE_W - 14, PAGE_H - 6, { align: 'right' });
-  }
+    <!-- Infos relevé -->
+    <h2 class="section-title">Informations du relevé</h2>
+    <table class="info-table">
+      <tr><th>Relevé</th><td>${escapeHtml(ctx.statementLabel ?? '—')}</td></tr>
+      <tr><th>Période</th><td>${escapeHtml(ctx.periodLabel ?? '—')}</td></tr>
+      <tr><th>Banque</th><td>${escapeHtml(ctx.bankLabel ?? '—')}</td></tr>
+      ${ctx.clientTypeLabel ? `<tr><th>Catégorie tarifaire</th><td><span class="pill pill-tier">${escapeHtml(ctx.clientTypeLabel)}</span> <span class="muted">— barème appliqué pour la détection</span></td></tr>` : ''}
+      <tr><th>Sévérités</th><td>${sev.critical} critique(s) · ${sev.high} haute(s) · ${sev.medium} moyenne(s) · ${sev.low} faible(s)</td></tr>
+    </table>
 
-  doc.save(`atlasbanx-dossier-anomalies-${dateStamp()}.pdf`);
+    <!-- Méthodologie -->
+    <h2 class="section-title">Méthodologie &amp; cadre normatif</h2>
+    <p class="method-intro">
+      Le présent dossier a été établi par confrontation automatique des opérations du relevé aux conditions
+      tarifaires conventionnelles et aux indicateurs de risque définis par&nbsp;:
+    </p>
+    <div class="norm-grid">
+      <div class="norm-chip"><span class="norm-code">ISA 240</span> Responsabilités de l'auditeur · fraudes</div>
+      <div class="norm-chip"><span class="norm-code">ISA 315</span> Évaluation des risques d'anomalies</div>
+      <div class="norm-chip"><span class="norm-code">GAFI / FATF</span> Lutte anti-blanchiment (LCB-FT)</div>
+      <div class="norm-chip"><span class="norm-code">Basel BCBS</span> Saines pratiques bancaires</div>
+      <div class="norm-chip"><span class="norm-code">OHADA AUDCIF</span> Droit comptable Afrique francophone</div>
+      <div class="norm-chip"><span class="norm-code">BCEAO / COBAC</span> Régulation UEMOA &amp; CEMAC</div>
+    </div>
+    <p class="method-outro">
+      19 algorithmes déterministes appliqués à 100 % des opérations, complétés par analyse statistique
+      des écarts et revue manuelle par auditeur qualifié. Chaque entrée tracée par chaîne SHA-256.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FICHE PAR ANOMALIE
+═══════════════════════════════════════════════════════════════════════ -->
+${anomalies.map((a, idx) => renderAnomalyCardHtml(a, idx + 1, anomalies.length, ctx)).join('')}
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     CHAÎNE D'AUDIT
+═══════════════════════════════════════════════════════════════════════ -->
+${(ctx.auditTrail && ctx.auditTrail.length > 0) ? `
+<section class="page audit-page">
+  <h1 class="page-title">Chaîne d'audit (SHA-256)</h1>
+  <p class="page-subtitle">Toute modification d'une entrée invalide la chaîne en aval. Conservation 10 ans minimum (OHADA AUDCIF).</p>
+  <table class="audit-table">
+    <thead>
+      <tr><th>Date/heure</th><th>Acteur</th><th>Action</th><th>Hash (court)</th></tr>
+    </thead>
+    <tbody>
+      ${ctx.auditTrail.slice(0, 50).map((e) => `
+        <tr>
+          <td>${fmtDateTime(e.createdAt)}</td>
+          <td>${escapeHtml(e.actor.handle)} <span class="role-pill">${escapeHtml(e.actor.role)}</span></td>
+          <td>${escapeHtml(e.action)}</td>
+          <td class="hash">${escapeHtml(e.hash.slice(0, 24))}…</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+</section>
+` : ''}
+
+<!-- Footer générique sur chaque page via @page CSS -->
+</body>
+</html>`;
 }
 
-function renderAnomalyPdfCard(
-  doc: jsPDF,
+function renderAnomalyCardHtml(
   a: Anomaly,
   index: number,
   total: number,
-  reportRefId: string,
   ctx: ExportContext,
-): void {
-  const PAGE_W = doc.internal.pageSize.getWidth();
-  let y = 18;
-
-  // En-tête fiche
-  const [r, g, b] = sevColorRgb(a.severity);
-  doc.setFillColor(r, g, b);
-  doc.rect(0, 0, PAGE_W, 12, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(`Anomalie ${index} / ${total} · ${severityFr(a.severity)}`, 14, 8);
-  doc.text(`Statut : ${statusFr(a.status)}`, PAGE_W - 14, 8, { align: 'right' });
-
-  doc.setTextColor(30, 38, 64);
-  y = 20;
-
-  // Titre
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text(a.title, 14, y);
-  y += 6;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(80);
-  doc.text(`ID : ${a.id} · Type : ${a.type}`, 14, y);
-  y += 8;
-
-  // 1. SYNTHÈSE
-  y = section(doc, y, '1. Synthèse');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(30, 38, 64);
-  const descLines = doc.splitTextToSize(a.description || a.title, PAGE_W - 28);
-  doc.text(descLines, 14, y);
-  y += descLines.length * 4.5 + 4;
-
-  // 2. TRANSACTION INCRIMINÉE (preuve)
-  y = section(doc, y, '2. Transaction incriminée (preuve)');
-  const txRows = [
-    ['Date opération',     fmtDate(a.transaction.date)],
-    ['Libellé',            a.transaction.label || '—'],
-    ['Montant',            `${fcfa(Math.abs(a.transaction.amountCentimes))} FCFA ${a.transaction.amountCentimes < 0 ? '(débit)' : '(crédit)'}`],
-    ['Solde après op.',    a.transaction.balanceAfterCentimes != null ? `${fcfa(a.transaction.balanceAfterCentimes)} FCFA` : '—'],
-    ['Page PDF source',    a.transaction.pdfPage ? `p. ${a.transaction.pdfPage}` : '—'],
-    ['ID transaction',     a.transaction.id],
-  ];
-  autoTable(doc, {
-    startY: y,
-    body: txRows,
-    styles: { fontSize: 8, cellPadding: 1.5 },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 }, 1: { cellWidth: 'auto' } },
-    theme: 'plain',
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-
-  // 3. DÉTAILS DE DÉTECTION
-  y = section(doc, y, '3. Détails de détection');
-  const detRows = [
-    ['Algorithme',         a.detection.algorithm],
-    ['Confiance',          `${(a.detection.confidence * 100).toFixed(1)}%`],
-    ['Règle déclenchée',   a.detection.rule || '—'],
-    ['Récupérable estimé', a.potentialRecoveryCentimes ? `${fcfa(a.potentialRecoveryCentimes)} FCFA` : 'Non quantifiable (signalement)'],
-  ];
-  if (a.conventionLabel) {
-    detRows.push(['Convention référencée', a.conventionLabel]);
-  }
-  autoTable(doc, {
-    startY: y,
-    body: detRows,
-    styles: { fontSize: 8, cellPadding: 1.5 },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 }, 1: { cellWidth: 'auto' } },
-    theme: 'plain',
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-
-  // 3 bis. PREUVE TARIFAIRE (si disponible) — confrontation convention/facturé
-  if (a.conventionEvidence) {
-    if (y > 230) { doc.addPage(); y = 20; }
-    y = section(doc, y, '3 bis. Preuve tarifaire (convention vs facturé)');
-    const ce = a.conventionEvidence;
-    autoTable(doc, {
-      startY: y,
-      body: [
-        ['Barème applicable',     ce.tierAppliedLabel],
-        ['Tarif conventionnel',   `${new Intl.NumberFormat('fr-FR').format(Math.round(ce.conventionAmount))} FCFA`],
-        ['Tarif appliqué',        `${new Intl.NumberFormat('fr-FR').format(Math.round(ce.actualAmount))} FCFA`],
-        ['Écart (récupérable)',   `+${new Intl.NumberFormat('fr-FR').format(Math.round(ce.excessAmount))} FCFA`],
-        ...(ce.note ? [['Note', ce.note]] : []),
-        ...(ce.tierAppliedKey ? [['Référence interne', ce.tierAppliedKey]] : []),
-      ],
-      styles: { fontSize: 8, cellPadding: 1.5 },
-      headStyles: { fillColor: [254, 243, 199], textColor: [161, 98, 7], fontStyle: 'bold' },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 }, 1: { cellWidth: 'auto' } },
-      theme: 'striped',
-      margin: { left: 14, right: 14 },
-      didParseCell: (data) => {
-        if (data.section === 'body') {
-          // Coloriser les lignes clés
-          if (data.row.index === 1) data.cell.styles.textColor = [22, 101, 52];   // convention vert
-          if (data.row.index === 2) data.cell.styles.textColor = [185, 28, 28];   // appliqué rouge
-          if (data.row.index === 3) {
-            data.cell.styles.textColor = [185, 28, 28];
-            data.cell.styles.fontStyle = 'bold';
-          }
-        }
-      },
-    });
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-  }
-
-  // 4. CADRE RÉGLEMENTAIRE
+): string {
   const refs = REGULATORY_FRAMEWORK[a.type] ?? REGULATORY_FRAMEWORK.autre;
-  y = section(doc, y, '4. Cadre réglementaire applicable');
-  autoTable(doc, {
-    startY: y,
-    head: [['Réf.', 'Cadre', 'Description']],
-    body: refs.map((r) => [r.code, r.framework, r.description]),
-    styles: { fontSize: 7.5, cellPadding: 1.5 },
-    headStyles: { fillColor: [243, 242, 232], textColor: [30, 38, 64], fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 25 }, 2: { cellWidth: 'auto' } },
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-
-  // 5. WORKFLOW DE VALIDATION
-  if (y > 230) { doc.addPage(); y = 20; }
-  y = section(doc, y, '5. Workflow de validation');
   const wf = workflowProgress(a);
-  autoTable(doc, {
-    startY: y,
-    body: wf.map((w) => [`${w.step > 0 ? '✓' : '○'}`, w.label]),
-    styles: { fontSize: 8, cellPadding: 1.5 },
-    columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 'auto' } },
-    theme: 'plain',
-    margin: { left: 14, right: 14 },
-  });
-  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-
-  // 6. COMMENTAIRES (si présents)
   const myComments = (ctx.comments ?? []).filter((c) => c.anomalyId === a.id);
-  if (myComments.length > 0) {
-    if (y > 240) { doc.addPage(); y = 20; }
-    y = section(doc, y, '6. Discussion');
-    autoTable(doc, {
-      startY: y,
-      head: [['Date', 'Auteur', 'Commentaire']],
-      body: myComments.map((c) => [fmtDateTime(c.createdAt), c.author.handle, c.content]),
-      styles: { fontSize: 7.5, cellPadding: 1.5 },
-      headStyles: { fillColor: [243, 242, 232], textColor: [30, 38, 64], fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 25 }, 2: { cellWidth: 'auto' } },
-      margin: { left: 14, right: 14 },
-    });
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
+
+  return `
+<section class="page anomaly-card sev-${a.severity}">
+  <header class="anomaly-band">
+    <div class="band-left">
+      <span class="sev-pill">${severityFr(a.severity)}</span>
+      <span class="anomaly-counter">Anomalie ${index} / ${total}</span>
+    </div>
+    <div class="band-right">
+      <span class="status-pill">${statusFr(a.status)}</span>
+    </div>
+  </header>
+
+  <h1 class="anomaly-title">${escapeHtml(a.title)}</h1>
+  <p class="anomaly-meta">
+    <span class="muted">ID</span> <code>${escapeHtml(a.id)}</code>
+    <span class="dot">·</span>
+    <span class="muted">Type</span> <code>${escapeHtml(a.type)}</code>
+  </p>
+
+  <!-- 1. Synthèse -->
+  <h2 class="anomaly-section">1. Synthèse</h2>
+  <p class="anomaly-desc">${escapeHtml(a.description || a.title)}</p>
+
+  <!-- 2. Transaction (preuve) -->
+  <h2 class="anomaly-section">2. Transaction incriminée — preuve</h2>
+  <table class="data-table">
+    <tr><th>Date opération</th><td>${fmtDate(a.transaction.date)}</td></tr>
+    <tr><th>Libellé</th><td><code>${escapeHtml(a.transaction.label || '—')}</code></td></tr>
+    <tr><th>Montant</th><td><strong class="${a.transaction.amountCentimes < 0 ? 'text-debit' : 'text-credit'}">${fcfa(Math.abs(a.transaction.amountCentimes))} FCFA</strong> <span class="muted">(${a.transaction.amountCentimes < 0 ? 'débit' : 'crédit'})</span></td></tr>
+    ${a.transaction.balanceAfterCentimes != null ? `<tr><th>Solde après opération</th><td>${fcfa(a.transaction.balanceAfterCentimes)} FCFA</td></tr>` : ''}
+    <tr><th>Page PDF source</th><td>${a.transaction.pdfPage ? `p. ${a.transaction.pdfPage}` : '—'}</td></tr>
+    <tr><th>ID transaction</th><td><code class="small">${escapeHtml(a.transaction.id)}</code></td></tr>
+  </table>
+
+  <!-- 3. Détection -->
+  <h2 class="anomaly-section">3. Détails de détection</h2>
+  <table class="data-table">
+    <tr><th>Algorithme</th><td><code>${escapeHtml(a.detection.algorithm)}</code></td></tr>
+    <tr><th>Confiance</th><td><div class="confidence-bar"><div class="confidence-fill" style="width:${(a.detection.confidence * 100).toFixed(1)}%"></div></div> <strong>${(a.detection.confidence * 100).toFixed(1)}%</strong></td></tr>
+    <tr><th>Règle déclenchée</th><td>${escapeHtml(a.detection.rule || '—')}</td></tr>
+    <tr><th>Récupérable estimé</th><td>${a.potentialRecoveryCentimes ? `<strong class="text-recovery">${fcfa(a.potentialRecoveryCentimes)} FCFA</strong>` : '<span class="muted">Non quantifiable — signalement</span>'}</td></tr>
+    ${a.conventionLabel ? `<tr><th>Convention référencée</th><td>${escapeHtml(a.conventionLabel)}</td></tr>` : ''}
+  </table>
+
+  ${a.conventionEvidence ? `
+  <!-- 3 bis. PREUVE TARIFAIRE (élément central pour réclamation) -->
+  <h2 class="anomaly-section evidence-section">3 bis. Preuve tarifaire — convention vs facturé</h2>
+  <div class="evidence-card">
+    <div class="evidence-tier">
+      <span class="tier-label">Barème applicable :</span>
+      <strong>${escapeHtml(a.conventionEvidence.tierAppliedLabel)}</strong>
+    </div>
+    <div class="evidence-amounts">
+      <div class="amount-block convention">
+        <p class="amount-label">Tarif conventionnel</p>
+        <p class="amount-value">${new Intl.NumberFormat('fr-FR').format(Math.round(a.conventionEvidence.conventionAmount))}</p>
+        <p class="amount-unit">FCFA</p>
+      </div>
+      <div class="amount-arrow">→</div>
+      <div class="amount-block actual">
+        <p class="amount-label">Tarif appliqué</p>
+        <p class="amount-value">${new Intl.NumberFormat('fr-FR').format(Math.round(a.conventionEvidence.actualAmount))}</p>
+        <p class="amount-unit">FCFA</p>
+      </div>
+      <div class="amount-equals">=</div>
+      <div class="amount-block excess">
+        <p class="amount-label">Écart récupérable</p>
+        <p class="amount-value">+${new Intl.NumberFormat('fr-FR').format(Math.round(a.conventionEvidence.excessAmount))}</p>
+        <p class="amount-unit">FCFA</p>
+      </div>
+    </div>
+    ${a.conventionEvidence.note ? `<p class="evidence-note">${escapeHtml(a.conventionEvidence.note)}</p>` : ''}
+    ${a.conventionEvidence.tierAppliedKey ? `<p class="evidence-ref"><span class="muted">Référence interne :</span> <code>${escapeHtml(a.conventionEvidence.tierAppliedKey)}</code></p>` : ''}
+  </div>
+  ` : ''}
+
+  <!-- 4. Cadre réglementaire -->
+  <h2 class="anomaly-section">4. Cadre réglementaire applicable</h2>
+  <table class="data-table reg-table">
+    <thead><tr><th>Réf.</th><th>Cadre</th><th>Description</th></tr></thead>
+    <tbody>
+      ${refs.map((r) => `<tr><td><code>${escapeHtml(r.code)}</code></td><td><span class="framework-pill">${escapeHtml(r.framework)}</span></td><td>${escapeHtml(r.description)}</td></tr>`).join('')}
+    </tbody>
+  </table>
+
+  <!-- 5. Workflow -->
+  <h2 class="anomaly-section">5. Workflow de validation</h2>
+  <ol class="workflow-list">
+    ${wf.map((w) => `<li class="${w.step > 0 ? 'done' : 'pending'}"><span class="wf-marker">${w.step > 0 ? '✓' : '○'}</span> ${escapeHtml(w.label)}</li>`).join('')}
+  </ol>
+
+  ${myComments.length > 0 ? `
+  <!-- 6. Discussion -->
+  <h2 class="anomaly-section">6. Discussion (${myComments.length})</h2>
+  <div class="comments-list">
+    ${myComments.map((c) => `
+      <div class="comment">
+        <div class="comment-head">
+          <strong>${escapeHtml(c.author.handle)}</strong>
+          <span class="role-pill">${escapeHtml(c.author.role)}</span>
+          <span class="muted">${fmtDateTime(c.createdAt)}</span>
+        </div>
+        <p class="comment-body">${escapeHtml(c.content)}</p>
+      </div>
+    `).join('')}
+  </div>
+  ` : ''}
+</section>`;
+}
+
+// ============================================================================
+// CSS — typographie Dosis + couleurs canon Tailwind + pagination A4
+// ============================================================================
+
+const REPORT_CSS = `
+  @page {
+    size: A4 portrait;
+    margin: 12mm 14mm;
+    @bottom-left { content: 'AtlasBanx · Dossier d\\'anomalies'; font-size: 8pt; color: #888; }
+    @bottom-right { content: 'Page ' counter(page) ' / ' counter(pages); font-size: 8pt; color: #888; }
+  }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Dosis', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.5;
+    color: #070b1f;
+    background: #fff;
+    font-weight: 400;
+  }
+  code, .hash, .small {
+    font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    font-size: 0.85em;
+    color: #1e2640;
+  }
+  .small { font-size: 0.75em; }
+
+  /* ─── Pagination ─── */
+  .page { page-break-after: always; min-height: 100vh; padding: 0 0 14mm 0; }
+  .page:last-child { page-break-after: auto; }
+
+  /* ─── Cover page ─── */
+  .cover { padding: 0 !important; }
+  .cover-band {
+    background: linear-gradient(135deg, #070b1f 0%, #1e2640 60%, #2f3852 100%);
+    color: #fff;
+    padding: 16mm 14mm 12mm 14mm;
+    margin: -12mm -14mm 8mm -14mm;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover-band::after {
+    content: ''; position: absolute; top: -20mm; right: -20mm;
+    width: 80mm; height: 80mm; border-radius: 50%;
+    background: radial-gradient(circle, rgba(201,149,74,0.25), transparent 60%);
+  }
+  .cover-band .eyebrow {
+    font-size: 8pt; letter-spacing: 0.2em; text-transform: uppercase;
+    color: #c9954a; margin: 0 0 6mm 0; font-weight: 600;
+  }
+  .cover-band h1 {
+    font-size: 28pt; margin: 0; font-weight: 700; letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .cover-band .lede { font-size: 12pt; margin: 4mm 0 0 0; font-weight: 300; opacity: 0.85; }
+  .cover-ref {
+    margin-top: 10mm; display: inline-flex; gap: 4mm; align-items: center;
+    background: rgba(255,255,255,0.08); padding: 3mm 5mm; border-radius: 4px;
+    border: 1px solid rgba(201,149,74,0.4);
+  }
+  .ref-label { font-size: 8pt; color: #c9954a; font-weight: 600; }
+  .ref-value { font-size: 10pt; font-family: 'JetBrains Mono', monospace; color: #fff; }
+  .ref-meta { font-size: 8pt; color: rgba(255,255,255,0.7); margin-left: 4mm; }
+
+  .cover-body { padding: 0 0 12mm 0; }
+  .cabinet-block { margin-bottom: 8mm; padding: 4mm 5mm; border-left: 4px solid #c9954a; background: #fbf9f3; }
+  .cabinet-name { font-size: 13pt; font-weight: 700; margin: 0; color: #070b1f; }
+  .cabinet-sub { font-size: 10pt; margin: 1mm 0 0 0; color: #475066; }
+
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm;
+    margin: 6mm 0 10mm 0;
+  }
+  .kpi-tile {
+    background: #fbf9f3; border: 1px solid #ece7d6; border-radius: 8px;
+    padding: 5mm 4mm; text-align: center;
+  }
+  .kpi-tile.critical { background: #fef2f2; border-color: #fecaca; }
+  .kpi-tile.critical .kpi-value { color: #b91c1c; }
+  .kpi-tile.high { background: #fff7ed; border-color: #fed7aa; }
+  .kpi-tile.high .kpi-value { color: #c2410c; }
+  .kpi-tile.gold { background: linear-gradient(135deg, #fbf8f0, #f4ecd4); border-color: #dec078; }
+  .kpi-tile.gold .kpi-value { color: #8a5e30; }
+  .kpi-label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.12em; color: #6a7388; margin: 0 0 2mm 0; font-weight: 600; }
+  .kpi-value { font-size: 22pt; margin: 0; font-weight: 700; color: #070b1f; line-height: 1; }
+  .kpi-unit { font-size: 8pt; color: #6a7388; margin: 1mm 0 0 0; }
+
+  .section-title {
+    font-size: 13pt; margin: 8mm 0 3mm 0; padding-bottom: 2mm;
+    border-bottom: 2px solid #070b1f; color: #070b1f; font-weight: 700;
+  }
+  .info-table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .info-table th {
+    text-align: left; padding: 2mm 4mm 2mm 0; color: #6a7388; font-weight: 600;
+    width: 38mm; vertical-align: top; font-size: 9pt; letter-spacing: 0.02em;
+  }
+  .info-table td { padding: 2mm 0; color: #1e2640; }
+  .pill { display: inline-block; padding: 1mm 3mm; border-radius: 12px; font-size: 9pt; font-weight: 600; }
+  .pill-tier { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; }
+  .muted { color: #6a7388; font-size: 9pt; }
+
+  .method-intro, .method-outro { font-size: 9.5pt; line-height: 1.55; color: #1e2640; margin: 3mm 0; }
+  .norm-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 2mm;
+    margin: 3mm 0;
+  }
+  .norm-chip {
+    background: #fbf9f3; border: 1px solid #ece7d6; border-radius: 4px;
+    padding: 2mm 3mm; font-size: 9pt;
+  }
+  .norm-code {
+    display: inline-block; min-width: 28mm; font-weight: 700;
+    color: #8a5e30; font-family: 'JetBrains Mono', monospace; font-size: 8.5pt;
   }
 
-  void reportRefId;
-}
+  /* ─── Anomaly card ─── */
+  .anomaly-card { padding-top: 0; }
+  .anomaly-band {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4mm 5mm; margin: -12mm -14mm 5mm -14mm; color: #fff;
+  }
+  .sev-critical .anomaly-band { background: linear-gradient(90deg, #7f1d1d, #b91c1c); }
+  .sev-high .anomaly-band     { background: linear-gradient(90deg, #9a3412, #c2410c); }
+  .sev-medium .anomaly-band   { background: linear-gradient(90deg, #92400e, #d97706); }
+  .sev-low .anomaly-band      { background: linear-gradient(90deg, #475066, #6a7388); }
 
-function section(doc: jsPDF, y: number, title: string): number {
-  doc.setFillColor(243, 242, 232);
-  doc.rect(14, y - 4, doc.internal.pageSize.getWidth() - 28, 6, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(30, 38, 64);
-  doc.text(title, 16, y);
-  return y + 6;
-}
+  .band-left, .band-right { display: flex; align-items: center; gap: 3mm; }
+  .sev-pill { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); padding: 1mm 4mm; border-radius: 4px; font-weight: 700; font-size: 9pt; letter-spacing: 0.05em; }
+  .anomaly-counter { font-size: 9pt; opacity: 0.85; font-weight: 500; }
+  .status-pill { background: rgba(255,255,255,0.15); padding: 1mm 3mm; border-radius: 12px; font-size: 8.5pt; font-weight: 600; }
+
+  .anomaly-title { font-size: 18pt; margin: 4mm 0 1mm 0; font-weight: 700; color: #070b1f; line-height: 1.2; }
+  .anomaly-meta { font-size: 9pt; color: #6a7388; margin: 0 0 6mm 0; }
+  .anomaly-meta .dot { margin: 0 2mm; color: #c8ccd6; }
+  .anomaly-meta code { background: #fbf9f3; padding: 0.5mm 2mm; border-radius: 3px; }
+
+  .anomaly-section {
+    font-size: 11pt; margin: 6mm 0 2mm 0;
+    color: #070b1f; font-weight: 700;
+    padding: 1.5mm 3mm; background: #f5f2e8;
+    border-left: 3px solid #c9954a; border-radius: 0 4px 4px 0;
+  }
+  .anomaly-section.evidence-section {
+    background: linear-gradient(90deg, #fef3c7, #fef9e7);
+    border-left-color: #ca8a04; color: #713f12;
+  }
+  .anomaly-desc { font-size: 10.5pt; line-height: 1.55; margin: 2mm 0 0 0; color: #1e2640; }
+
+  /* Tables génériques */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 10pt; margin: 2mm 0; }
+  .data-table th {
+    text-align: left; padding: 2mm 4mm 2mm 1mm; color: #475066; font-weight: 600;
+    width: 38mm; vertical-align: top; font-size: 9pt; border-bottom: 1px solid #f1ede2;
+  }
+  .data-table td { padding: 2mm 1mm; border-bottom: 1px solid #f1ede2; color: #070b1f; }
+  .data-table tr:last-child th, .data-table tr:last-child td { border-bottom: none; }
+  .data-table.reg-table thead th { background: #fbf9f3; color: #475066; font-size: 9pt; font-weight: 700; padding: 2mm 3mm; border-bottom: 2px solid #ece7d6; }
+  .data-table.reg-table tbody td { padding: 2mm 3mm; }
+
+  .text-debit { color: #b91c1c; }
+  .text-credit { color: #15803d; }
+  .text-recovery { color: #15803d; }
+
+  /* Confidence bar */
+  .confidence-bar { display: inline-block; width: 30mm; height: 2mm; background: #ece7d6; border-radius: 1mm; overflow: hidden; vertical-align: middle; margin-right: 2mm; }
+  .confidence-fill { height: 100%; background: linear-gradient(90deg, #c9954a, #b07c3c); }
+
+  /* Framework pills */
+  .framework-pill { display: inline-block; padding: 0.5mm 2mm; border-radius: 3px; background: #eef2ff; color: #4338ca; font-size: 8.5pt; font-weight: 600; }
+
+  /* ─── Evidence card (preuve tarifaire) — TRÈS visible ─── */
+  .evidence-card {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 2px solid #fcd34d; border-radius: 8px;
+    padding: 5mm; margin: 3mm 0 4mm 0;
+    box-shadow: 0 1px 3px rgba(252, 211, 77, 0.3);
+  }
+  .evidence-tier { font-size: 10pt; margin-bottom: 4mm; color: #92400e; }
+  .evidence-tier .tier-label { color: #a16207; font-weight: 600; margin-right: 2mm; }
+  .evidence-tier strong { color: #713f12; font-weight: 700; font-size: 11pt; }
+
+  .evidence-amounts {
+    display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 2mm;
+    align-items: center;
+  }
+  .amount-block {
+    background: #fff; border-radius: 6px; padding: 4mm 3mm;
+    text-align: center; border: 1px solid;
+  }
+  .amount-block.convention { border-color: #86efac; }
+  .amount-block.convention .amount-value { color: #15803d; }
+  .amount-block.actual { border-color: #fca5a5; }
+  .amount-block.actual .amount-value { color: #b91c1c; }
+  .amount-block.excess { border-color: #fca5a5; background: #fef2f2; }
+  .amount-block.excess .amount-value { color: #991b1b; font-weight: 800; }
+  .amount-label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.08em; color: #6a7388; margin: 0 0 1mm 0; font-weight: 600; }
+  .amount-value { font-size: 16pt; margin: 0; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .amount-unit { font-size: 8pt; color: #6a7388; margin: 1mm 0 0 0; }
+  .amount-arrow, .amount-equals { font-size: 18pt; color: #ca8a04; font-weight: 700; }
+
+  .evidence-note { font-size: 9.5pt; line-height: 1.5; color: #713f12; margin: 4mm 0 0 0; padding: 2mm 3mm; background: rgba(255,255,255,0.5); border-radius: 4px; font-style: italic; }
+  .evidence-ref { font-size: 8.5pt; color: #92400e; margin: 2mm 0 0 0; }
+  .evidence-ref code { background: rgba(255,255,255,0.5); padding: 0.5mm 2mm; border-radius: 3px; }
+
+  /* Workflow */
+  .workflow-list { margin: 2mm 0; padding: 0; list-style: none; }
+  .workflow-list li { padding: 2mm 0 2mm 8mm; position: relative; font-size: 10pt; line-height: 1.4; }
+  .workflow-list li .wf-marker { position: absolute; left: 0; top: 1mm; width: 6mm; height: 6mm; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9pt; font-weight: 700; }
+  .workflow-list li.done .wf-marker { background: #dcfce7; color: #15803d; }
+  .workflow-list li.pending .wf-marker { background: #f5f2e8; color: #6a7388; border: 1px dashed #c8ccd6; }
+  .workflow-list li.done { color: #070b1f; }
+  .workflow-list li.pending { color: #6a7388; }
+
+  /* Comments */
+  .comments-list { margin: 2mm 0; }
+  .comment { margin-bottom: 3mm; padding: 3mm 4mm; background: #fbf9f3; border-radius: 6px; border-left: 3px solid #ece7d6; }
+  .comment-head { display: flex; gap: 2mm; align-items: center; font-size: 9pt; margin-bottom: 1mm; }
+  .comment-head strong { color: #070b1f; }
+  .comment-body { font-size: 9.5pt; line-height: 1.4; margin: 0; color: #1e2640; }
+  .role-pill { background: #e0e7ff; color: #4338ca; padding: 0.3mm 2mm; border-radius: 8px; font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Audit page */
+  .audit-page .page-title { font-size: 20pt; font-weight: 700; color: #070b1f; margin: 0 0 2mm 0; padding-bottom: 3mm; border-bottom: 2px solid #c9954a; }
+  .audit-page .page-subtitle { color: #6a7388; font-size: 9pt; font-style: italic; margin: 0 0 6mm 0; }
+  .audit-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  .audit-table thead th { background: #070b1f; color: #fff; padding: 2mm 3mm; text-align: left; font-weight: 600; font-size: 8.5pt; }
+  .audit-table tbody td { padding: 2mm 3mm; border-bottom: 1px solid #f1ede2; vertical-align: top; }
+  .audit-table .hash { font-family: 'JetBrains Mono', monospace; font-size: 7.5pt; color: #475066; }
+
+  /* Print-specific */
+  @media print {
+    .cover-band { -webkit-print-color-adjust: exact; }
+  }
+`;
+
 
 // ============================================================================
 // Word — HTML enrichi (compatible MS Word + LibreOffice)
