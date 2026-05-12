@@ -85,29 +85,75 @@ export function ReportViewerPage(props: ReportViewerPageProps) {
     if (!previewRef.current) return;
     const docHtml = previewRef.current.innerHTML;
     const titleSafe = templateLabel.replace(/[^a-zA-Z0-9 ]/g, '');
-    const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1200');
-    if (!w) {
-      // Fallback : pop-up bloqué — utilise le print natif (peut être vide).
-      window.print();
-      return;
-    }
-    // Copie les styles Tailwind + variables CSS de la page principale.
+
+    // ⚠ Ne JAMAIS passer 'noopener' aux features de window.open : ça force
+    // la valeur de retour à null (cf. MDN), donc impossible d'écrire dans
+    // la nouvelle fenêtre. Pareil pour 'noreferrer'.
+    // L'auto-print est embarqué dans le HTML (pas piloté depuis le parent)
+    // pour ne dépendre d'aucune référence externe.
     const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
       .map((n) => n.outerHTML).join('\n');
-    w.document.write(`<!doctype html>
+    const html = `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>${titleSafe}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dosis:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 ${styles}
 <style>
-  @page { size: A4 portrait; margin: 12mm 10mm; }
-  body { background:#fff; color:#0f0e0a; font-family: 'Dosis', system-ui, sans-serif; }
-  .report-print-page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; }
+  @page { size: A4 portrait; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #ece7d6; font-family: 'Dosis', system-ui, sans-serif; color: #070b1f; }
+  body { padding: 16mm; min-height: 100vh; }
+  .report-print-page {
+    width: 210mm;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 14mm;
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(15,14,10,0.08);
+    border-radius: 2px;
+  }
   .report-print-page * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  @media print {
+    html, body { background: #fff !important; padding: 0 !important; }
+    .report-print-page { box-shadow: none !important; border-radius: 0 !important; margin: 0 auto !important; }
+  }
 </style>
+<script>
+  (function () {
+    function ready() {
+      function fire() { try { window.focus(); window.print(); } catch (e) {} }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function () { setTimeout(fire, 300); });
+      } else {
+        setTimeout(fire, 800);
+      }
+    }
+    if (document.readyState === 'complete') ready();
+    else window.addEventListener('load', ready, { once: true });
+  })();
+</script>
 </head><body>
 <div class="report-print-page">${docHtml}</div>
-<script>window.addEventListener('load', () => { setTimeout(() => { window.focus(); window.print(); window.close(); }, 300); });</script>
-</body></html>`);
-    w.document.close();
+</body></html>`;
+
+    const w = window.open('about:blank', '_blank', 'width=900,height=1200');
+    if (w) {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      return;
+    }
+    // Fallback pop-up bloquée : on télécharge un .html que l'utilisateur
+    // peut ouvrir et imprimer manuellement.
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `atlasbanx-${titleSafe.toLowerCase().replace(/\s+/g, '-')}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
   // Fullscreen toggle
