@@ -229,6 +229,7 @@ export function StatementDetailPage(props: StatementDetailPageProps) {
               periodLabel: `${meta.periodStart} → ${meta.periodEnd}`,
               clientLabel: meta.clientLegalName,
               bankLabel: meta.bankLegalName,
+              cabinetName: workspace?.name ?? 'AtlasBanx',
             }}
             onAnomalyAction={async (kind, anomaly, comment) => {
               if (!role || !userId) return;

@@ -80,7 +80,15 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
     if (filtered.length === 0) return;
     setExporting(kind);
     try {
-      const ctx = props.exportContext ?? {};
+      // Enrichit le contexte avec audit trail + commentaires pour produire
+      // un dossier de qualité audit-grade (cf. ISA 240 § Documentation).
+      // Filtrer commentaires/audit aux seules anomalies réellement exportées.
+      const filteredIds = new Set(filtered.map((a) => a.id));
+      const ctx = {
+        ...(props.exportContext ?? {}),
+        auditTrail: auditTrail.filter((e) => filteredIds.has(e.entityId)),
+        comments: comments.filter((c) => filteredIds.has(c.anomalyId)),
+      };
       if (kind === 'excel') await exportAnomaliesExcel(filtered, ctx);
       else if (kind === 'word') await exportAnomaliesWord(filtered, ctx);
       else exportAnomaliesPdf(filtered, ctx);
