@@ -10,8 +10,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "deploy": "gh-pages -d dist"
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
@@ -49,7 +48,6 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.26",
     "fake-indexeddb": "^6.2.5",
-    "gh-pages": "^6.3.0",
     "globals": "^15.9.0",
     "jsdom": "^27.4.0",
     "postcss": "^8.4.35",

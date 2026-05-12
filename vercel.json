@@ -1,11 +1,12 @@
 {
+  "$comment": "Déploiement Atlas Banx : 100% Vercel depuis main. La branche gh-pages a été supprimée définitivement (cf. commit qui retire .github/workflows/deploy.yml). Les garde-fous ci-dessous restent en place au cas où la branche serait recréée par erreur.",
   "git": {
     "deploymentEnabled": {
       "main": true,
       "gh-pages": false
     }
   },
-  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" = \"gh-pages\" ]; then exit 0; else exit 1; fi",
+  "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]; then exit 0; else exit 1; fi",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
