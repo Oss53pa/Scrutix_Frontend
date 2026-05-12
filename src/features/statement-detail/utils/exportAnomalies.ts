@@ -198,31 +198,34 @@ function reportRef(): string {
 
 export function exportAnomaliesPdf(anomalies: Anomaly[], ctx: ExportContext = {}): void {
   const REF = reportRef();
-  const html = buildAnomaliesReportHtml(anomalies, ctx, REF);
+  // L'auto-print est embarqué DANS le HTML pour ne pas dépendre d'une
+  // référence à la fenêtre depuis le parent (certains navigateurs/options
+  // bloquent ce canal — ex. `noopener` annule la valeur de retour de
+  // window.open). En l'inscrivant dans le document, le print fire de
+  // façon fiable dès que les fonts sont chargées.
+  const html = buildAnomaliesReportHtml(anomalies, ctx, REF, /*autoPrint*/ true);
 
-  const win = window.open('', '_blank', 'noopener,width=900,height=1200');
-  if (!win) {
-    // Fallback : pop-up bloquée. On crée un Blob URL et on dirige l'utilisateur.
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  // ⚠ Ne JAMAIS passer 'noopener' aux features : ça force window.open à
+  // retourner null, et `win.document.write` n'est plus possible.
+  const win = window.open('about:blank', '_blank', 'width=900,height=1200');
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
     return;
   }
-  win.document.write(html);
-  win.document.close();
-  // Déclenche le print dialog après chargement des fonts Google + DOM.
-  win.addEventListener('load', () => {
-    setTimeout(() => {
-      win.focus();
-      win.print();
-      // Ne pas auto-close — laisser l'utilisateur consulter / réimprimer.
-    }, 600);
-  });
+
+  // Fallback : pop-up bloquée → on télécharge un .html que l'utilisateur
+  // peut ouvrir et imprimer manuellement. Conserve toute la mise en page.
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `atlasbanx-dossier-anomalies-${dateStamp()}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 // ============================================================================
@@ -233,6 +236,7 @@ function buildAnomaliesReportHtml(
   anomalies: Anomaly[],
   ctx: ExportContext,
   refId: string,
+  autoPrint: boolean = false,
 ): string {
   const totalRecovery = anomalies.reduce((s, a) => s + (a.potentialRecoveryCentimes ?? 0), 0);
   const sev = {
@@ -241,6 +245,29 @@ function buildAnomaliesReportHtml(
     medium:   anomalies.filter((a) => a.severity === 'medium').length,
     low:      anomalies.filter((a) => a.severity === 'low').length,
   };
+
+  // Script auto-print : attend que la police Dosis soit chargée + 300ms,
+  // puis déclenche le print dialog. Sans this script, l'utilisateur doit
+  // appuyer Ctrl+P manuellement (fonctionne aussi, mais moins fluide).
+  const autoPrintScript = autoPrint ? `
+<script>
+(function() {
+  function ready() {
+    var doc = document;
+    function fire() {
+      try { window.focus(); window.print(); } catch (e) {}
+    }
+    // Attend les fonts si possible (Dosis depuis Google Fonts).
+    if (doc.fonts && doc.fonts.ready) {
+      doc.fonts.ready.then(function () { setTimeout(fire, 300); });
+    } else {
+      setTimeout(fire, 800);
+    }
+  }
+  if (document.readyState === 'complete') ready();
+  else window.addEventListener('load', ready, { once: true });
+})();
+</script>` : '';
 
   return `<!doctype html>
 <html lang="fr">
@@ -253,6 +280,7 @@ function buildAnomaliesReportHtml(
 <style>
   ${REPORT_CSS}
 </style>
+${autoPrintScript}
 </head>
 <body>
 

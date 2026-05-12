@@ -51,6 +51,7 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
   const [dialog, setDialog] = useState<DialogKind | null>(null);
   const [dialogAnomaly, setDialogAnomaly] = useState<Anomaly | null>(null);
   const [exporting, setExporting] = useState<null | 'excel' | 'word' | 'pdf'>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return anomalies.filter((a) => {
@@ -79,6 +80,7 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
   async function handleExport(kind: 'excel' | 'word' | 'pdf') {
     if (filtered.length === 0) return;
     setExporting(kind);
+    setExportError(null);
     try {
       // Enrichit le contexte avec audit trail + commentaires pour produire
       // un dossier de qualité audit-grade (cf. ISA 240 § Documentation).
@@ -93,8 +95,11 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
       else if (kind === 'word') await exportAnomaliesWord(filtered, ctx);
       else exportAnomaliesPdf(filtered, ctx);
     } catch (err) {
-      // Échec silencieux côté UI — log console pour diagnostic
+      const msg = err instanceof Error ? err.message : 'Erreur lors de l\'export';
       console.error('[AnomaliesTab] export failed:', err);
+      setExportError(`Export ${kind.toUpperCase()} : ${msg}`);
+      // Auto-clear après 6 secondes
+      setTimeout(() => setExportError(null), 6000);
     } finally {
       setExporting(null);
     }
@@ -140,13 +145,19 @@ export function AnomaliesTab(props: AnomaliesTabProps) {
               onClick={() => handleExport('pdf')}
               disabled={filtered.length === 0 || exporting !== null}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border border-canvas-300 bg-white hover:bg-rose-50 hover:border-rose-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title="Exporter en PDF"
+              title="Exporter en PDF (ouvre un aperçu d'impression — choisir « Enregistrer en PDF »)"
             >
               {exporting === 'pdf' ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileDown className="w-3 h-3 text-rose-700" />}
               PDF
             </button>
           </div>
         </div>
+        {exportError && (
+          <div className="mt-1 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] text-rose-700 flex items-start gap-2">
+            <span>⚠</span>
+            <span>{exportError}. Vérifiez que les pop-ups sont autorisées pour ce site.</span>
+          </div>
+        )}
       </div>
 
       <AnomaliesList
