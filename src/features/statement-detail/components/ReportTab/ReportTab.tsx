@@ -56,12 +56,37 @@ interface ReportTabProps {
 export function ReportTab(props: ReportTabProps) {
   const [chosenTemplate, setChosenTemplate] = useState<ReportTemplate | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
+  // Pour la lettre de réclamation ouverte dans le visualiseur : on construit
+  // un faux SignedReport (template = 'lettre_reclamation') car le viewer
+  // attend toujours un SignedReport en entrée.
+  const [letterReport, setLetterReport] = useState<SignedReport | null>(null);
 
   function handleChoose(t: ReportTemplate) {
     setChosenTemplate(t);
     props.onGenerateReport?.(t);
     // Ouvre le viewer plein ecran des que le rapport est pret
     setViewerOpen(true);
+  }
+
+  function handleOpenLetterInViewer(formattedText: string) {
+    void formattedText; // injecté via complaintLetterText prop
+    const synthLetterReport: SignedReport = {
+      id: `letter-${Date.now()}`,
+      statementId: props.statement.id,
+      template: 'lettre_reclamation',
+      signerId: null,
+      signerHandle: null,
+      signatureType: null,
+      documentUrl: '',
+      proofBundleUrl: null,
+      hash: '—',
+      timestampRfc3161: null,
+      recipients: [],
+      status: 'draft',
+      signedAt: null,
+      createdAt: new Date().toISOString(),
+    };
+    setLetterReport(synthLetterReport);
   }
 
   // Texte de la lettre de réclamation — préparé à l'avance pour pouvoir
@@ -180,10 +205,11 @@ export function ReportTab(props: ReportTabProps) {
           cabinet={props.cabinet}
           signatory={props.currentUser}
           onGenerate={props.onGenerateComplaintLetter}
+          onPreviewInViewer={handleOpenLetterInViewer}
         />
       </div>
 
-      {/* Viewer plein ecran */}
+      {/* Viewer plein ecran — rapport */}
       {viewerOpen && props.generatedReport && (
         <ReportViewerPage
           report={props.generatedReport}
@@ -195,6 +221,21 @@ export function ReportTab(props: ReportTabProps) {
           currentUser={props.currentUser}
           onSignAndSend={props.onSignAndSend}
           onBack={() => setViewerOpen(false)}
+        />
+      )}
+
+      {/* Viewer plein ecran — lettre de reclamation (meme UI que les rapports) */}
+      {letterReport && (
+        <ReportViewerPage
+          report={letterReport}
+          statement={props.statement}
+          anomalies={props.anomalies}
+          reconciliation={props.reconciliation}
+          cabinet={props.cabinet}
+          complaintLetterText={complaintLetterText}
+          currentUser={props.currentUser}
+          onSignAndSend={props.onSignAndSend}
+          onBack={() => setLetterReport(null)}
         />
       )}
     </>

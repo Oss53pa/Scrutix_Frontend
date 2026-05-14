@@ -242,7 +242,7 @@ export interface BankReconciliation {
 // Reports
 // ============================================================================
 
-export type ReportTemplate = 'synthese' | 'valeur_probante' | 'export';
+export type ReportTemplate = 'synthese' | 'valeur_probante' | 'export' | 'lettre_reclamation';
 export type SignatureType = 'simple' | 'advist';
 
 export interface SignedReport {

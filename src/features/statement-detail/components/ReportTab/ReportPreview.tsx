@@ -117,6 +117,18 @@ export interface ReportDocumentBodyProps {
 }
 
 export function ReportDocumentBody(props: ReportDocumentBodyProps) {
+  if (props.report.template === 'lettre_reclamation') {
+    return (
+      <ComplaintLetterDocument
+        report={props.report}
+        statement={props.statement}
+        anomalies={props.anomalies}
+        cabinet={props.cabinet}
+        complaintLetterText={props.complaintLetterText}
+        editable={props.editable}
+      />
+    );
+  }
   if (props.report.template === 'export') {
     return (
       <ExportComptableDocument
@@ -638,6 +650,162 @@ export function ExportComptableDocument({ report, statement, anomalies, cabinet,
 
         <div className="mt-6 pt-3 border-t border-canvas-100 text-center">
           <p className="text-[9px] text-ink-400">Export comptable AtlasBanx · destiné à Atlas Finance / logiciel de comptabilité tiers.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// ComplaintLetterDocument — lettre de réclamation banque (format papier)
+// ============================================================================
+// Rendu A4 typographique de la lettre formelle adressée à la banque.
+// Style identique aux autres templates pour cohérence dans le visualiseur,
+// mais avec un layout « lettre administrative » : en-tête cabinet, adresse
+// destinataire, objet, corps texte, signature.
+
+interface ComplaintLetterProps {
+  report: SignedReport;
+  statement?: ReportPreviewProps['statement'];
+  anomalies: Anomaly[];
+  cabinet?: { name: string; addressLines: string[] };
+  complaintLetterText?: string | null;
+  editable: boolean;
+}
+
+export function ComplaintLetterDocument({
+  report, statement, anomalies, cabinet, complaintLetterText, editable,
+}: ComplaintLetterProps) {
+  // Eligibles : anomalies tarifaires qualifiées+
+  const eligible = anomalies.filter(
+    (a) => ['commission_excessive', 'agio_errone', 'frais_double', 'convention_violee'].includes(a.type)
+      && ['qualified', 'validated', 'signed', 'closed'].includes(a.status),
+  );
+  const totalRecovery = eligible.reduce((s, a) => s + (a.potentialRecoveryCentimes ?? 0), 0);
+  const today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  return (
+    <div className="bg-white">
+      <div className="p-8 sm:p-12 max-w-[720px] mx-auto text-[13px] leading-relaxed text-ink-800">
+
+        {/* Bandeau template */}
+        <div className="mb-4 inline-flex items-center gap-2 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-600 text-white">
+          ✉ Lettre de réclamation officielle
+        </div>
+
+        {/* En-tête cabinet (expéditeur) */}
+        <div className="mb-8">
+          <EditableBlock editable={editable} className="text-base font-bold text-ink-900">
+            {cabinet?.name ?? 'AtlasBanx'}
+          </EditableBlock>
+          {cabinet?.addressLines.map((l, i) => (
+            <p key={i} className="text-xs text-ink-600">{l}</p>
+          ))}
+        </div>
+
+        {/* Destinataire (banque) — bloc à droite */}
+        <div className="flex justify-end mb-8">
+          <div className="text-right">
+            <p className="font-semibold text-ink-900 text-sm">{statement?.bankLegalName ?? 'Banque destinataire'}</p>
+            <p className="text-xs text-ink-600 mt-1">À l'attention du Service Réclamations</p>
+            <p className="text-xs text-ink-600">Direction Générale</p>
+          </div>
+        </div>
+
+        {/* Lieu et date */}
+        <p className="text-xs text-ink-600 mb-6">{cabinet?.addressLines?.[0]?.split(',')?.[0] ?? 'Abidjan'}, le {today}</p>
+
+        {/* Objet */}
+        <div className="mb-6 p-3 bg-canvas-50 border-l-4 border-amber-600">
+          <p className="text-xs uppercase tracking-wider text-amber-800 font-semibold mb-1">Objet</p>
+          <p className="text-sm font-semibold text-ink-900">
+            Réclamation tarifaire — compte {statement?.accountNumber ?? '—'}
+            {totalRecovery > 0 && (
+              <span className="block text-xs font-normal text-ink-700 mt-1">
+                Montant réclamé : <b>{fcfa(totalRecovery)} FCFA</b>
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Civilité */}
+        <p className="mb-4 text-sm">Madame, Monsieur,</p>
+
+        {/* Corps — texte de la lettre formatée OU placeholder si pas générée */}
+        {complaintLetterText ? (
+          <EditableBlock editable={editable} className="text-[12.5px] leading-[1.7] text-ink-800">
+            <pre className="whitespace-pre-wrap font-sans bg-transparent border-0 p-0 m-0">{complaintLetterText}</pre>
+          </EditableBlock>
+        ) : (
+          <div className="space-y-4">
+            <EditableBlock editable={editable}>
+              Suite à l'audit du relevé bancaire pour la période du {statement?.period.start ?? '—'} au {statement?.period.end ?? '—'},
+              nous avons identifié <b>{eligible.length}</b> anomalie{eligible.length > 1 ? 's' : ''} tarifaire{eligible.length > 1 ? 's' : ''}
+              contraire{eligible.length > 1 ? 's' : ''} à la convention en vigueur.
+            </EditableBlock>
+
+            {eligible.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold mb-2">Détail des anomalies relevées :</p>
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-ink-200 text-left">
+                      <th className="py-1 pr-2 font-semibold">Date</th>
+                      <th className="py-1 pr-2 font-semibold">Libellé</th>
+                      <th className="py-1 pr-2 text-right font-semibold">Facturé</th>
+                      <th className="py-1 text-right font-semibold">Récupérable</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eligible.map((a) => (
+                      <tr key={a.id} className="border-b border-canvas-100">
+                        <td className="py-1.5 pr-2 font-mono text-[10px]">{a.transaction.date}</td>
+                        <td className="py-1.5 pr-2">{a.title}</td>
+                        <td className="py-1.5 pr-2 text-right font-mono">{fcfa(Math.abs(a.transaction.amountCentimes))} FCFA</td>
+                        <td className="py-1.5 text-right font-mono font-semibold text-rose-700">
+                          {a.potentialRecoveryCentimes ? `${fcfa(a.potentialRecoveryCentimes)} FCFA` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-ink-300 font-semibold">
+                      <td colSpan={3} className="py-1.5 pr-2">Total à rétrocéder</td>
+                      <td className="py-1.5 text-right font-mono text-rose-800">{fcfa(totalRecovery)} FCFA</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <EditableBlock editable={editable}>
+              Par la présente, nous vous demandons de bien vouloir régulariser ce dossier en procédant au
+              remboursement de la somme de <b>{fcfa(totalRecovery)} FCFA</b> correspondant à l'excédent
+              tarifaire constaté, conformément à la convention signée entre votre établissement et notre client.
+            </EditableBlock>
+
+            <EditableBlock editable={editable}>
+              Dans l'attente de votre réponse dans un délai de 30 jours conformément aux dispositions du
+              règlement CIMA et de l'instruction BCEAO n° 015-2009, nous vous prions d'agréer, Madame, Monsieur,
+              l'expression de nos salutations distinguées.
+            </EditableBlock>
+          </div>
+        )}
+
+        {/* Signature */}
+        <div className="mt-12 flex justify-end">
+          <div className="text-right">
+            <p className="text-sm font-semibold text-ink-900">Le Cabinet</p>
+            <div className="mt-12 border-t border-ink-300 pt-2">
+              <p className="text-xs text-ink-600">Signature et cachet</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer formel */}
+        <div className="mt-8 pt-4 border-t border-canvas-200 text-center">
+          <p className="text-[9px] text-ink-400">
+            Lettre générée le {today} · Réf. {report.id?.slice(0, 12) ?? '—'} ·
+            Conforme aux dispositions BCEAO instructions 015-2009 et 007/2017.
+          </p>
         </div>
       </div>
     </div>

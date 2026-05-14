@@ -23,6 +23,10 @@ interface ComplaintLetterCardProps {
   cabinet: { name: string; addressLines: string[] };
   signatory: { displayName: string; role: 'dg' | 'senior' | 'junior' | 'consultation' };
   onGenerate?: (anomalyIds: string[]) => void;
+  /** Optionnel : si fourni, le bouton « Aperçu » ouvre le visualiseur
+   *  plein écran avec la lettre comme template (cohérent UX avec rapports).
+   *  Si absent, fallback sur l'ancien ComplaintLetterDrawer (rétrocompat). */
+  onPreviewInViewer?: (formattedText: string) => void;
 }
 
 export function ComplaintLetterCard(props: ComplaintLetterCardProps) {
@@ -77,7 +81,16 @@ export function ComplaintLetterCard(props: ComplaintLetterCardProps) {
       )}
       <div className="mt-3 flex items-center gap-2">
         <button
-          onClick={() => setPreviewOpen(true)}
+          onClick={() => {
+            if (!formatted) return;
+            // Préférer l'ouverture dans le visualiseur plein écran si dispo
+            // (UX cohérente avec les rapports — mêmes sidebars, mêmes exports).
+            if (props.onPreviewInViewer) {
+              props.onPreviewInViewer(formatted.text);
+            } else {
+              setPreviewOpen(true);
+            }
+          }}
           disabled={!formatted}
           className="px-3 py-1.5 text-xs border border-amber-400 rounded hover:bg-amber-100 disabled:opacity-50"
         >

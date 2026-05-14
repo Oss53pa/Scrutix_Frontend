@@ -51,9 +51,10 @@ interface ReportViewerPageProps extends ReportPreviewProps {
 type SidebarTab = 'options' | 'sections' | 'summary';
 
 const TEMPLATE_LABEL: Record<string, string> = {
-  synthese:        'Rapport synthèse',
-  valeur_probante: 'Rapport valeur probante',
-  export:          'Export comptable',
+  synthese:           'Rapport synthèse',
+  valeur_probante:    'Rapport valeur probante',
+  export:             'Export comptable',
+  lettre_reclamation: 'Lettre de réclamation',
 };
 
 export function ReportViewerPage(props: ReportViewerPageProps) {
@@ -611,8 +612,20 @@ function buildToc(
 ): TocItem[] {
   const isProbante = template === 'valeur_probante';
   const isExport   = template === 'export';
+  const isLetter   = template === 'lettre_reclamation';
   const isSyn = detail === 'synthese';
   const isExh = detail === 'exhaustif';
+
+  if (isLetter) {
+    return [
+      { number: '1.', label: 'En-tête cabinet',        anchor: 'section-1' },
+      { number: '2.', label: 'Destinataire',           anchor: 'section-2' },
+      { number: '3.', label: 'Objet & montant réclamé', anchor: 'section-3' },
+      { number: '4.', label: 'Corps de la lettre',     anchor: 'section-4' },
+      { number: '5.', label: 'Anomalies détaillées',   anchor: 'section-5' },
+      { number: '6.', label: 'Signature',              anchor: 'section-6' },
+    ];
+  }
 
   if (isExport) {
     const items: TocItem[] = [
