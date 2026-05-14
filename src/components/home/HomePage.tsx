@@ -24,6 +24,7 @@ import { useBankStore } from '../../store/bankStore';
 import { useAuthStore } from '../../store/authStore';
 import { useAccountType } from '../../hooks/useAccountType';
 import { formatCurrency, formatNumber } from '../../utils';
+import { sumRecoverableAmount } from '../../lib/anomalyRecovery';
 
 // ===========================================================================
 // AtlasBanx — Cockpit-style home page
@@ -43,7 +44,7 @@ export function HomePage() {
   const { transactions } = useTransactionStore();
   const { clients, statements } = useClientStore();
   const { banks } = useBankStore();
-  const { currentAnalysis, getTotalPotentialSavings } = useAnalysisStore();
+  const { currentAnalysis } = useAnalysisStore();
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
 
@@ -66,7 +67,11 @@ export function HomePage() {
   const totalAccounts = clients.reduce((sum, c) => sum + c.accounts.length, 0);
   const anomalies = currentAnalysis?.anomalies ?? [];
   const criticalAnomalies = anomalies.filter((a) => a.severity === 'CRITICAL').length;
-  const savings = getTotalPotentialSavings();
+  // Recalcul à la volée pour ignorer toute valeur cachée erronée du store
+  // (ex. un currentAnalysis.statistics.potentialSavings de 3,3 M FCFA qui
+  //  incluait par erreur un virement GAFI non récupérable). Le helper
+  //  centralisé gère les deux conventions de nommage (UPPERCASE + lowercase).
+  const savings = sumRecoverableAmount(anomalies);
   const auditedBanks = useMemo(() => {
     const codes = new Set<string>();
     for (const c of clients) for (const a of c.accounts) codes.add(a.bankCode);

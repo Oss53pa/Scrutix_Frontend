@@ -36,6 +36,7 @@ import { AncillaryServicesAudit } from '../algorithms/AncillaryServicesAudit';
 import { PackagesAudit } from '../algorithms/PackagesAudit';
 import { ClaudeService } from './ClaudeService';
 import { DetectionWorkerPool } from '../workers/WorkerPool';
+import { isRecoverableAnomalyType } from '../lib/anomalyRecovery';
 
 interface AnalysisOptions {
   accountBalances?: DailyBalance[];
@@ -613,22 +614,18 @@ export class AnalysisService {
     // « Économies potentielles » = montants RÉELLEMENT récupérables auprès
     // de la banque. On exclut les types pour lesquels le montant flagué
     // n'est PAS reclaimable :
-    //   - AML_ALERT / SUSPICIOUS_TRANSACTION : signalement LCB-FT, argent
-    //     déjà parti vers un tiers (ce n'est pas la banque qui doit rembourser)
-    //   - CASHFLOW_ANOMALY : info trésorerie, pas un litige
-    //   - RECONCILIATION_GAP : écart compta vs banque, à traiter en interne
-    //   - MULTI_BANK_ISSUE : comparatif inter-banques, pas un dû
+    //   - AML / pays GAFI / suspect : signalement LCB-FT, argent déjà parti
+    //     vers un tiers (ce n'est pas la banque qui doit rembourser)
+    //   - trésorerie / rapprochement : pas un litige bancaire
+    //   - bénéficiaire inédit / montant anormal : indicateur de risque seul
     // Sans ce filtre, un virement GAFI de 3,2 M FCFA gonflait artificiellement
-    // les « économies détectées » alors que rien n'est récupérable de la banque.
-    const NON_RECOVERABLE_TYPES = new Set<AnomalyType>([
-      AnomalyType.AML_ALERT,
-      AnomalyType.SUSPICIOUS_TRANSACTION,
-      AnomalyType.CASHFLOW_ANOMALY,
-      AnomalyType.RECONCILIATION_GAP,
-      AnomalyType.MULTI_BANK_ISSUE,
-    ]);
+    // les « économies détectées » alors que rien n'est récupérable.
+    // ⚠ On normalise la clé pour gérer les DEUX conventions de nommage qui
+    // coexistent dans le code :
+    //   - UPPERCASE (AnomalyType enum, src/types/index.ts) : AML_ALERT, …
+    //   - lowercase (page-relevé, statement.types.ts)      : lcb_ft, pays_gafi_risque, …
     const potentialSavings = anomalies
-      .filter((a) => !NON_RECOVERABLE_TYPES.has(a.type))
+      .filter((a) => isRecoverableAnomalyType(String(a.type)))
       .reduce((sum, a) => sum + a.amount, 0);
 
     // Count by type
