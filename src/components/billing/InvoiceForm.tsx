@@ -23,6 +23,8 @@ interface InvoiceFormProps {
   clients: Client[];
   defaultTaxRate?: number;
   defaultPaymentTermsDays?: number;
+  /** Type de document à créer (facture / devis / avoir). Défaut : 'invoice'. */
+  documentKind?: 'invoice' | 'devis' | 'avoir';
   onCreated?: (invoiceId: string) => void;
   onCancel?: () => void;
 }
@@ -45,6 +47,7 @@ export function InvoiceForm({
   clients,
   defaultTaxRate = 18,
   defaultPaymentTermsDays = 30,
+  documentKind = 'invoice',
   onCreated,
   onCancel,
 }: InvoiceFormProps) {
@@ -114,6 +117,7 @@ export function InvoiceForm({
     try {
       const dto: CreateInvoiceDTO = {
         clientId,
+        documentKind,
         issueDate: new Date(issueDate),
         paymentTermsDays: termsDays,
         taxRate,
