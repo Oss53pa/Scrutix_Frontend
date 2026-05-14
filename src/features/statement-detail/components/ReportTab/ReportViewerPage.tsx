@@ -22,6 +22,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft, Printer, Download, Send, ZoomIn, ZoomOut, Maximize2, Minimize2,
   Pencil, Eye, Save, FileText, ListTree, Sliders, RefreshCw,
+  FileSpreadsheet, FileDown, Loader2,
 } from 'lucide-react';
 import { ReportDocumentBody, type ReportPreviewProps } from './ReportPreview';
 import {
@@ -29,6 +30,10 @@ import {
 } from './ReportOptions';
 import { SignAndSendCard } from './SignAndSendCard';
 import type { SignedReport, SignatureType, ReportRecipient } from '../../types/statement.types';
+import {
+  exportAnomaliesExcel,
+  exportAnomaliesWord,
+} from '../../utils/exportAnomalies';
 
 interface ReportViewerPageProps extends ReportPreviewProps {
   onBack: () => void;
@@ -193,6 +198,38 @@ ${styles}
     }
   }
 
+  // ── Exports Word / Excel ───────────────────────────────────────────────
+  // Le PDF utilise handlePrint (le navigateur produit le PDF via le dialog
+  // d'impression — meilleur rendu typographique avec Dosis).
+  // Word et Excel partagent les utilitaires d'export d'anomalies puisque
+  // l'essentiel des données du rapport est la liste des anomalies + les
+  // métadonnées de la statement.
+  const [exporting, setExporting] = useState<null | 'word' | 'excel'>(null);
+
+  async function handleExport(kind: 'word' | 'excel') {
+    setExporting(kind);
+    try {
+      const ctx = {
+        statementLabel: props.statement
+          ? `${props.statement.bankCode} · ${props.statement.accountNumber}`
+          : undefined,
+        periodLabel: props.statement
+          ? `${props.statement.period.start} → ${props.statement.period.end}`
+          : undefined,
+        clientLabel: props.statement?.clientLegalName,
+        bankLabel: props.statement?.bankLegalName,
+        cabinetName: props.cabinet?.name ?? 'AtlasBanx',
+      };
+      const anomalies = props.anomalies ?? [];
+      if (kind === 'word') await exportAnomaliesWord(anomalies, ctx);
+      else                  await exportAnomaliesExcel(anomalies, ctx);
+    } catch (err) {
+      console.error('[ReportViewerPage] export failed:', err);
+    } finally {
+      setExporting(null);
+    }
+  }
+
   return (
     <div
       ref={containerRef}
@@ -271,9 +308,41 @@ ${styles}
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
           <div className="h-5 w-px bg-canvas-200" />
+          {/* Trio d'export : PDF (via print) · Word (.doc HTML) · Excel (.xlsx) */}
+          <button
+            onClick={() => handleExport('excel')}
+            disabled={exporting !== null}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-canvas-300 hover:bg-emerald-50 hover:border-emerald-300 disabled:opacity-50"
+            title="Exporter en Excel (.xlsx)"
+          >
+            {exporting === 'excel'
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />}
+            Excel
+          </button>
+          <button
+            onClick={() => handleExport('word')}
+            disabled={exporting !== null}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-canvas-300 hover:bg-sky-50 hover:border-sky-300 disabled:opacity-50"
+            title="Exporter en Word (.doc)"
+          >
+            {exporting === 'word'
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <FileText className="w-3.5 h-3.5 text-sky-700" />}
+            Word
+          </button>
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-canvas-300 hover:bg-canvas-50"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-canvas-300 hover:bg-rose-50 hover:border-rose-300"
+            title="Exporter en PDF (aperçu d'impression — choisir « Enregistrer en PDF »)"
+          >
+            <FileDown className="w-3.5 h-3.5 text-rose-700" />
+            PDF
+          </button>
+          <div className="h-5 w-px bg-canvas-200" />
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-canvas-300 hover:bg-canvas-50"
             title="Imprimer (ouvre l'aperçu dans une fenêtre dédiée)"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -284,10 +353,10 @@ ${styles}
               href={props.report.documentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-canvas-300 hover:bg-canvas-50"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border border-canvas-300 hover:bg-canvas-50"
+              title="Télécharger le PDF source signé (si disponible)"
             >
               <Download className="w-3.5 h-3.5" />
-              Télécharger
             </a>
           )}
           <button

@@ -5,7 +5,7 @@
 // Au clic sur "Generer", le rapport s'ouvre en plein ecran avec le visualiseur.
 // ============================================================================
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import type {
   Anomaly,
@@ -20,6 +20,8 @@ import { TemplateChooser } from './TemplateChooser';
 import { ReportViewerPage } from './ReportViewerPage';
 import { ComplaintLetterCard } from './ComplaintLetterCard';
 import { ForensicExportButton } from './ForensicExportButton';
+import { formatComplaintLetter } from '../../reports/formatComplaintLetter';
+import { resolveBankAddress } from '../../data/bankDirectory';
 
 interface ReportTabProps {
   statement: {
@@ -61,6 +63,44 @@ export function ReportTab(props: ReportTabProps) {
     // Ouvre le viewer plein ecran des que le rapport est pret
     setViewerOpen(true);
   }
+
+  // Texte de la lettre de réclamation — préparé à l'avance pour pouvoir
+  // l'afficher comme « Annexe A » dans le visualiseur du rapport quand
+  // l'option « Inclure la lettre de réclamation » est activée.
+  const complaintLetterText = useMemo(() => {
+    const tariffaires = ['commission_excessive', 'agio_errone', 'frais_double', 'convention_violee'];
+    const eligible = props.anomalies.filter(
+      (a) => tariffaires.includes(a.type)
+        && ['qualified', 'validated', 'signed', 'closed'].includes(a.status),
+    );
+    if (eligible.length === 0 || !props.convention) return null;
+
+    const bankAddr = resolveBankAddress(props.statement.bankCode);
+    const formatted = formatComplaintLetter({
+      cabinet: props.cabinet,
+      bank: {
+        legalName: bankAddr.legalName || props.statement.bankLegalName,
+        addressLines: bankAddr.addressLines.length > 0
+          ? bankAddr.addressLines
+          : [props.statement.bankLegalName],
+      },
+      client: {
+        legalName: props.statement.clientLegalName,
+        accountNumber: props.statement.accountNumber,
+      },
+      period: props.statement.period,
+      convention: { id: props.convention.id, signedDate: props.convention.signedDate },
+      anomalies: eligible,
+      signatory: {
+        displayName: props.currentUser.displayName,
+        title: props.currentUser.role.toUpperCase(),
+      },
+    });
+    return formatted.text;
+  }, [
+    props.anomalies, props.convention, props.cabinet,
+    props.statement, props.currentUser,
+  ]);
 
   return (
     <>
@@ -151,6 +191,7 @@ export function ReportTab(props: ReportTabProps) {
           anomalies={props.anomalies}
           reconciliation={props.reconciliation}
           cabinet={props.cabinet}
+          complaintLetterText={complaintLetterText}
           currentUser={props.currentUser}
           onSignAndSend={props.onSignAndSend}
           onBack={() => setViewerOpen(false)}
