@@ -21,11 +21,16 @@ import type { ExtractedTransaction } from '../../extraction/bank-statement';
 interface ImportPageProps {
   /** When set, hide the client picker and pin the import to this client. */
   pinnedClientId?: string;
-  /** When true, hide the page-level header (used when embedded in a tab). */
+  /** When true, hide the page-level header + the global "Données importées"
+   *  summary + the "Effacer" button (which is store-wide, not client-scoped
+   *  and would wipe other clients' data). */
   embedded?: boolean;
+  /** Called when the user clicks the post-import CTA. Replaces the default
+   *  `navigate('/analyses')` which is broken UX from inside a client tab. */
+  onAfterImport?: () => void;
 }
 
-export function ImportPage({ pinnedClientId, embedded = false }: ImportPageProps = {}) {
+export function ImportPage({ pinnedClientId, embedded = false, onAfterImport }: ImportPageProps = {}) {
   const navigate = useNavigate();
   const { isEnterprise } = useAccountType();
   const { transactions, addTransactions, clearTransactions, getTransactionCount } = useTransactionStore();
@@ -513,8 +518,10 @@ export function ImportPage({ pinnedClientId, embedded = false }: ImportPageProps
         </CardBody>
       </Card>
 
-      {/* Current data summary */}
-      {transactionCount > 0 && (
+      {/* Current data summary — hidden in embedded mode because the totals are
+          computed across ALL clients in the store (misleading when scoped to one
+          client) and the "Effacer" button wipes everything globally. */}
+      {!embedded && transactionCount > 0 && (
         <Card>
           <CardHeader
             action={
@@ -580,6 +587,25 @@ export function ImportPage({ pinnedClientId, embedded = false }: ImportPageProps
               </Button>
             </div>
           </CardFooter>
+        </Card>
+      )}
+
+      {/* Embedded post-import CTA — replaces the legacy /analyses navigation
+          which would break out of the client tab context. */}
+      {embedded && transactionCount > 0 && onAfterImport && (
+        <Card>
+          <CardBody className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-primary-900">Import termine</p>
+              <p className="text-xs text-primary-500">
+                Le releve est disponible dans le journal pour analyse detaillee.
+              </p>
+            </div>
+            <Button variant="primary" onClick={onAfterImport}>
+              <FileSearch className="w-4 h-4 mr-1.5" />
+              Voir le journal des releves
+            </Button>
+          </CardBody>
         </Card>
       )}
 

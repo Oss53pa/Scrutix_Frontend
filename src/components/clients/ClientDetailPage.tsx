@@ -60,7 +60,7 @@ export function ClientDetailPage() {
     [currentAnalysis, analysisHistory]
   );
 
-  const clientAnomalies = useMemo(() =>
+  const legacyClientAnomalies = useMemo(() =>
     client
       ? allResults.flatMap((r) => r.anomalies).filter((a) =>
           a.transactions.some((t) => t.clientId === client.id)
@@ -74,15 +74,26 @@ export function ClientDetailPage() {
     [client, reports]
   );
 
-  // ─── Vraies économies : workflow Supabase (validated/signed/closed) ─────
+  // ─── Vraies anomalies : workflow Supabase (detected/qualified/validated/...) ──
   // L'analyse legacy via analysisStore ne capture pas les validations faites
   // dans le détail du relevé. On agrège ici la table atlasbanx.anomalies sur
-  // tous les relevés du client pour avoir le bon compteur.
+  // tous les relevés du client. Quand la donnée workflow est disponible, elle
+  // remplace TOUTE l'analytique legacy (pas juste les compteurs d'économies)
+  // pour éviter les incohérences entre Vue d'ensemble et Économies.
   const clientStatementIds = useMemo(
     () => clientStatements.map((s) => s.id),
     [clientStatements],
   );
-  const workflow = useClientWorkflowSummary(clientStatementIds);
+  const workflow = useClientWorkflowSummary(
+    clientStatementIds,
+    client?.id ?? '',
+    clientStatements,
+  );
+
+  // Source unique pour toute l'analytique : workflow si dispo, sinon legacy.
+  const clientAnomalies = workflow.hasWorkflowData
+    ? workflow.legacyAnomalies
+    : legacyClientAnomalies;
 
   // Comprehensive analytics
   const analytics = useMemo((): ClientAnalytics | null => {
@@ -255,26 +266,8 @@ export function ClientDetailPage() {
     };
   }, [client, clientTransactions, clientAnomalies, banks]);
 
-  // Override des compteurs d'économies par les vrais statuts du workflow
-  // (validated / signed / closed). L'analytics legacy reste utilisée pour
-  // les autres champs (sévérités, types, tendances, banques, risque).
-  const displayAnalytics = useMemo<ClientAnalytics | null>(() => {
-    if (!analytics) return null;
-    if (!workflow.hasWorkflowData) return analytics;
-    const realized = workflow.summary.realizedCount;
-    const totalActed = realized + workflow.summary.potentialCount;
-    return {
-      ...analytics,
-      totalSavings: workflow.summary.realizedAmount,
-      potentialSavings: workflow.summary.potentialAmount,
-      confirmedCount: realized,
-      pendingCount: workflow.summary.potentialCount + workflow.summary.pendingCount,
-      confirmationRate: totalActed > 0 ? Math.round((realized / totalActed) * 100) : 0,
-    };
-  }, [analytics, workflow.hasWorkflowData, workflow.summary]);
-
   // Early return if no client
-  if (!client || !analytics || !displayAnalytics) {
+  if (!client || !analytics) {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-medium text-primary-900 mb-2">Client non trouve</h2>
@@ -348,7 +341,7 @@ export function ClientDetailPage() {
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <OverviewTab
-          analytics={displayAnalytics}
+          analytics={analytics}
           clientTransactions={clientTransactions}
           clientAnomalies={clientAnomalies}
         />
@@ -364,7 +357,7 @@ export function ClientDetailPage() {
       )}
 
       {activeTab === 'import' && (
-        <ImportTab clientId={client.id} />
+        <ImportTab clientId={client.id} onAfterImport={() => setActiveTab('statements')} />
       )}
 
       {activeTab === 'statements' && (
@@ -381,7 +374,7 @@ export function ClientDetailPage() {
 
       {activeTab === 'savings' && (
         <SavingsTab
-          analytics={displayAnalytics}
+          analytics={analytics}
           clientAnomalies={clientAnomalies}
           workflowRealizedAnomalies={workflow.summary.realizedAnomalies}
           workflowSourced={workflow.hasWorkflowData}

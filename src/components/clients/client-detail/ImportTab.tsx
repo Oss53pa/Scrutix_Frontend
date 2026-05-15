@@ -3,6 +3,8 @@ import { ImportPage } from '../../import/ImportPage';
 
 interface ImportTabProps {
   clientId: string;
+  /** Called after import completes — typically switches to the statements tab. */
+  onAfterImport?: () => void;
 }
 
 /**
@@ -13,6 +15,6 @@ interface ImportTabProps {
  * Note: the "Journal relevés" tab is a different concern — it lists
  * already-imported statements, classified by bank and period.
  */
-export const ImportTab = memo(function ImportTab({ clientId }: ImportTabProps) {
-  return <ImportPage pinnedClientId={clientId} embedded />;
+export const ImportTab = memo(function ImportTab({ clientId, onAfterImport }: ImportTabProps) {
+  return <ImportPage pinnedClientId={clientId} embedded onAfterImport={onAfterImport} />;
 });
