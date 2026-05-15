@@ -95,7 +95,8 @@ function workflowStatusToLegacy(s: WorkflowAnomaly['status']): LegacyAnomaly['st
   return 'pending';
 }
 
-function amountXAF(a: WorkflowAnomaly): number {
+/** Exporté pour les tests — montant XAF d'une anomalie (récupérabilité prioritaire). */
+export function amountXAF(a: WorkflowAnomaly): number {
   // Estimation de récupérabilité prioritaire ; à défaut, valeur absolue de la tx.
   if (typeof a.potentialRecoveryCentimes === 'number' && a.potentialRecoveryCentimes > 0) {
     return a.potentialRecoveryCentimes / 100;
@@ -103,7 +104,8 @@ function amountXAF(a: WorkflowAnomaly): number {
   return Math.abs(a.transaction.amountCentimes) / 100;
 }
 
-function summarize(anomalies: WorkflowAnomaly[]): ClientWorkflowSummary {
+/** Exporté pour les tests — agrège les anomalies workflow en un summary. */
+export function summarizeWorkflowAnomalies(anomalies: WorkflowAnomaly[]): ClientWorkflowSummary {
   const realized: WorkflowAnomaly[] = [];
   let realizedAmount = 0;
   let potentialCount = 0;
@@ -134,8 +136,9 @@ function summarize(anomalies: WorkflowAnomaly[]): ClientWorkflowSummary {
 }
 
 /** Convertit une anomalie workflow vers le format legacy `Anomaly` pour que
- *  toute l'analytics existante (sévérités, types, tendance, banques) en bénéficie. */
-function toLegacyAnomaly(
+ *  toute l'analytics existante (sévérités, types, tendance, banques) en bénéficie.
+ *  Exporté pour les tests. */
+export function toLegacyAnomaly(
   a: WorkflowAnomaly,
   clientId: string,
   bankCodeByStatement: Map<string, { bankCode: string; bankName?: string }>,
@@ -262,7 +265,7 @@ export function useClientWorkflowSummary(
     void fetchAll();
   }, [fetchAll]);
 
-  const summary = useMemo(() => summarize(anomalies), [anomalies]);
+  const summary = useMemo(() => summarizeWorkflowAnomalies(anomalies), [anomalies]);
 
   // Lookup table statementId → bankCode pour la conversion legacy
   const bankByStatement = useMemo(() => {
