@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Upload,
   Users,
   Landmark,
   FileBarChart,
@@ -48,11 +47,10 @@ const SECTIONS: NavSection[] = [
     label: 'Données',
     items: [
       // Workflow: 1) configure the banks & conditions, 2) register clients,
-      // 3) import their statements for analysis. The order matters.
+      // 3) import statements from inside the client detail page.
       { name: 'Banques & Conditions',  href: '/banks',   icon: Landmark },
       { name: 'Benchmark tarifaire',   href: '/conditions-intelligence', icon: ArrowLeftRight },
       { name: 'Clients',               href: '/clients', icon: Users,    cabinetOnly: true },
-      { name: 'Import',                href: '/import',  icon: Upload },
     ],
   },
   {

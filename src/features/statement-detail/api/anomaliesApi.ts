@@ -28,6 +28,27 @@ export async function loadAnomalies(statementId: string): Promise<Anomaly[]> {
   return (data ?? []).map(mapAnomalyRow);
 }
 
+/**
+ * Load anomalies across many statements in one round-trip.
+ * Used by client-level analytics that need to aggregate workflow status
+ * (validated / signed / closed → confirmed savings) across all relevés
+ * a client owns.
+ */
+export async function loadAnomaliesForStatements(statementIds: string[]): Promise<Anomaly[]> {
+  if (statementIds.length === 0) return [];
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error('Supabase non configuré');
+
+  const { data, error } = await sb
+    .schema('atlasbanx' as never)
+    .from('anomalies' as never)
+    .select('*')
+    .in('statement_id', statementIds)
+    .order('detected_at', { ascending: false });
+  if (error) throw new Error(`Erreur anomalies: ${error.message}`);
+  return (data ?? []).map(mapAnomalyRow);
+}
+
 export async function loadAnomalyComments(anomalyIds: string[]): Promise<AnomalyComment[]> {
   if (anomalyIds.length === 0) return [];
   const sb = getSupabaseClient();

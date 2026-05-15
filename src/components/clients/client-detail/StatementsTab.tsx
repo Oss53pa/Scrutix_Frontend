@@ -14,6 +14,8 @@ interface StatementsTabProps {
   banks: Bank[];
   navigate: (path: string) => void;
   onOpenStatement?: (statementId: string) => void;
+  /** Switch to the in-page Import tab instead of navigating away. */
+  onOpenImport?: () => void;
 }
 
 // ============================================================================
@@ -120,11 +122,13 @@ export const StatementsTab = memo(function StatementsTab({
   banks,
   navigate,
   onOpenStatement,
+  onOpenImport,
 }: StatementsTabProps) {
   const tree = useMemo(
     () => buildTree(clientAccounts, clientStatements, banks),
     [clientAccounts, clientStatements, banks],
   );
+  const goImport = onOpenImport ?? (() => navigate('/import'));
 
   if (tree.length === 0) {
     return (
@@ -135,7 +139,7 @@ export const StatementsTab = memo(function StatementsTab({
           <p className="text-primary-500 mb-4">
             Ajoutez un compte bancaire et importez des releves pour commencer.
           </p>
-          <Button onClick={() => navigate('/import')}>
+          <Button onClick={goImport}>
             <Upload className="w-4 h-4 mr-2" />
             Importer un releve
           </Button>
@@ -150,7 +154,7 @@ export const StatementsTab = memo(function StatementsTab({
         <h2 className="text-sm font-semibold text-primary-700">
           {tree.length} banque{tree.length > 1 ? 's' : ''} · {clientStatements.length} releve{clientStatements.length > 1 ? 's' : ''}
         </h2>
-        <Button size="sm" onClick={() => navigate('/import')}>
+        <Button size="sm" onClick={goImport}>
           <Upload className="w-3.5 h-3.5 mr-1.5" />
           Importer
         </Button>

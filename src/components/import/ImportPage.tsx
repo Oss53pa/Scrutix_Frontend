@@ -18,7 +18,14 @@ import {
 } from '../import-verification';
 import type { ExtractedTransaction } from '../../extraction/bank-statement';
 
-export function ImportPage() {
+interface ImportPageProps {
+  /** When set, hide the client picker and pin the import to this client. */
+  pinnedClientId?: string;
+  /** When true, hide the page-level header (used when embedded in a tab). */
+  embedded?: boolean;
+}
+
+export function ImportPage({ pinnedClientId, embedded = false }: ImportPageProps = {}) {
   const navigate = useNavigate();
   const { isEnterprise } = useAccountType();
   const { transactions, addTransactions, clearTransactions, getTransactionCount } = useTransactionStore();
@@ -31,8 +38,15 @@ export function ImportPage() {
     [isEnterprise, clients],
   );
 
+  // Treat a pinned client (e.g. embedded in client detail) like enterprise mode:
+  // skip the client picker and force selection.
+  const isPinned = Boolean(pinnedClientId);
+  const hideClientPicker = isEnterprise || isPinned;
+
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string>(() => (isEnterprise ? selfClient?.id ?? '' : ''));
+  const [selectedClientId, setSelectedClientId] = useState<string>(
+    () => pinnedClientId ?? (isEnterprise ? selfClient?.id ?? '' : ''),
+  );
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedBankCode, setSelectedBankCode] = useState<string>('');
   const [showNewAccount, setShowNewAccount] = useState(false);
@@ -51,6 +65,13 @@ export function ImportPage() {
       setSelectedClientId(selfClient.id);
     }
   }, [isEnterprise, selfClient, selectedClientId]);
+
+  // Pinned mode (e.g. embedded in client detail): keep client locked to prop
+  useEffect(() => {
+    if (pinnedClientId && selectedClientId !== pinnedClientId) {
+      setSelectedClientId(pinnedClientId);
+    }
+  }, [pinnedClientId, selectedClientId]);
 
   // Get selected client
   const selectedClient = useMemo(() =>
@@ -231,16 +252,18 @@ export function ImportPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="page-header">
-        <h1 className="page-title">Import de relevés bancaires</h1>
-        <p className="page-description">
-          Importez vos relevés bancaires pour lancer l'analyse des anomalies
-        </p>
-      </div>
+      {/* Header — hidden when embedded in another page (e.g. client detail tab) */}
+      {!embedded && (
+        <div className="page-header">
+          <h1 className="page-title">Import de relevés bancaires</h1>
+          <p className="page-description">
+            Importez vos relevés bancaires pour lancer l'analyse des anomalies
+          </p>
+        </div>
+      )}
 
-      {/* Step 1: Client Selection — hidden in enterprise mode (implicit self client) */}
-      {!isEnterprise && (
+      {/* Step 1: Client Selection — hidden when client is pinned (enterprise or embedded) */}
+      {!hideClientPicker && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -316,7 +339,7 @@ export function ImportPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-primary-900 text-white text-sm flex items-center justify-center">
-                {isEnterprise ? '1' : '2'}
+                {hideClientPicker ? '1' : '2'}
               </span>
               Sélectionner le compte bancaire
             </CardTitle>
@@ -449,12 +472,12 @@ export function ImportPage() {
           <CardTitle className="flex items-center gap-2">
             <span className={`w-6 h-6 rounded-full text-sm flex items-center justify-center ${
               canImport ? 'bg-primary-900 text-white' : 'bg-primary-300 text-white'
-            }`}>{isEnterprise ? '2' : '3'}</span>
+            }`}>{hideClientPicker ? '2' : '3'}</span>
             Téléverser les fichiers
           </CardTitle>
           <CardDescription>
             {canImport ? (
-              isEnterprise ? (
+              hideClientPicker ? (
                 <>
                   {selectedAccount ? (
                     <>
@@ -473,7 +496,7 @@ export function ImportPage() {
                 </>
               )
             ) : (
-              isEnterprise
+              hideClientPicker
                 ? 'Sélectionnez d\'abord un compte bancaire'
                 : 'Sélectionnez d\'abord un client et un compte bancaire'
             )}

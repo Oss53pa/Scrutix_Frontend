@@ -1,6 +1,6 @@
 import { Client, BankStatement, AuditReport, Transaction, Anomaly, Bank } from '../../../types';
 
-export type TabType = 'overview' | 'info' | 'statements' | 'analyses' | 'savings' | 'reports';
+export type TabType = 'overview' | 'info' | 'import' | 'statements' | 'savings' | 'reports';
 
 export interface BankBreakdown {
   bankCode: string;
