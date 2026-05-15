@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Building2,
   FileText,
-  Search,
   PiggyBank,
   FileBarChart,
   Upload,
@@ -21,13 +20,14 @@ import { AddAccountModal } from './AddAccountModal';
 import {
   OverviewTab,
   InfoTab,
+  ImportTab,
   StatementsTab,
-  AnalysesTab,
   SavingsTab,
   ReportsTab,
   TabType,
   ClientAnalytics,
 } from './client-detail';
+import { useClientWorkflowSummary } from './client-detail/useClientWorkflowSummary';
 
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -73,6 +73,16 @@ export function ClientDetailPage() {
     client ? reports.filter((r) => r.clientId === client.id) : [],
     [client, reports]
   );
+
+  // ─── Vraies économies : workflow Supabase (validated/signed/closed) ─────
+  // L'analyse legacy via analysisStore ne capture pas les validations faites
+  // dans le détail du relevé. On agrège ici la table atlasbanx.anomalies sur
+  // tous les relevés du client pour avoir le bon compteur.
+  const clientStatementIds = useMemo(
+    () => clientStatements.map((s) => s.id),
+    [clientStatements],
+  );
+  const workflow = useClientWorkflowSummary(clientStatementIds);
 
   // Comprehensive analytics
   const analytics = useMemo((): ClientAnalytics | null => {
@@ -245,8 +255,26 @@ export function ClientDetailPage() {
     };
   }, [client, clientTransactions, clientAnomalies, banks]);
 
+  // Override des compteurs d'économies par les vrais statuts du workflow
+  // (validated / signed / closed). L'analytics legacy reste utilisée pour
+  // les autres champs (sévérités, types, tendances, banques, risque).
+  const displayAnalytics = useMemo<ClientAnalytics | null>(() => {
+    if (!analytics) return null;
+    if (!workflow.hasWorkflowData) return analytics;
+    const realized = workflow.summary.realizedCount;
+    const totalActed = realized + workflow.summary.potentialCount;
+    return {
+      ...analytics,
+      totalSavings: workflow.summary.realizedAmount,
+      potentialSavings: workflow.summary.potentialAmount,
+      confirmedCount: realized,
+      pendingCount: workflow.summary.potentialCount + workflow.summary.pendingCount,
+      confirmationRate: totalActed > 0 ? Math.round((realized / totalActed) * 100) : 0,
+    };
+  }, [analytics, workflow.hasWorkflowData, workflow.summary]);
+
   // Early return if no client
-  if (!client || !analytics) {
+  if (!client || !analytics || !displayAnalytics) {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-medium text-primary-900 mb-2">Client non trouve</h2>
@@ -261,8 +289,8 @@ export function ClientDetailPage() {
   const tabs = [
     { id: 'overview' as TabType, label: 'Vue d\'ensemble', icon: Building2 },
     { id: 'info' as TabType, label: 'Fiche client', icon: ClipboardList },
+    { id: 'import' as TabType, label: 'Import', icon: Upload },
     { id: 'statements' as TabType, label: 'Journal releves', icon: FileText, count: clientStatements.length },
-    { id: 'analyses' as TabType, label: 'Analyses', icon: Search, count: clientAnomalies.length },
     { id: 'savings' as TabType, label: 'Economies', icon: PiggyBank },
     { id: 'reports' as TabType, label: 'Journal rapports', icon: FileBarChart, count: clientReports.length },
   ];
@@ -292,7 +320,7 @@ export function ClientDetailPage() {
           <Button variant="secondary" size="sm" onClick={() => setShowEditClient(true)}>
             <Pencil className="w-3 h-3 mr-1" />Modifier
           </Button>
-          <Button size="sm" onClick={() => navigate('/import')}>
+          <Button size="sm" onClick={() => setActiveTab('import')}>
             <Upload className="w-3 h-3 mr-1" />Import
           </Button>
         </div>
@@ -320,7 +348,7 @@ export function ClientDetailPage() {
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <OverviewTab
-          analytics={analytics}
+          analytics={displayAnalytics}
           clientTransactions={clientTransactions}
           clientAnomalies={clientAnomalies}
         />
@@ -335,6 +363,10 @@ export function ClientDetailPage() {
         />
       )}
 
+      {activeTab === 'import' && (
+        <ImportTab clientId={client.id} />
+      )}
+
       {activeTab === 'statements' && (
         <StatementsTab
           clientStatements={clientStatements}
@@ -343,21 +375,17 @@ export function ClientDetailPage() {
           banks={banks}
           navigate={navigate}
           onOpenStatement={(id) => navigate(`/statements/${id}`)}
-        />
-      )}
-
-      {activeTab === 'analyses' && (
-        <AnalysesTab
-          clientAnomalies={clientAnomalies}
-          analytics={analytics}
-          navigate={navigate}
+          onOpenImport={() => setActiveTab('import')}
         />
       )}
 
       {activeTab === 'savings' && (
         <SavingsTab
-          analytics={analytics}
+          analytics={displayAnalytics}
           clientAnomalies={clientAnomalies}
+          workflowRealizedAnomalies={workflow.summary.realizedAnomalies}
+          workflowSourced={workflow.hasWorkflowData}
+          onOpenStatement={(id) => navigate(`/statements/${id}`)}
         />
       )}
 
