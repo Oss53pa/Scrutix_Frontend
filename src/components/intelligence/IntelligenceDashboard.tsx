@@ -35,6 +35,8 @@ interface DashboardState {
   lastRefresh: Date | null;
 }
 
+type ViewMode = 'cards' | 'table';
+
 // Zone badge colors
 const ZONE_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   green: { bg: 'bg-green-100', text: 'text-green-800', label: 'Verte' },
@@ -53,6 +55,7 @@ export function IntelligenceDashboard() {
     error: null,
     lastRefresh: null,
   });
+  const [view, setView] = useState<ViewMode>('cards');
 
   const fetchMetrics = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -111,6 +114,41 @@ export function IntelligenceDashboard() {
             <span className={`w-2 h-2 rounded-full ${llmStatus ? 'bg-green-500' : 'bg-gray-400'}`} />
             {llmStatus ? 'LLM Ollama actif' : 'Mode deterministe'}
           </span>
+
+          {/* Toggle Cartes / Tableau — segmented control */}
+          <div
+            role="tablist"
+            aria-label="Mode d'affichage"
+            className="inline-flex items-center bg-gray-100 rounded-md p-0.5"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'cards'}
+              onClick={() => setView('cards')}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                view === 'cards'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Cartes
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'table'}
+              onClick={() => setView('table')}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                view === 'table'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Tableau
+            </button>
+          </div>
+
           <button
             onClick={fetchMetrics}
             disabled={state.loading}
@@ -128,29 +166,31 @@ export function IntelligenceDashboard() {
         </div>
       )}
 
-      {/* Competence Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {Object.values(CompetenceId)
-          .filter((v): v is CompetenceId => typeof v === 'number')
-          .map(id => {
-            const metric = state.metrics.find(m => m.competence_id === id);
-            const zone = COMPETENCE_ZONES[id];
-            const zoneStyle = ZONE_COLORS[zone];
+      {/* Competence Grid — Vue cartes */}
+      {view === 'cards' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Object.values(CompetenceId)
+            .filter((v): v is CompetenceId => typeof v === 'number')
+            .map(id => {
+              const metric = state.metrics.find(m => m.competence_id === id);
+              const zone = COMPETENCE_ZONES[id];
+              const zoneStyle = ZONE_COLORS[zone];
 
-            return (
-              <CompetenceCard
-                key={id}
-                id={id}
-                label={COMPETENCE_LABELS[id]}
-                zone={zoneStyle}
-                metric={metric}
-              />
-            );
-          })}
-      </div>
+              return (
+                <CompetenceCard
+                  key={id}
+                  id={id}
+                  label={COMPETENCE_LABELS[id]}
+                  zone={zoneStyle}
+                  metric={metric}
+                />
+              );
+            })}
+        </div>
+      )}
 
-      {/* Metrics Table */}
-      {state.metrics.length > 0 && (
+      {/* Metrics Table — Vue tableau */}
+      {view === 'table' && state.metrics.length > 0 && (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
