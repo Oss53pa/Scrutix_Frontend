@@ -553,6 +553,7 @@ export interface ArchivedDocument {
   type: 'conditions' | 'tarifs' | 'annexe' | 'autre';
   uploadDate: Date;
   effectiveDate: Date;
+  expirationDate?: Date;
   fileData: string; // Base64 encoded PDF
   fileSize: number;
   extractedAt?: Date;

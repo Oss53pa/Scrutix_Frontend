@@ -23,7 +23,17 @@
 //   5. If the bank has no grid at all, return null and let the caller decide
 // ============================================================================
 
-import type { Bank, BankConditions, BankStatement, ConditionGrid } from '../types';
+import type {
+  Bank,
+  BankConditions,
+  BankStatement,
+  ConditionGrid,
+  AnalysisResult,
+  AnalysisStatistics,
+  AnalysisSummary,
+  AnomalyType,
+  Severity,
+} from '../types';
 
 export interface ResolutionInput {
   bankCode: string;
@@ -177,6 +187,56 @@ export class BankConditionsResolver {
     }
     return [...buckets.values()];
   }
+
+  /**
+   * Split transactions by the grid that was in force on their date.
+   * Returns one bucket per (bankCode, grid) combination. Each transaction
+   * is assigned to the grid that covers its date; if no grid covers a
+   * transaction, it falls into the bank's active grid (or a null bucket).
+   */
+  splitTransactionsByGrid<T extends { date: Date | string; bankCode?: string }>(
+    transactions: T[],
+    fallbackBankCode?: string,
+  ): Array<{
+    grid: ConditionGrid | null;
+    transactions: T[];
+    bankCode: string;
+    resolution: ResolutionResult;
+  }> {
+    const buckets = new Map<string, {
+      grid: ConditionGrid | null;
+      transactions: T[];
+      bankCode: string;
+      resolution: ResolutionResult;
+    }>();
+
+    for (const tx of transactions) {
+      const code = (tx.bankCode || fallbackBankCode || 'UNKNOWN');
+      const txDate = typeof tx.date === 'string' ? new Date(tx.date) : tx.date;
+
+      // Resolve with a single-day period so the grid is matched to this tx's date
+      const res = this.resolve({
+        bankCode: code,
+        start: txDate,
+        end: txDate,
+      });
+
+      const key = `${code}::${res.grid?.id ?? 'none'}`;
+      const existing = buckets.get(key);
+      if (existing) {
+        existing.transactions.push(tx);
+      } else {
+        buckets.set(key, {
+          grid: res.grid,
+          transactions: [tx],
+          bankCode: code,
+          resolution: res,
+        });
+      }
+    }
+
+    return [...buckets.values()];
+  }
 }
 
 /**
@@ -219,4 +279,69 @@ export function gridToBankConditions(
 function formatFr(d: Date | string): string {
   const dt = typeof d === 'string' ? new Date(d) : d;
   return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+/**
+ * Merge multiple AnalysisResult objects (one per grid bucket) into a single
+ * unified result. Anomalies are concatenated, statistics are summed/recomputed.
+ */
+export function mergeAnalysisResults(results: AnalysisResult[]): AnalysisResult {
+  if (results.length === 0) {
+    throw new Error('mergeAnalysisResults: at least one result required');
+  }
+  if (results.length === 1) return results[0];
+
+  const allAnomalies = results.flatMap((r) => r.anomalies);
+
+  // Merge statistics
+  const mergedStats: AnalysisStatistics = {
+    totalTransactions: results.reduce((s, r) => s + r.statistics.totalTransactions, 0),
+    totalAmount: results.reduce((s, r) => s + r.statistics.totalAmount, 0),
+    totalAnomalies: allAnomalies.length,
+    totalAnomalyAmount: results.reduce((s, r) => s + r.statistics.totalAnomalyAmount, 0),
+    anomaliesByType: {} as Record<AnomalyType, number>,
+    anomaliesBySeverity: {} as Record<Severity, number>,
+    anomalyRate: 0,
+    potentialSavings: results.reduce((s, r) => s + r.statistics.potentialSavings, 0),
+  };
+
+  // Sum anomaliesByType across all results
+  for (const r of results) {
+    for (const [type, count] of Object.entries(r.statistics.anomaliesByType)) {
+      const key = type as AnomalyType;
+      mergedStats.anomaliesByType[key] = (mergedStats.anomaliesByType[key] ?? 0) + count;
+    }
+    for (const [sev, count] of Object.entries(r.statistics.anomaliesBySeverity)) {
+      const key = sev as Severity;
+      mergedStats.anomaliesBySeverity[key] = (mergedStats.anomaliesBySeverity[key] ?? 0) + count;
+    }
+  }
+  mergedStats.anomalyRate = mergedStats.totalTransactions > 0
+    ? (mergedStats.totalAnomalies / mergedStats.totalTransactions) * 100
+    : 0;
+
+  // Merge summary — pick worst status, concat findings
+  const statusOrder: Record<string, number> = { OK: 0, WARNING: 1, CRITICAL: 2 };
+  const worstStatus = results.reduce<'OK' | 'WARNING' | 'CRITICAL'>((worst, r) => {
+    return (statusOrder[r.summary.status] ?? 0) > (statusOrder[worst] ?? 0)
+      ? r.summary.status
+      : worst;
+  }, 'OK');
+
+  const mergedSummary: AnalysisSummary = {
+    status: worstStatus,
+    message: results.length > 1
+      ? `Audit multi-grille (${results.length} grilles tarifaires) — ${allAnomalies.length} anomalie(s) détectée(s).`
+      : results[0].summary.message,
+    keyFindings: [...new Set(results.flatMap((r) => r.summary.keyFindings))],
+    recommendations: [...new Set(results.flatMap((r) => r.summary.recommendations))],
+  };
+
+  return {
+    ...results[0],
+    anomalies: allAnomalies,
+    statistics: mergedStats,
+    summary: mergedSummary,
+    completedAt: new Date(),
+  };
 }

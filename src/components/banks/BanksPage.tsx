@@ -847,12 +847,25 @@ export function BanksPage() {
           //    session would show stale values.
           const bank = banks.find((b) => b.id === bankId);
           const activeGridForBank = bank ? getActiveGrid(bankId) : null;
+
+          // 3. Extract effectiveDate/expirationDate from the active document
+          //    so the ConditionGrid has correct validity dates for bi-temporal
+          //    resolution (split-by-grid audit).
+          const docs = (conditions as Record<string, unknown>).documents as Array<{
+            isActive?: boolean;
+            effectiveDate?: Date | string;
+            expirationDate?: Date | string;
+          }> | undefined;
+          const activeDoc = docs?.find((d) => d.isActive);
+
           if (activeGridForBank) {
             updateConditionGrid(bankId, activeGridForBank.id, {
               conditions: {
                 ...activeGridForBank.conditions,
                 ...conditions,
               } as typeof activeGridForBank.conditions,
+              ...(activeDoc?.effectiveDate ? { effectiveDate: new Date(activeDoc.effectiveDate) } : {}),
+              ...(activeDoc?.expirationDate ? { expirationDate: new Date(activeDoc.expirationDate) } : { expirationDate: undefined }),
               updatedAt: new Date(),
             });
           }

@@ -27,7 +27,7 @@ export { ClaudeService, getClaudeService, hasClaudeService, clearClaudeService }
 export { ReportService } from './ReportService';
 export { PremiumReportService } from './PremiumReportService';
 export type { PremiumReportData } from './PremiumReportService';
-export { BankConditionsResolver, gridToBankConditions } from './BankConditionsResolver';
+export { BankConditionsResolver, gridToBankConditions, mergeAnalysisResults } from './BankConditionsResolver';
 export type { ResolutionInput, ResolutionResult } from './BankConditionsResolver';
 export {
   computeDistribution,

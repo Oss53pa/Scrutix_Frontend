@@ -27,7 +27,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useAccountType } from '../../hooks/useAccountType';
 import { formatCurrency, formatDate } from '../../utils';
 import { AnomalyType, Severity, ANOMALY_TYPE_LABELS, DetectionSource, DEFAULT_THRESHOLDS, Anomaly, Transaction } from '../../types';
-import { getAnalysisService, ClaudeService, PremiumReportService, BankConditionsResolver, gridToBankConditions } from '../../services';
+import { getAnalysisService, ClaudeService, PremiumReportService, BankConditionsResolver, gridToBankConditions, mergeAnalysisResults } from '../../services';
 import type { ResolutionResult } from '../../services';
 
 type ViewMode = 'config' | 'viewer';
@@ -318,81 +318,15 @@ export function AnalysesPage() {
     try {
       const service = getAnalysisService(thresholds);
 
-      // ── Bi-temporal grid resolution ────────────────────────────────────
-      // Pick the right tariff grid for each bank+period combination present
-      // in the transactions being audited. The previous code used the first
-      // grid in the global settings store regardless of bank — silently wrong
-      // on multi-bank or multi-period audits.
+      // ── Split transactions by grid (bi-temporal) ───────────────────────
+      // Each transaction is matched to the tariff grid in force on its date.
+      // Transactions are grouped into buckets per (bankCode, grid). Each
+      // bucket is analysed independently, then results are merged. This
+      // ensures that a period straddling two grilles (e.g. 2024→2025) uses
+      // the correct tariff for each transaction.
       const txScope = clientTransactions.length > 0 ? clientTransactions : transactions;
-      const txByBank = new Map<string, { txs: typeof txScope; start: number; end: number }>();
-      for (const t of txScope) {
-        const code = t.bankCode || 'UNKNOWN';
-        const ts = new Date(t.date).getTime();
-        const bucket = txByBank.get(code);
-        if (bucket) {
-          bucket.txs.push(t);
-          if (ts < bucket.start) bucket.start = ts;
-          if (ts > bucket.end) bucket.end = ts;
-        } else {
-          txByBank.set(code, { txs: [t], start: ts, end: ts });
-        }
-      }
-
       const resolver = new BankConditionsResolver(banks);
-      // Dominant bank = the one with the most transactions; we run the
-      // analysis once on its grid. Multi-bank merging is a Phase B follow-up.
-      const dominant = [...txByBank.entries()]
-        .sort(([, a], [, b]) => b.txs.length - a.txs.length)[0];
-
-      let resolution: ResolutionResult | null = null;
-      let analysisConditions;
-      if (dominant) {
-        const [domCode, domBucket] = dominant;
-        const bank = banks.find((b) => b.code === domCode);
-        resolution = resolver.resolve({
-          bankCode: domCode,
-          start: new Date(domBucket.start),
-          end: new Date(domBucket.end),
-        });
-        const zone = bank?.zone ?? null;
-        analysisConditions = bank
-          ? gridToBankConditions(resolution.grid, bank, zone)
-          : (bankConditions[0] ?? null);
-      } else {
-        analysisConditions = bankConditions[0];
-      }
-      if (!analysisConditions) {
-        analysisConditions = {
-          id: 'default',
-          bankCode: 'DEFAULT',
-          bankName: 'Banque',
-          country: 'CM',
-          currency: 'XAF',
-          effectiveDate: new Date(),
-          fees: [],
-          interestRates: [],
-          isActive: true,
-        };
-      }
-
-      // Surface the resolution in the console for now — Phase C will show
-      // it as a badge in the analysis viewer header.
-      if (resolution) {
-        console.info('[Analyses] Bi-temporal grid resolution:', {
-          strategy: resolution.strategy,
-          gridName: resolution.grid?.name,
-          partial: resolution.partial,
-          explanation: resolution.explanation,
-        });
-        if (resolution.strategy === 'none' || resolution.strategy === 'active_fallback') {
-          console.warn('[Analyses]', resolution.explanation);
-        }
-        if (txByBank.size > 1) {
-          console.warn(
-            `[Analyses] Multi-bank audit detected (${txByBank.size} banks). Currently the analysis applies the dominant bank's grid only.`,
-          );
-        }
-      }
+      const gridBuckets = resolver.splitTransactionsByGrid(txScope);
 
       // Setup Claude service if enabled and mode requires it
       let claudeService: ClaudeService | undefined;
@@ -403,17 +337,69 @@ export function AnalysesPage() {
         });
       }
 
-      const result = await service.analyzeTransactions(
-        clientTransactions.length > 0 ? clientTransactions : transactions,
-        analysisConditions,
-        config,
-        {
-          onProgress: (prog, step) => updateProgress(prog, step),
-          claudeService,
-          enableAICategorization: analysisMode !== 'algorithm' && claudeApi.enableCategorization,
-          enableAIFraudDetection: analysisMode !== 'algorithm' && claudeApi.enableFraudDetection,
+      // Log resolution info
+      for (const bucket of gridBuckets) {
+        console.info('[Analyses] Grid bucket:', {
+          bankCode: bucket.bankCode,
+          strategy: bucket.resolution.strategy,
+          gridName: bucket.resolution.grid?.name ?? '(aucune)',
+          txCount: bucket.transactions.length,
+          partial: bucket.resolution.partial,
+        });
+        if (bucket.resolution.strategy === 'none' || bucket.resolution.strategy === 'active_fallback') {
+          console.warn('[Analyses]', bucket.resolution.explanation);
         }
-      );
+      }
+      if (gridBuckets.length > 1) {
+        console.info(
+          `[Analyses] Audit multi-grille : ${gridBuckets.length} buckets de transactions.`,
+        );
+      }
+
+      // Run analysis per bucket, then merge
+      const bucketResults = [];
+      const totalBuckets = gridBuckets.length;
+      for (let i = 0; i < totalBuckets; i++) {
+        const bucket = gridBuckets[i];
+        const bank = banks.find((b) => b.code === bucket.bankCode);
+        const zone = bank?.zone ?? null;
+        const bucketConditions = bank
+          ? gridToBankConditions(bucket.grid, bank, zone)
+          : (bankConditions[0] ?? {
+              id: 'default',
+              bankCode: 'DEFAULT',
+              bankName: 'Banque',
+              country: 'CM',
+              currency: 'XAF',
+              effectiveDate: new Date(),
+              fees: [],
+              interestRates: [],
+              isActive: true,
+            });
+
+        const progressOffset = (i / totalBuckets) * 90;
+        const progressScale = 90 / totalBuckets;
+        const gridLabel = bucket.grid?.name ?? bucket.bankCode;
+
+        const bucketResult = await service.analyzeTransactions(
+          bucket.transactions,
+          bucketConditions,
+          config,
+          {
+            onProgress: (prog, step) =>
+              updateProgress(
+                progressOffset + (prog / 100) * progressScale,
+                totalBuckets > 1 ? `[${gridLabel}] ${step}` : step,
+              ),
+            claudeService,
+            enableAICategorization: analysisMode !== 'algorithm' && claudeApi.enableCategorization,
+            enableAIFraudDetection: analysisMode !== 'algorithm' && claudeApi.enableFraudDetection,
+          }
+        );
+        bucketResults.push(bucketResult);
+      }
+
+      const result = mergeAnalysisResults(bucketResults);
 
       completeAnalysis(result);
       setViewMode('viewer');

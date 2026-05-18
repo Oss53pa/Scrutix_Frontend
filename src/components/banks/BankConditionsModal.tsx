@@ -2228,15 +2228,35 @@ export function BankConditionsModal({
                   <div className="space-y-2">
                     {conditions.documents.map(doc => {
                       const hasValues = doc.extractedValues && Object.keys(doc.extractedValues).length > 0;
+                      const toInputDate = (d: Date | string | undefined) => {
+                        if (!d) return '';
+                        const dt = new Date(d);
+                        if (isNaN(dt.getTime())) return '';
+                        return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+                      };
+                      const updateDocDate = (field: 'effectiveDate' | 'expirationDate', value: string) => {
+                        // effectiveDate is required — ignore empty values to prevent undefined
+                        if (field === 'effectiveDate' && !value) return;
+                        setConditions(prev => ({
+                          ...prev,
+                          documents: prev.documents.map(d =>
+                            d.id === doc.id
+                              ? { ...d, [field]: value ? new Date(value + 'T00:00:00Z') : undefined }
+                              : d,
+                          ),
+                        }));
+                        setHasChanges(true);
+                      };
                       return (
                         <div
                           key={doc.id}
-                          className={`flex items-center justify-between gap-3 p-3 rounded-lg border-2 transition-colors ${
+                          className={`p-3 rounded-lg border-2 transition-colors ${
                             doc.isActive
                               ? 'bg-emerald-50 border-emerald-400 shadow-sm'
                               : 'bg-white border-primary-200 hover:border-primary-300'
                           }`}
                         >
+                          <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <FileText className={`w-6 h-6 shrink-0 ${doc.isActive ? 'text-emerald-600' : 'text-primary-500'}`} />
                             <div className="min-w-0 flex-1">
@@ -2307,6 +2327,38 @@ export function BankConditionsModal({
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
+                          </div>
+                          </div>
+                          {/* Période de validité */}
+                          <div className="mt-2 pt-2 border-t border-primary-100 flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[11px] font-medium text-primary-600 whitespace-nowrap">
+                                En vigueur du
+                              </label>
+                              <input
+                                type="date"
+                                value={toInputDate(doc.effectiveDate)}
+                                onChange={(e) => updateDocDate('effectiveDate', e.target.value)}
+                                className="text-xs border border-primary-200 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-accent-400 focus:border-accent-400"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[11px] font-medium text-primary-600 whitespace-nowrap">
+                                au
+                              </label>
+                              <input
+                                type="date"
+                                value={toInputDate(doc.expirationDate)}
+                                onChange={(e) => updateDocDate('expirationDate', e.target.value)}
+                                className="text-xs border border-primary-200 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-accent-400 focus:border-accent-400"
+                                placeholder="Indéterminée"
+                              />
+                            </div>
+                            {!doc.expirationDate && (
+                              <span className="text-[10px] text-amber-600 italic">
+                                Pas de date de fin — valable indéfiniment
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
